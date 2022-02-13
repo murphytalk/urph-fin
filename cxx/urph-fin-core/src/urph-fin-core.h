@@ -5,6 +5,7 @@ extern "C"
 {
 
 bool urph_fin_core_init();
+void urph_fin_core_close();
 
 }
 
