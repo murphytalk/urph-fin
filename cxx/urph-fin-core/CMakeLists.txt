@@ -1,3 +1,13 @@
+set(lib_target urph-fin-core)
+
 add_src_libs_ ()
-add_library (urph-fin-core ${the_SRC})
-target_include_directories (urph-fin-core PUBLIC src)
+
+set(FIREBASE_CPP_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/firebase_cpp_sdk)
+add_subdirectory(${FIREBASE_CPP_SDK_DIR} bin/ EXCLUDE_FROM_ALL)
+add_library (${lib_target} ${the_SRC})
+
+set(firebase_libs firebase_auth firebase_app)
+target_link_libraries(${lib_target} ${firebase_libs})
+
+# populate include to project that uses this target
+target_include_directories (${lib_target} PUBLIC src)

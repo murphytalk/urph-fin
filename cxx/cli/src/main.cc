@@ -34,7 +34,6 @@ int main(int argc, char *argv[])
         localSession.ExitAction(
             [&scheduler](auto& out) // session exit action
             {
-                out << "Closing App...\n";
                 scheduler.Stop();
             }
         );

@@ -31,4 +31,6 @@
 *.out
 *.app
 
-build/
+firebase_cpp_sdk/
+*build/
+v/
