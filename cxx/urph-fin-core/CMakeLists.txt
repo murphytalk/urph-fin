@@ -6,6 +6,8 @@ set(FIREBASE_CPP_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/firebase_cpp_s
 add_subdirectory(${FIREBASE_CPP_SDK_DIR} bin/ EXCLUDE_FROM_ALL)
 add_library (${lib_target} ${the_SRC})
 
+add_log_header(${lib_target})
+
 set(firebase_libs firebase_auth firebase_app)
 target_link_libraries(${lib_target} ${firebase_libs})
 

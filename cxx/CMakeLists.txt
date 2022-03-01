@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 3.22.0)
 project(urph-fin)
 set (CMAKE_CXX_STANDARD 17)
 
+set(project_root ${CMAKE_CURRENT_SOURCE_DIR})
+
 #set(CMAKE_DEBUG_TARGET_PROPERTIES
 #  INCLUDE_DIRECTORIES
 #  COMPILE_DEFINITIONS
@@ -9,6 +11,7 @@ set (CMAKE_CXX_STANDARD 17)
 #  CONTAINER_SIZE_REQUIRED
 #  LIB_VERSION
 #)
+
 include(CMake/internal_utils.cmake)
 
 
