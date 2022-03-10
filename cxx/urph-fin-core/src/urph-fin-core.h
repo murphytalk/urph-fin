@@ -4,7 +4,9 @@
 extern "C"
 {
 
-bool urph_fin_core_init();
+typedef void (*OnInitDone)();
+
+bool urph_fin_core_init(OnInitDone);
 void urph_fin_core_close();
 
 }

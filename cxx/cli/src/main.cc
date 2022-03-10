@@ -8,7 +8,7 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-    if(!urph_fin_core_init()){
+    if(!urph_fin_core_init([](){ cout << "init done"<< std::endl; })){
         cout<<"Failed to init";
         return 1;
     }

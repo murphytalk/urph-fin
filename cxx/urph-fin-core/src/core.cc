@@ -47,7 +47,7 @@ using ::firebase::auth::EmailAuthProvider;
 
 static bool quit = false;
 
-bool ProcessEvents(int msec) {
+static bool ProcessEvents(int msec) {
 #ifdef _WIN32
   Sleep(msec);
 #else
@@ -71,6 +71,10 @@ static std::string get_home_dir()
     return std::string(homedir);
 }
 
+static YAML::Node load_cfg(){
+    return YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
+}
+
 
 class Cloud{
 private:
@@ -80,7 +84,7 @@ private:
 
     }
 public:
-    Cloud(){
+    Cloud(OnInitDone onInitDone){
         _firebaseApp = 
 #if defined(__ANDROID__)
             App::Create(GetJniEnv(), GetActivity())
@@ -108,19 +112,11 @@ public:
 
         LOG(DEBUG) << "Cloud instance created\n";
 
-#if defined(__ANDROID__)
-#else
-        auto cfg = YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
-        auto userCfg = cfg["user"];
-        auto email = userCfg["email"].as<std::string>();
-        auto passwd = userCfg["password"].as<std::string>();
-        LOG(INFO) << "Log in as " << email << "\n"; 
-        _firebaseAuth->SignInWithEmailAndPassword(email.c_str(), passwd.c_str())
-#endif
-        .OnCompletion([](const Future<User*>& u, void*){
+        auto c = [](const Future<User*>& u, void* onInitDone){
             auto err_code = u.error();
             if(err_code == 0){
                 LOG(INFO) << "Auth completed\n";
+                (*(OnInitDone)onInitDone)();
             }
             else{
                 std::ostringstream ss;
@@ -128,7 +124,18 @@ public:
                 throw std::runtime_error(ss.str());
             }
 
-        }, nullptr);
+        };
+#if defined(__ANDROID__)
+#else
+        auto cfg = load_cfg();
+        auto userCfg = cfg["user"];
+        auto email = userCfg["email"].as<std::string>();
+        auto passwd = userCfg["password"].as<std::string>();
+        LOG(INFO) << "Log in as " << email << "\n"; 
+        _firebaseAuth->SignInWithEmailAndPassword(email.c_str(), passwd.c_str())
+#endif
+        .OnCompletion(c, (void*)onInitDone);
+        
     }
     ~Cloud(){
         _firebaseAuth->SignOut();
@@ -140,7 +147,7 @@ public:
 
 Cloud *cloud;
 
-bool urph_fin_core_init()
+bool urph_fin_core_init(OnInitDone onInitDone)
 {
     std::vector<AixLog::log_sink_ptr> sinks;
     
@@ -154,7 +161,7 @@ bool urph_fin_core_init()
     LOG(DEBUG) << "urph-fin-core initializing\n";
 
     try{
-        cloud = new Cloud();
+        cloud = new Cloud(onInitDone);
         return true;
     }
     catch(const std::exception& e){
