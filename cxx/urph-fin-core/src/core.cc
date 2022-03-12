@@ -8,8 +8,6 @@
 #endif  // _WIN32
 
 
-
-
 #include <stdlib.h>
 
 #ifdef _WIN32

@@ -11,7 +11,6 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/yaml-cpp yaml-bin/ EXC
 add_library (${lib_target} ${the_SRC})
 
 add_log_header(${lib_target})
-#target_include_directories(${lib_target} PRIVATE ${project_root}/3rd-party/rapidyaml/src)
 
 set(firebase_libs firebase_auth firebase_app)
 target_link_libraries(${lib_target} ${firebase_libs} yaml-cpp)

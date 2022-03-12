@@ -1,4 +1,7 @@
 #include <iostream>
+#include <mutex>
+#include <condition_variable>
+
 #include <urph-fin-core.h>
 #include "cli/clilocalsession.h"
 #include <cli/loopscheduler.h>
@@ -6,13 +9,8 @@
 
 using namespace std;
 
-int main(int argc, char *argv[])
+void main_menu()
 {
-    if(!urph_fin_core_init([](){ cout << "init done"<< std::endl; })){
-        cout<<"Failed to init";
-        return 1;
-    }
-
     try
     {
         auto rootMenu = make_unique< cli::Menu >( "urph-fin" );
@@ -45,7 +43,32 @@ int main(int argc, char *argv[])
     {
         std::cerr << e.what() << '\n';
     }
-    
+}
+
+static bool init_done = false;
+static std::mutex m;
+static std::condition_variable cv;
+
+int main(int argc, char *argv[])
+{
+    if(!urph_fin_core_init([](){
+        {
+            std::lock_guard<std::mutex> lk(m);
+            init_done = true;
+            std::cout << "init done" << std::endl;
+        }
+        cv.notify_one();
+    })){
+        cout<<"Failed to init";
+        return 1;
+    }
+
+    {
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait(lk, []{return init_done;});
+    }
+    main_menu(); 
+   
     urph_fin_core_close();
     return 0;
 }
