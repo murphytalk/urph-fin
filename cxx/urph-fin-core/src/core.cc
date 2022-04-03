@@ -8,7 +8,8 @@
 #endif  // _WIN32
 
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <cassert>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -43,6 +44,8 @@ using ::firebase::auth::Credential;
 using ::firebase::auth::EmailAuthProvider;
 
 using ::firebase::firestore::Firestore;
+using ::firebase::firestore::CollectionReference;
+using ::firebase::firestore::DocumentReference;
 
 static bool quit = false;
 
@@ -53,6 +56,27 @@ static bool ProcessEvents(int msec) {
   usleep(msec * 1000);
 #endif  // _WIN32
   return quit;
+}
+
+static const int kTimeoutMs = 5000;
+static const int kSleepMs = 100;
+// Waits for a Future to be completed and returns whether the future has
+// completed successfully. If the Future returns an error, it will be logged.
+static bool Await(const firebase::FutureBase& future, const char* name) {
+  int remaining_timeout = kTimeoutMs;
+  while (future.status() == firebase::kFutureStatusPending && remaining_timeout > 0) {
+    remaining_timeout -= kSleepMs;
+    ProcessEvents(kSleepMs);
+  }
+
+  if (future.status() != firebase::kFutureStatusComplete) {
+    LOG(ERROR) << name << " returned an invalid result.\n";
+    return false;
+  } else if (future.error() != 0) {
+    LOG(ERROR) << name << "returned error code=" << future.error() <<",msg=" << future.error_message() << "\n";
+    return false;
+  }
+  return true;
 }
 
 static std::string get_home_dir()
@@ -74,15 +98,72 @@ static YAML::Node load_cfg(){
     return YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
 }
 
+// dont forget to free
+static char* copy_str(const std::string& str)
+{
+    char* p = new char(str.size() + 1);
+    strncpy(p, str.c_str(), str.size());
+    return p;
+}
+
+class CashBalance: public cash_balance{
+public:
+    CashBalance(const std::string& n, float v){
+        ccy = copy_str(n);
+        balance = v;        
+    }
+    ~CashBalance(){
+        LOG(DEBUG) << " ccy= " << ccy << " ";
+        delete ccy;
+    }
+};
+
+template<typename Wrapper, typename T>
+void free_multiple_structs(Wrapper* data){
+   T* p = data->head();
+   for(int i = 0 ; i < data->num ; ++i, ++p){
+       delete p;
+   }
+}
+
+class Broker: public broker{
+public:
+    Broker(const std::string&n, int ccy_num, CashBalance* first_ccy_balance){
+       name = copy_str(n);
+       num = ccy_num;
+       cash_balances = first_ccy_balance;
+    }
+    ~Broker(){
+        LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
+        delete name;
+        free_multiple_structs<Broker, CashBalance>(this);
+        LOG(DEBUG) << "] - freed!\n";
+    }
+    CashBalance* head() { return static_cast<CashBalance*>(cash_balances); }
+};
+
+class Brokers: public brokers{
+public:
+    Brokers(){
+        num = 0;
+        brokers = nullptr;
+    }
+    Brokers(int n, Broker* first_broker){
+        num = n;
+        brokers = first_broker;
+    }
+    void free(){
+        LOG(DEBUG) << "freeing " << num << " brokers \n";
+        free_multiple_structs<Brokers, Broker>(this);
+    }
+    Broker* head() { return static_cast<Broker*>(brokers); }
+};
 
 class Cloud{
 private:
     App*  _firebaseApp;
     Auth* _firebaseAuth;
     Firestore* _firestore;
-    void auth(){
-
-    }
 public:
     Cloud(OnInitDone onInitDone){
         _firebaseApp = 
@@ -161,6 +242,44 @@ public:
         delete _firebaseApp;
         LOG(DEBUG) << "Cloud instance destroied\n";
     }
+
+    Brokers get_brokers()
+    {
+        auto ref = get_brokers_ref();
+        auto f = ref.Get();
+
+        if(Await(f, "get brokers")){
+            const auto& all_brokers = f.result()->documents();
+            Broker** brokers = new Broker* [all_brokers.size()];
+            Broker* head_broker = brokers[0];
+            for(const auto& broker: all_brokers){
+                const auto& num = broker.Get("num");
+                for(int i = 0; i < num.integer_value() ; ++i){
+                    const auto& cash = broker.Get("cash");
+                    const auto& all_ccys = cash.map_value();
+                    CashBalance** balances = new CashBalance* [all_ccys.size()];
+                    CashBalance* head = balances[0];
+                    for(const auto& b: all_ccys){
+                        *balances = new CashBalance(b.first, b.second.double_value());
+                        ++balances;
+                    }
+                    *brokers = new Broker(broker.id(), all_ccys.size(), head);
+                    ++brokers;
+                }
+            }
+            return Brokers(all_brokers.size(), head_broker);
+        }
+        else{
+            return Brokers();
+        }
+    }
+
+    void free_brokers(brokers* b){
+        Brokers* brokers = static_cast<Brokers*>(b);
+        brokers->free();
+    }
+private:
+    inline CollectionReference get_brokers_ref() const { return _firestore->Collection("Brokers"); }
 };
 
 Cloud *cloud;
@@ -186,6 +305,19 @@ bool urph_fin_core_init(OnInitDone onInitDone)
         LOG(ERROR) << "Failed to init cloud service: " << e.what() << "\n";
         return false;
     }
+}
+
+// https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
+brokers get_brokers()
+{
+    assert(cloud != nullptr);
+    return cloud->get_brokers();
+}
+
+void free_brokers(brokers data)
+{
+    assert(cloud != nullptr);
+    cloud->free_brokers(&data);
 }
 
 void urph_fin_core_close()
