@@ -28,7 +28,7 @@
 #include "firebase/auth.h"
 #include "firebase/auth/credential.h"
 #include "firebase/util.h"
-
+#include "firebase/firestore.h"
 
 using ::firebase::App;
 using ::firebase::AppOptions;
@@ -42,6 +42,7 @@ using ::firebase::auth::AuthError;
 using ::firebase::auth::Credential;
 using ::firebase::auth::EmailAuthProvider;
 
+using ::firebase::firestore::Firestore;
 
 static bool quit = false;
 
@@ -78,6 +79,7 @@ class Cloud{
 private:
     App*  _firebaseApp;
     Auth* _firebaseAuth;
+    Firestore* _firestore;
     void auth(){
 
     }
@@ -91,12 +93,29 @@ public:
 #endif
         ;
 
+        _firestore = nullptr;
+        void* initialize_targets[] = {&_firestore};
+
+        const firebase::ModuleInitializer::InitializerFn initializers[] = {
+            // auth
+            [](::firebase::App* app, void*) {
+                LOG(INFO)<<"Attempt to initialize Firebase Auth.\n";
+                ::firebase::InitResult init_result;
+                Auth::GetAuth(app, &init_result);
+                return init_result;
+            },
+            // firestore
+            [](firebase::App* app, void* data) {
+                LOG(INFO)<<"Attempt to initialize Firebase Firestore.\n";
+                void** targets = reinterpret_cast<void**>(data);
+                firebase::InitResult result;
+                *reinterpret_cast<Firestore**>(targets[0]) = Firestore::GetInstance(app, &result);
+                return result;
+            }
+        };
+
         ::firebase::ModuleInitializer initializer;
-        initializer.Initialize(_firebaseApp, nullptr, [](::firebase::App* app, void*) {
-            ::firebase::InitResult init_result;
-            Auth::GetAuth(app, &init_result);
-            return init_result;
-        });
+        initializer.Initialize(_firebaseApp, initialize_targets, initializers, sizeof(initializers) / sizeof(initializers[0]));
 
         while (initializer.InitializeLastResult().status() != firebase::kFutureStatusComplete) {
             if (ProcessEvents(100)) throw std::runtime_error("Timeout when wait for firestore app to initialize");
@@ -137,6 +156,7 @@ public:
     }
     ~Cloud(){
         _firebaseAuth->SignOut();
+        delete _firestore;
         delete _firebaseAuth;
         delete _firebaseApp;
         LOG(DEBUG) << "Cloud instance destroied\n";
