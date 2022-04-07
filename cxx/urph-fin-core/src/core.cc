@@ -46,6 +46,7 @@ using ::firebase::auth::EmailAuthProvider;
 using ::firebase::firestore::Firestore;
 using ::firebase::firestore::CollectionReference;
 using ::firebase::firestore::DocumentReference;
+using ::firebase::firestore::FieldValue;
 
 static bool quit = false;
 
@@ -101,8 +102,9 @@ static YAML::Node load_cfg(){
 // dont forget to free
 static char* copy_str(const std::string& str)
 {
-    char* p = new char(str.size() + 1);
+    char* p = new char[str.size() + 1];
     strncpy(p, str.c_str(), str.size());
+    p[str.size()] = 0;
     return p;
 }
 
@@ -128,7 +130,7 @@ void free_multiple_structs(Wrapper* data){
 
 class Broker: public broker{
 public:
-    Broker(const std::string&n, int ccy_num, CashBalance* first_ccy_balance){
+    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance){
        name = copy_str(n);
        num = ccy_num;
        cash_balances = first_ccy_balance;
@@ -136,7 +138,7 @@ public:
     ~Broker(){
         LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
         delete name;
-        free_multiple_structs<Broker, CashBalance>(this);
+        free_multiple_structs<Broker, cash_balance>(this);
         LOG(DEBUG) << "] - freed!\n";
     }
     CashBalance* head() { return static_cast<CashBalance*>(cash_balances); }
@@ -146,17 +148,17 @@ class Brokers: public brokers{
 public:
     Brokers(){
         num = 0;
-        brokers = nullptr;
+        first_broker = nullptr;
     }
-    Brokers(int n, Broker* first_broker){
+    Brokers(int n, broker* broker){
         num = n;
-        brokers = first_broker;
+        first_broker = broker;
     }
     void free(){
         LOG(DEBUG) << "freeing " << num << " brokers \n";
-        free_multiple_structs<Brokers, Broker>(this);
+        free_multiple_structs<Brokers, broker>(this);
     }
-    Broker* head() { return static_cast<Broker*>(brokers); }
+    Broker* head() { return static_cast<Broker*>(first_broker); }
 };
 
 class Cloud{
@@ -175,6 +177,9 @@ public:
         ;
 
         _firestore = nullptr;
+        char buf[200];
+        getcwd(buf, 200);
+        LOG(DEBUG) << "Started at " << buf << "\n";
         void* initialize_targets[] = {&_firestore};
 
         const firebase::ModuleInitializer::InitializerFn initializers[] = {
@@ -243,35 +248,33 @@ public:
         LOG(DEBUG) << "Cloud instance destroied\n";
     }
 
+
     Brokers get_brokers()
     {
         auto ref = get_brokers_ref();
         auto f = ref.Get();
-
+        LOG(INFO)<<"size of Broker=" << sizeof(Broker) << ", sizeof broker="<<sizeof(broker)<<"\n";
         if(Await(f, "get brokers")){
             const auto& all_brokers = f.result()->documents();
-            Broker** brokers = new Broker* [all_brokers.size()];
-            Broker* head_broker = brokers[0];
-            for(const auto& broker: all_brokers){
-                const auto& num = broker.Get("num");
-                for(int i = 0; i < num.integer_value() ; ++i){
+            if (!all_brokers.empty()) {
+                broker** brokers = new broker* [all_brokers.size()];
+                broker** brokers_head = brokers;
+                for (const auto& broker : all_brokers) {
                     const auto& cash = broker.Get("cash");
                     const auto& all_ccys = cash.map_value();
-                    CashBalance** balances = new CashBalance* [all_ccys.size()];
-                    CashBalance* head = balances[0];
-                    for(const auto& b: all_ccys){
-                        *balances = new CashBalance(b.first, b.second.double_value());
+                    cash_balance ** balances = new cash_balance * [all_ccys.size()];
+                    cash_balance ** head = balances;
+                    for (const auto& b : all_ccys) {
+                        *balances = new CashBalance(b.first, get_num_as_double(b.second));
                         ++balances;
                     }
-                    *brokers = new Broker(broker.id(), all_ccys.size(), head);
+                    *brokers = new Broker(broker.id(), all_ccys.size(), *head);
                     ++brokers;
                 }
+                return Brokers(all_brokers.size(), *brokers_head);
             }
-            return Brokers(all_brokers.size(), head_broker);
         }
-        else{
-            return Brokers();
-        }
+        return Brokers();
     }
 
     void free_brokers(brokers* b){
@@ -279,6 +282,7 @@ public:
         brokers->free();
     }
 private:
+    inline double get_num_as_double(const FieldValue& fv){ return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); }
     inline CollectionReference get_brokers_ref() const { return _firestore->Collection("Brokers"); }
 };
 

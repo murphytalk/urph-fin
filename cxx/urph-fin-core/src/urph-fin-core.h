@@ -19,7 +19,7 @@ struct broker{
     cash_balance* cash_balances;
 };
 struct brokers{
-    struct broker* brokers;
+    struct broker* first_broker;
     int num;
 };
 brokers get_brokers();
