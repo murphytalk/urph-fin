@@ -13,7 +13,12 @@ add_library (${lib_target} ${the_SRC})
 add_log_header(${lib_target})
 
 set(firebase_libs firebase_auth firebase_firestore firebase_app)
-target_link_libraries(${lib_target} ${firebase_libs} yaml-cpp)
+
+if(WIN32)
+  set(extra_libs wsock32 ws2_32 crypt32)
+endif()
+
+target_link_libraries(${lib_target} ${firebase_libs} yaml-cpp ${extra_libs})
 
 # populate include to project that uses this target
 target_include_directories (${lib_target} PUBLIC src)
