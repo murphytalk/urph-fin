@@ -16,10 +16,10 @@ struct cash_balance{
 struct broker{
     char* name;
     int num;
-    cash_balance* cash_balances;
+    cash_balance** cash_balance_ptrs;
 };
 struct brokers{
-    struct broker* first_broker;
+    broker** broker_ptrs;
     int num;
 };
 brokers get_brokers();

@@ -122,18 +122,19 @@ public:
 
 template<typename Wrapper, typename T>
 void free_multiple_structs(Wrapper* data){
-   T* p = data->head();
-   for(int i = 0 ; i < data->num ; ++i, ++p){
-       delete p;
-   }
+    T** p = data->head();
+    for(int i = 0; i < data->num ; ++i, ++p){
+        delete *p;
+    }
+    delete [] data->head();
 }
 
 class Broker: public broker{
 public:
-    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance){
+    Broker(const std::string&n, int ccy_num, cash_balance** first_ccy_balance){
        name = copy_str(n);
        num = ccy_num;
-       cash_balances = first_ccy_balance;
+       cash_balance_ptrs = first_ccy_balance;
     }
     ~Broker(){
         LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
@@ -141,24 +142,24 @@ public:
         free_multiple_structs<Broker, CashBalance>(this);
         LOG(DEBUG) << "] - freed!\n";
     }
-    CashBalance* head() { return static_cast<CashBalance*>(cash_balances); }
+    CashBalance** head() { return reinterpret_cast<CashBalance**>(cash_balance_ptrs); }
 };
 
 class Brokers: public brokers{
 public:
     Brokers(){
         num = 0;
-        first_broker = nullptr;
+        broker_ptrs = nullptr;
     }
-    Brokers(int n, broker* broker){
+    Brokers(int n, broker** broker){
         num = n;
-        first_broker = broker;
+        broker_ptrs = broker;
     }
     void free(){
         LOG(DEBUG) << "freeing " << num << " brokers \n";
         free_multiple_structs<Brokers, Broker>(this);
     }
-    Broker* head() { return static_cast<Broker*>(first_broker); }
+    Broker** head() { return reinterpret_cast<Broker**>(broker_ptrs); }
 };
 
 static_assert(sizeof(Brokers) == sizeof(brokers));
@@ -255,7 +256,6 @@ public:
 
     Brokers get_brokers()
     {
-
         auto ref = get_brokers_ref();
         auto f = ref.Get();
         if(Await(f, "get brokers")){
@@ -268,17 +268,17 @@ public:
                     const auto& cash = broker.Get("cash");
                     const auto& all_ccys = cash.map_value();
                     LOG(DEBUG) << " " << broker.id() << "\n";
-                    cash_balance ** balances = new cash_balance * [all_ccys.size()];
+                    cash_balance ** balances = new cash_balance* [all_ccys.size()];
                     cash_balance ** head = balances;
                     for (const auto& b : all_ccys) {
                         *balances = new CashBalance(b.first, get_num_as_double(b.second));
                         LOG(DEBUG) << "  " << (*balances)->balance << " " << (*balances)->ccy << "" "\n";
                         ++balances;
                     }
-                    *brokers = new Broker(broker.id(), all_ccys.size(), *head);
+                    *brokers = new Broker(broker.id(), all_ccys.size(), head);
                     ++brokers;
                 }
-                return Brokers(all_brokers.size(), *brokers_head);
+                return Brokers(all_brokers.size(), brokers_head);
             }
         }
         return Brokers();
