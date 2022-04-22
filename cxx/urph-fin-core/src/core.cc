@@ -138,7 +138,7 @@ public:
     ~Broker(){
         LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
         delete name;
-        free_multiple_structs<Broker, cash_balance>(this);
+        free_multiple_structs<Broker, CashBalance>(this);
         LOG(DEBUG) << "] - freed!\n";
     }
     CashBalance* head() { return static_cast<CashBalance*>(cash_balances); }
@@ -156,10 +156,14 @@ public:
     }
     void free(){
         LOG(DEBUG) << "freeing " << num << " brokers \n";
-        free_multiple_structs<Brokers, broker>(this);
+        free_multiple_structs<Brokers, Broker>(this);
     }
     Broker* head() { return static_cast<Broker*>(first_broker); }
 };
+
+static_assert(sizeof(Brokers) == sizeof(brokers));
+static_assert(sizeof(Broker) == sizeof(broker));
+static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
 
 class Cloud{
 private:
@@ -251,21 +255,24 @@ public:
 
     Brokers get_brokers()
     {
+
         auto ref = get_brokers_ref();
         auto f = ref.Get();
-        LOG(INFO)<<"size of Broker=" << sizeof(Broker) << ", sizeof broker="<<sizeof(broker)<<"\n";
         if(Await(f, "get brokers")){
             const auto& all_brokers = f.result()->documents();
             if (!all_brokers.empty()) {
+                LOG(DEBUG) << "Loading " << all_brokers.size() << " brokers\n";
                 broker** brokers = new broker* [all_brokers.size()];
                 broker** brokers_head = brokers;
                 for (const auto& broker : all_brokers) {
                     const auto& cash = broker.Get("cash");
                     const auto& all_ccys = cash.map_value();
+                    LOG(DEBUG) << " " << broker.id() << "\n";
                     cash_balance ** balances = new cash_balance * [all_ccys.size()];
                     cash_balance ** head = balances;
                     for (const auto& b : all_ccys) {
                         *balances = new CashBalance(b.first, get_num_as_double(b.second));
+                        LOG(DEBUG) << "  " << (*balances)->balance << " " << (*balances)->ccy << "" "\n";
                         ++balances;
                     }
                     *brokers = new Broker(broker.id(), all_ccys.size(), *head);
