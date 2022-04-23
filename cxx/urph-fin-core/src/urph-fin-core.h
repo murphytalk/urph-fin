@@ -22,8 +22,30 @@ struct all_brokers{
     broker* brokers;
     int num;
 };
+
 all_brokers* get_brokers();
 void free_brokers(all_brokers*);
+
+// seconds since epoch
+typedef int64_t timestamp;
+
+struct fund_balance{
+    char* name;
+    char* id;
+    int amount;
+    double capital;
+    double market_value;
+    double price;
+    timestamp update_time; 
+};
+
+struct fund_portfolio{
+    int num;
+    fund_balance* balances;
+};
+
+fund_portfolio* get_fund_portfolio(char* broker);
+void free_fund_portfolio(fund_portfolio*);
 
 }
 #endif // URPH_FIN_CORE_H_
