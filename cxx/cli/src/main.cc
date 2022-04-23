@@ -10,8 +10,7 @@
 
 using namespace std;
 
-
-void main_menu()
+static void main_menu()
 {
     try
     {
@@ -31,11 +30,19 @@ void main_menu()
         );
 
         rootMenu->Insert(
-            "funds",
+            "fund",
             [](ostream& out, string broker){
-                out<<"Show " << broker << " funds portfolio\n";
+                out<<"Show " << broker << " Mutual Funds portfolio\n";
             },
-            "List funds portfolio by broker"
+            "List mutual funds portfolio by broker"
+        );
+
+        rootMenu->Insert(
+            "stock",
+            [](ostream& out, string broker){
+                out<<"Show " << broker << " Stock & ETF portfolio\n";
+            },
+            "List stock and ETF portfolio by broker"
         );
 
 

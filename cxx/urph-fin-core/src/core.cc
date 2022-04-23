@@ -340,19 +340,21 @@ public:
     }
 private:
     static inline double get_num_as_double(const FieldValue& fv){ return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); }
-    inline CollectionReference get_brokers_ref() const { return _firestore->Collection("Brokers"); }
-    template<typename T>
-    T* for_each_broker(std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_brokers)
+    inline CollectionReference get_collection_ref(const char* name) const { return _firestore->Collection(name); }
+    template<typename T> T* for_each_doc(const char* collection_name, std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_docs)
     {
-        auto ref = get_brokers_ref();
+        auto ref = get_collection_ref(collection_name);
         auto f = ref.Get();
-        if(Await(f, "get brokers")){
-            const auto& all_brokers = f.result()->documents();
-            if (!all_brokers.empty()) {
-                return on_all_brokers(all_brokers);
+        if(Await(f, collection_name)){
+            const auto& all_docs= f.result()->documents();
+            if (!all_docs.empty()) {
+                return on_all_docs(all_docs);
             }
         }
         return nullptr;
+    }
+    template<typename T> T* for_each_broker(std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_brokers){
+        return for_each_doc("Brokers", on_all_brokers);
     }
 };
 
