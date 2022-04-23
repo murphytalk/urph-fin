@@ -30,15 +30,14 @@ void main_menu()
             "List broker summary"
         );
 
-        auto portfolioMenu = make_unique<cli::Menu>( "funds" );
-        auto portfolioMenuCallback = [](std::ostream& out, std::string broker){
-            out<<"selected " << broker << "\n";
-        };
-        char** broker = all_broker_names;
-        for(size_t i = 0; i < brokers_num ; ++i, ++broker){
-            portfolioMenu->Insert(*broker,portfolioMenuCallback, string("List funds summary in broker ") + *broker);
-        }
-        rootMenu -> Insert(std::move(portfolioMenu));
+        rootMenu->Insert(
+            "funds",
+            [](ostream& out, string broker){
+                out<<"Show " << broker << " funds portfolio\n";
+            },
+            "List funds portfolio by broker"
+        );
+
 
         cli::Cli cli( std::move(rootMenu) );
         // global exit action
@@ -53,9 +52,10 @@ void main_menu()
             }
         );
 
-        free_broker_names(all_broker_names, brokers_num);
 
         scheduler.Run();
+
+        free_broker_names(all_broker_names, brokers_num);
 
     }
     catch(const std::exception& e)
