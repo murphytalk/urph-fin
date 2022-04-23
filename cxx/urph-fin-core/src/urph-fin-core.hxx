@@ -2,10 +2,8 @@
 #include <string>
 #include <vector>
 
-// C++ extentions to make life easier in C++
+// C++ extentions to make life easier for C++ clients
 
-// the ground policy is that none of the extended C++ classes should add member variables
-// so the size of the class remain the same as the original struct
 class CashBalance: public cash_balance{
 public:
     CashBalance(const std::string& n, float v);
@@ -30,4 +28,9 @@ public:
     std::string to_str();
 };
 
-const std::vector<std::string>& broker_names();
+// the ground policy is that none of the extended C++ classes should add member variables
+// so the size of the class remain the same as the original struct
+
+static_assert(sizeof(AllBrokers) == sizeof(all_brokers));
+static_assert(sizeof(Broker) == sizeof(broker));
+static_assert(sizeof(CashBalance)  == sizeof(cash_balance));

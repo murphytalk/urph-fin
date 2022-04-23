@@ -198,10 +198,6 @@ std::string AllBrokers::to_str()
     return ss.str();
 }
 
-static_assert(sizeof(AllBrokers) == sizeof(all_brokers));
-static_assert(sizeof(Broker) == sizeof(broker));
-static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
-
 class Cloud{
 private:
     App*  _firebaseApp;
