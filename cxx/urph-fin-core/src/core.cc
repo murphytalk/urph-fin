@@ -190,7 +190,7 @@ std::string Brokers::to_str()
     std::stringstream ss;
     Broker* p = head();
     for(int i = 0; i < num ; ++i){
-        ss << p->to_str() << " ";
+        ss << p->to_str() << "\n";
         ++p;
     }
     return ss.str();
@@ -334,10 +334,12 @@ bool urph_fin_core_init(OnInitDone onInitDone)
     std::vector<AixLog::log_sink_ptr> sinks;
     
     auto log_file = getenv("LOGFILE");
+    auto verbose = getenv("VERBOSE");
+    auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
     if(log_file == nullptr)
-        sinks.push_back(std::make_shared<AixLog::SinkCout>(AixLog::Severity::debug));
+        sinks.push_back(std::make_shared<AixLog::SinkCout>(log_lvl));
     else  
-        sinks.push_back(std::make_shared<AixLog::SinkFile>(AixLog::Severity::debug, log_file)); 
+        sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file)); 
     AixLog::Log::init(sinks);
     
     LOG(DEBUG) << "urph-fin-core initializing\n";
