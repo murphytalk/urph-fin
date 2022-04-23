@@ -18,7 +18,7 @@ void main_menu()
         rootMenu->Insert(
             "brokers",
             [](ostream& out){
-                auto brokers = static_cast<Brokers*>(get_brokers());
+                auto brokers = static_cast<AllBrokers*>(get_brokers());
                 out << brokers->to_str() << "\n";
                 free_brokers(brokers);
             },

@@ -111,8 +111,9 @@ static char* copy_str(const std::string& str)
 CashBalance::CashBalance(const std::string& n, float v)
 {
     ccy = copy_str(n);
-        balance = v;        
+    balance = v;        
 }
+
 CashBalance::~CashBalance()
 {
     LOG(DEBUG) << " ccy= " << ccy << " ";
@@ -129,29 +130,27 @@ std::string CashBalance::to_str()
 template<typename Wrapper, typename T>
 void free_multiple_structs(Wrapper* data){
     T* p = data->head();
-    T* p2 = data->head();
     for(int i = 0; i < data->num ; ++i, ++p){
         p->~T();
     }
-    //delete  p2;
-    //delete  p2;
 }
 
 Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance)
 {
     name = copy_str(n);
     num = ccy_num;
-    cash_balance_ptrs = first_ccy_balance;
+    cash_balances = first_ccy_balance;
 }
 
 Broker::~Broker(){
     LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
     delete[] name;
     free_multiple_structs<Broker, CashBalance>(this);
+    delete[] cash_balances;
     LOG(DEBUG) << "] - freed!\n";
 }
 
-CashBalance* Broker::head() { return static_cast<CashBalance*>(cash_balance_ptrs); }
+CashBalance* Broker::head() { return static_cast<CashBalance*>(cash_balances); }
 
 std::string Broker::to_str(){
     std::stringstream ss;
@@ -165,27 +164,28 @@ std::string Broker::to_str(){
     return ss.str();
 }
 
-Brokers::Brokers()
+AllBrokers::AllBrokers()
 {
     num = 0;
-    broker_ptrs = nullptr;
+    brokers = nullptr;
 }
 
-Brokers::Brokers(int n, broker* broker)
+AllBrokers::AllBrokers(int n, broker* broker)
 {
     num = n;
-    broker_ptrs = broker;
+    brokers = broker;
 }
 
-Brokers::~Brokers()
+AllBrokers::~AllBrokers()
 {
     LOG(DEBUG) << "freeing " << num << " brokers \n";
-    free_multiple_structs<Brokers, Broker>(this);
+    free_multiple_structs<AllBrokers, Broker>(this);
+    delete []brokers;
 }
 
-Broker* Brokers::head() { return static_cast<Broker*>(broker_ptrs); }
+Broker* AllBrokers::head() { return static_cast<Broker*>(brokers); }
 
-std::string Brokers::to_str()
+std::string AllBrokers::to_str()
 {
     std::stringstream ss;
     Broker* p = head();
@@ -196,7 +196,7 @@ std::string Brokers::to_str()
     return ss.str();
 }
 
-static_assert(sizeof(Brokers) == sizeof(brokers));
+static_assert(sizeof(AllBrokers) == sizeof(all_brokers));
 static_assert(sizeof(Broker) == sizeof(broker));
 static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
 
@@ -284,11 +284,11 @@ public:
         delete _firestore;
         delete _firebaseAuth;
         delete _firebaseApp;
-        LOG(DEBUG) << "Cloud instance destroied\n";
+        LOG(DEBUG) << "Cloud instance destroyed\n";
     }
 
 
-    Brokers* get_brokers()
+    AllBrokers* get_brokers()
     {
         auto ref = get_brokers_ref();
         auto f = ref.Get();
@@ -312,14 +312,14 @@ public:
                     new (brokers) Broker(broker.id(), all_ccys.size(), head);
                     ++brokers;
                 }
-                return new Brokers(all_brokers.size(), brokers_head);
+                return new AllBrokers(all_brokers.size(), brokers_head);
             }
         }
         return nullptr;
     }
 
-    void free_brokers(brokers* b){
-        Brokers* brokers = static_cast<Brokers*>(b);
+    void free_brokers(all_brokers* b){
+        AllBrokers* brokers = static_cast<AllBrokers*>(b);
         delete brokers;
     }
 private:
@@ -355,13 +355,13 @@ bool urph_fin_core_init(OnInitDone onInitDone)
 }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
-brokers* get_brokers()
+all_brokers* get_brokers()
 {
     assert(cloud != nullptr);
     return cloud->get_brokers();
 }
 
-void free_brokers(brokers* data)
+void free_brokers(all_brokers* data)
 {
     assert(cloud != nullptr);
     cloud->free_brokers(data);

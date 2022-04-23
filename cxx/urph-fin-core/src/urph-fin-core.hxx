@@ -20,11 +20,11 @@ public:
     std::string to_str();
 };
 
-class Brokers: public brokers{
+class AllBrokers: public all_brokers{
 public:
-    Brokers();
-    Brokers(int n, broker* broker);
-    ~Brokers();
+    AllBrokers();
+    AllBrokers(int n, broker* broker);
+    ~AllBrokers();
     Broker* head();
     std::string to_str();
  };
