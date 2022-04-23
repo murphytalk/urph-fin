@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <sstream> 
 #include <string>
+#include <functional>
 
 // 3rd party
 #include "aixlog.hpp"
@@ -46,6 +47,7 @@ using ::firebase::auth::EmailAuthProvider;
 using ::firebase::firestore::Firestore;
 using ::firebase::firestore::CollectionReference;
 using ::firebase::firestore::DocumentReference;
+using ::firebase::firestore::DocumentSnapshot;
 using ::firebase::firestore::FieldValue;
 
 static bool quit = false;
@@ -287,44 +289,71 @@ public:
         LOG(DEBUG) << "Cloud instance destroyed\n";
     }
 
-
     AllBrokers* get_brokers()
     {
-        auto ref = get_brokers_ref();
-        auto f = ref.Get();
-        if(Await(f, "get brokers")){
-            const auto& all_brokers = f.result()->documents();
-            if (!all_brokers.empty()) {
-                LOG(DEBUG) << "Loading " << all_brokers.size() << " brokers\n";
-                broker* brokers = new broker [all_brokers.size()];
-                broker* brokers_head = brokers;
-                for (const auto& broker : all_brokers) {
-                    const auto& cash = broker.Get("cash");
-                    const auto& all_ccys = cash.map_value();
-                    LOG(DEBUG) << " " << broker.id() << "\n";
-                    cash_balance * balances = new cash_balance [all_ccys.size()];
-                    cash_balance * head = balances;
-                    for (const auto& b : all_ccys) {
-                        new (balances) CashBalance(b.first, get_num_as_double(b.second));
-                        LOG(DEBUG) << "  " << balances->balance << " " << balances->ccy << "" "\n";
-                        ++balances;
-                    }
-                    new (brokers) Broker(broker.id(), all_ccys.size(), head);
-                    ++brokers;
+        return for_each_broker<AllBrokers>([](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokers*{
+            LOG(DEBUG) << "Loading " << all_brokers.size() << " brokers\n";
+            broker* brokers = new broker [all_brokers.size()];
+            broker* brokers_head = brokers;
+            for (const auto& broker : all_brokers) {
+                const auto& cash = broker.Get("cash");
+                const auto& all_ccys = cash.map_value();
+                LOG(DEBUG) << " " << broker.id() << "\n";
+                cash_balance * balances = new cash_balance [all_ccys.size()];
+                cash_balance * head = balances;
+                for (const auto& b : all_ccys) {
+                    new (balances) CashBalance(b.first, Cloud::get_num_as_double(b.second));
+                    LOG(DEBUG) << "  " << balances->balance << " " << balances->ccy << "" "\n";
+                    ++balances;
                 }
-                return new AllBrokers(all_brokers.size(), brokers_head);
+                new (brokers) Broker(broker.id(), all_ccys.size(), head);
+                ++brokers;
             }
-        }
-        return nullptr;
+            return new AllBrokers(all_brokers.size(), brokers_head);
+        });
     }
 
     void free_brokers(all_brokers* b){
         AllBrokers* brokers = static_cast<AllBrokers*>(b);
         delete brokers;
     }
+
+    char** get_all_broker_names(size_t& size)
+    {
+        size = 0;
+        return for_each_broker<char*>([&size](const std::vector<DocumentSnapshot>& all_brokers) -> char**{
+            char **all_broker_names = new char* [all_brokers.size()];
+            for (size_t i = 0; i < all_brokers.size(); ++i){
+                auto broker_name = all_brokers[i].id();
+                all_broker_names[i] = copy_str(broker_name);
+            }
+            size = all_brokers.size();
+            return all_broker_names;
+        });
+    }
+    void free_all_broker_names(char** names, size_t size)
+    {
+        for(size_t i = 0; i < size; ++i){
+            delete[] names[i];
+        }
+        delete []names;
+    }
 private:
-    inline double get_num_as_double(const FieldValue& fv){ return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); }
+    static inline double get_num_as_double(const FieldValue& fv){ return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); }
     inline CollectionReference get_brokers_ref() const { return _firestore->Collection("Brokers"); }
+    template<typename T>
+    T* for_each_broker(std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_brokers)
+    {
+        auto ref = get_brokers_ref();
+        auto f = ref.Get();
+        if(Await(f, "get brokers")){
+            const auto& all_brokers = f.result()->documents();
+            if (!all_brokers.empty()) {
+                return on_all_brokers(all_brokers);
+            }
+        }
+        return nullptr;
+    }
 };
 
 Cloud *cloud;
@@ -365,6 +394,18 @@ void free_brokers(all_brokers* data)
 {
     assert(cloud != nullptr);
     cloud->free_brokers(data);
+}
+
+char** get_all_broker_names(size_t* size)
+{
+    assert(cloud != nullptr);
+    return cloud->get_all_broker_names(*size);
+}
+
+void free_broker_names(char** n,size_t size)
+{
+    assert(cloud != nullptr);
+    cloud->free_all_broker_names(n, size);
 }
 
 void urph_fin_core_close()

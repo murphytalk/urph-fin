@@ -1,5 +1,6 @@
 #include "urph-fin-core.h"
 #include <string>
+#include <vector>
 
 // C++ extentions to make life easier in C++
 
@@ -27,4 +28,6 @@ public:
     ~AllBrokers();
     Broker* head();
     std::string to_str();
- };
+};
+
+const std::vector<std::string>& broker_names();

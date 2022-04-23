@@ -26,6 +26,9 @@ struct all_brokers{
 all_brokers* get_brokers();
 void free_brokers(all_brokers*);
 
+char** get_all_broker_names(size_t*);
+void free_broker_names(char**,size_t);
+
 // seconds since epoch
 typedef int64_t timestamp;
 

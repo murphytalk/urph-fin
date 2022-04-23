@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <condition_variable>
 
@@ -9,11 +10,15 @@
 
 using namespace std;
 
+
 void main_menu()
 {
     try
     {
         auto rootMenu = make_unique< cli::Menu >( "urph-fin" );
+
+        size_t brokers_num;
+        char **all_broker_names = get_all_broker_names(&brokers_num);
 
         rootMenu->Insert(
             "brokers",
@@ -24,6 +29,16 @@ void main_menu()
             },
             "List broker summary"
         );
+
+        auto portfolioMenu = make_unique<cli::Menu>( "funds" );
+        auto portfolioMenuCallback = [](std::ostream& out, std::string broker){
+            out<<"selected " << broker << "\n";
+        };
+        char** broker = all_broker_names;
+        for(size_t i = 0; i < brokers_num ; ++i, ++broker){
+            portfolioMenu->Insert(*broker,portfolioMenuCallback, string("List funds summary in broker ") + *broker);
+        }
+        rootMenu -> Insert(std::move(portfolioMenu));
 
         cli::Cli cli( std::move(rootMenu) );
         // global exit action
@@ -37,6 +52,8 @@ void main_menu()
                 scheduler.Stop();
             }
         );
+
+        free_broker_names(all_broker_names, brokers_num);
 
         scheduler.Run();
 
@@ -57,7 +74,6 @@ int main(int argc, char *argv[])
         {
             std::lock_guard<std::mutex> lk(m);
             init_done = true;
-            std::cout << "init done" << std::endl;
         }
         cv.notify_one();
     })){
@@ -69,6 +85,7 @@ int main(int argc, char *argv[])
         std::unique_lock<std::mutex> lk(m);
         cv.wait(lk, []{return init_done;});
     }
+
     main_menu(); 
    
     urph_fin_core_close();
