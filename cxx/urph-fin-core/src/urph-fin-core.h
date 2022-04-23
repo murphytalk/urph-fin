@@ -16,14 +16,14 @@ struct cash_balance{
 struct broker{
     char* name;
     int num;
-    cash_balance** cash_balance_ptrs;
+    cash_balance* cash_balance_ptrs;
 };
 struct brokers{
-    broker** broker_ptrs;
+    broker* broker_ptrs;
     int num;
 };
-brokers get_brokers();
-void free_brokers(brokers);
+brokers* get_brokers();
+void free_brokers(brokers*);
 
 }
 #endif // URPH_FIN_CORE_H_

@@ -2,7 +2,7 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <urph-fin-core.h>
+#include <urph-fin-core.hxx>
 #include "cli/clilocalsession.h"
 #include <cli/loopscheduler.h>
 #include <cli/cli.h>
@@ -18,7 +18,9 @@ void main_menu()
         rootMenu->Insert(
             "brokers",
             [](ostream& out){
-                out<<"brokers ..,"<<endl;
+                auto brokers = static_cast<Brokers*>(get_brokers());
+                out << brokers->to_str() << "\n";
+                free_brokers(brokers);
             },
             "List broker summary"
         );
@@ -56,8 +58,6 @@ int main(int argc, char *argv[])
             std::lock_guard<std::mutex> lk(m);
             init_done = true;
             std::cout << "init done" << std::endl;
-            auto brokers = get_brokers();
-            free_brokers(brokers);
         }
         cv.notify_one();
     })){
