@@ -1,6 +1,8 @@
 #ifndef URPH_FIN_CORE_H_
 #define URPH_FIN_CORE_H_
 
+// C interface for other languages (flutter plug-in etc.)
+
 extern "C"
 {
 
@@ -16,10 +18,10 @@ struct cash_balance{
 struct broker{
     char* name;
     int num;
-    cash_balance* cash_balances;
+    cash_balance* first_cash_balance;
 };
 struct all_brokers{
-    broker* brokers;
+    broker* first_broker;
     int num;
 };
 

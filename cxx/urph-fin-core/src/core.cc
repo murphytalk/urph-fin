@@ -122,13 +122,6 @@ CashBalance::~CashBalance()
     delete[] ccy;
 }
 
-std::string CashBalance::to_str()
-{
-    std::stringstream ss;
-    ss << balance << " " << ccy;
-    return ss.str();
-}
-
 template<typename Wrapper, typename T>
 void free_multiple_structs(Wrapper* data){
     T* p = data->head();
@@ -141,62 +134,33 @@ Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance
 {
     name = copy_str(n);
     num = ccy_num;
-    cash_balances = first_ccy_balance;
+    first_cash_balance = first_ccy_balance;
 }
 
 Broker::~Broker(){
     LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
     delete[] name;
     free_multiple_structs<Broker, CashBalance>(this);
-    delete[] cash_balances;
+    delete[] first_cash_balance;
     LOG(DEBUG) << "] - freed!\n";
 }
 
-CashBalance* Broker::head() { return static_cast<CashBalance*>(cash_balances); }
-
-std::string Broker::to_str(){
-    std::stringstream ss;
-    ss << name << " : [";
-    CashBalance* p = head();
-    for(int i = 0; i < num ; ++i){
-        ss << p->to_str() << ",";
-        ++p;
-    }
-    ss << "]";
-    return ss.str();
-}
-
-AllBrokers::AllBrokers()
-{
-    num = 0;
-    brokers = nullptr;
-}
+CashBalance* Broker::head() { return static_cast<CashBalance*>(first_cash_balance); }
 
 AllBrokers::AllBrokers(int n, broker* broker)
 {
     num = n;
-    brokers = broker;
+    first_broker = broker;
 }
 
 AllBrokers::~AllBrokers()
 {
     LOG(DEBUG) << "freeing " << num << " brokers \n";
     free_multiple_structs<AllBrokers, Broker>(this);
-    delete []brokers;
+    delete []first_broker;
 }
 
-Broker* AllBrokers::head() { return static_cast<Broker*>(brokers); }
-
-std::string AllBrokers::to_str()
-{
-    std::stringstream ss;
-    Broker* p = head();
-    for(int i = 0; i < num ; ++i){
-        ss << p->to_str() << "\n";
-        ++p;
-    }
-    return ss.str();
-}
+Broker* AllBrokers::head() { return static_cast<Broker*>(first_broker); }
 
 class Cloud{
 private:

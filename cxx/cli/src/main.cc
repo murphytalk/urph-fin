@@ -1,5 +1,6 @@
 #include <iostream>
 #include <memory>
+#include <string>
 #include <mutex>
 #include <condition_variable>
 
@@ -7,8 +8,10 @@
 #include "cli/clilocalsession.h"
 #include <cli/loopscheduler.h>
 #include <cli/cli.h>
+#include <tabulate/table.hpp>
 
 using namespace std;
+using namespace tabulate;
 
 static void main_menu()
 {
@@ -22,9 +25,31 @@ static void main_menu()
         rootMenu->Insert(
             "brokers",
             [](ostream& out){
+                Table table;
+                table.add_row({"Broker", "Currency", "Balance"});
                 auto brokers = static_cast<AllBrokers*>(get_brokers());
-                out << brokers->to_str() << "\n";
+                for(Broker& broker: *brokers){
+                    bool broker_name_printed = false;
+                    for(CashBalance& balance: broker){
+                        if (broker_name_printed)
+                            table.add_row(
+                                {"", balance.ccy, to_string(balance.balance)}
+                            );
+                        else{
+                            table.add_row(
+                                {broker.name, balance.ccy, to_string(balance.balance)}
+                            );
+                            broker_name_printed = true;
+                        }
+                    }    
+                }
                 free_brokers(brokers);
+                table.column(1).format().font_align(FontAlign::center);
+                table.column(2).format().font_align(FontAlign::right);
+                table[0].format()
+                    .font_style({FontStyle::bold})
+                    .font_align(FontAlign::center);
+                out << table << endl;
             },
             "List broker summary"
         );
