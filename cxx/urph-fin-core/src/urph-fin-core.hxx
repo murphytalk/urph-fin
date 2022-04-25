@@ -33,9 +33,8 @@ private:
 };
 
 // tag dispatching - to help free_multiple_structs() select the right head/size
-struct member_tag {};
-struct first_member_tag  : public member_tag {};
-struct second_member_tag : public member_tag{};
+struct first_member_tag {};
+struct second_member_tag{};
 
 template<typename Wrapper, typename T, typename MemberTag=first_member_tag>
 void free_multiple_structs(Wrapper* data, MemberTag mt = MemberTag()){
