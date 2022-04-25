@@ -49,6 +49,9 @@ using ::firebase::firestore::CollectionReference;
 using ::firebase::firestore::DocumentReference;
 using ::firebase::firestore::DocumentSnapshot;
 using ::firebase::firestore::FieldValue;
+using ::firebase::firestore::Query;
+using ::firebase::firestore::QuerySnapshot;
+using ::firebase::firestore::Error;
 
 static bool quit = false;
 
@@ -162,6 +165,19 @@ AllBrokers::~AllBrokers()
 
 Broker* AllBrokers::head() { return static_cast<Broker*>(first_broker); }
 
+FundPortfolio::FundPortfolio(int n, fund* f)
+{
+    num = n;
+    first_fund = f;
+}
+FundPortfolio::~FundPortfolio()
+{
+    free_multiple_structs<FundPortfolio, Fund>(this);
+    delete []first_fund;
+}
+
+Fund* FundPortfolio::head() { return static_cast<Fund*>(first_fund); }
+
 class Cloud{
 private:
     App*  _firebaseApp;
@@ -262,6 +278,7 @@ public:
                 cash_balance * balances = new cash_balance [all_ccys.size()];
                 cash_balance * head = balances;
                 for (const auto& b : all_ccys) {
+                    LOG(DEBUG) << "  " << b.first << " " << b.second << "" "\n";
                     new (balances) CashBalance(b.first, Cloud::get_num_as_double(b.second));
                     LOG(DEBUG) << "  " << balances->balance << " " << balances->ccy << "" "\n";
                     ++balances;
@@ -298,12 +315,75 @@ public:
         }
         delete []names;
     }
+
+    void get_funds(const char* broker, OnFunds onFunds)
+    {
+        const auto& q1 = _firestore->Collection("Instruments").WhereEqualTo("type", FieldValue::String("Funds"));
+        const auto& q2 = broker == nullptr ? q1 : q1.WhereEqualTo("broker", FieldValue::String(broker));
+        q2.Get().OnCompletion([broker, onFunds](const Future<QuerySnapshot>& future) {
+            if (future.error() == Error::kErrorOk) {
+                size_t fund_num = future.result()->size();
+                fund* head = new fund[fund_num];
+                memset(head, 0, sizeof(fund) * fund_num);
+                fund* p = head;
+                for(const auto& the_fund: future.result()->documents()){
+                    // find latest tx
+                    auto fund_name = the_fund.Get("name").string_value();
+                    auto fund_id = the_fund.id();
+                    LOG(DEBUG) << "broker 1 " << broker << " fund id=" << fund_id.c_str() << " name=" << fund_name.c_str() << "\n";
+                    size_t funds_counted = 0;
+                    the_fund.reference().Collection("tx")
+                        .OrderBy("date", Query::Direction::kDescending).Limit(1)
+                        .Get().OnCompletion([broker, onFunds, &fund_id, &fund_name, head, &p, fund_num, &funds_counted](const Future<QuerySnapshot>& future) {
+                            ++funds_counted;
+                            LOG(DEBUG) << "broker 2 " << broker << " fund id=" << fund_id.c_str() << " name=" << fund_name.c_str() << "\n";
+                            /*
+                            if(future.error() == Error::kErrorOk){
+                                if(!future.result()->empty()){
+                                    const auto& doc_ref = future.result()->documents().front();
+
+                                    new (p++) Fund(
+                                        broker, fund_name.c_str(), fund_id.c_str(), 
+                                        (int)doc_ref.Get("amount").integer_value(),
+                                        Cloud::get_num_as_double(doc_ref.Get("capital")),
+                                        Cloud::get_num_as_double(doc_ref.Get("market_value")),
+                                        Cloud::get_num_as_double(doc_ref.Get("price")),
+                                        doc_ref.Get("date").integer_value()
+                                    );
+                                }
+                            }
+                            else{
+                                LOG(ERROR) << "Failed to query tx from funds " << fund_name << " broker = " << (broker == nullptr ? "all" : broker )<< "\n";
+                            }
+                            if(funds_counted >= fund_num){
+                                onFunds(new FundPortfolio((int)(p-head), head)); 
+                            }
+                            */
+                        });
+                }
+            }
+            else{
+                LOG(ERROR) << "Failed to query funds: broker = " << (broker == nullptr ? "all" : broker )<< "\n";
+                onFunds(nullptr);
+            }
+        });
+    }
+
+    void free_funds(fund_portfolio *f)
+    {
+        auto p = static_cast<FundPortfolio*>(f);
+        delete p;
+    }
+
 private:
-    static inline double get_num_as_double(const FieldValue& fv){ return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); }
-    inline CollectionReference get_collection_ref(const char* name) const { return _firestore->Collection(name); }
+    static inline double get_num_as_double(const FieldValue& fv)
+    { 
+        if(fv.is_null()) return 0.0;
+        return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); 
+    }
     template<typename T> T* for_each_doc(const char* collection_name, std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_docs)
     {
-        auto ref = get_collection_ref(collection_name);
+        const auto& ref = _firestore->Collection(collection_name);
         auto f = ref.Get();
         if(Await(f, collection_name)){
             const auto& all_docs= f.result()->documents();
@@ -370,6 +450,17 @@ void free_broker_names(char** n,size_t size)
     cloud->free_all_broker_names(n, size);
 }
 
+void get_funds(const char* broker, OnFunds onFunds)
+{
+    assert(cloud != nullptr);
+    cloud->get_funds(broker, onFunds);
+}
+
+void free_funds(fund_portfolio* f)
+{
+    assert(cloud != nullptr);
+    cloud->free_funds(f);
+}
 void urph_fin_core_close()
 {
     delete cloud;

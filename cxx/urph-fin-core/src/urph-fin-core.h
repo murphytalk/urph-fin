@@ -34,23 +34,26 @@ void free_broker_names(char**,size_t);
 // seconds since epoch
 typedef int64_t timestamp;
 
-struct fund_balance{
-    char* name;
-    char* id;
+struct fund{
+    const char* broker;
+    const char* name;
+    const char* id;
     int amount;
     double capital;
     double market_value;
     double price;
-    timestamp update_time; 
+    timestamp date; 
 };
 
 struct fund_portfolio{
     int num;
-    fund_balance* balances;
+    fund* first_fund;
 };
 
-fund_portfolio* get_fund_portfolio(char* broker);
-void free_fund_portfolio(fund_portfolio*);
+typedef void (*OnFunds)(fund_portfolio*);
+// return all funds if broker == nullptr
+void get_funds(const char* broker, OnFunds);
+void free_funds(fund_portfolio*);
 
 }
 #endif // URPH_FIN_CORE_H_

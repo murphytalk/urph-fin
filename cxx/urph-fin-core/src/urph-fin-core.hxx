@@ -56,10 +56,36 @@ public:
     Iterator<Broker> end() { return Iterator( head() + num ); }
 };
 
+class Fund: public fund{
+public:
+    Fund(const char* b, const char* n, const char* i, int a, double c, double m, double p, timestamp d)
+    {
+        broker = b;
+        name = n;
+        id = i;
+        amount = a;
+        capital = c;
+        market_value = m;
+        price = p;
+        date = d;
+    }    
+};
+
+class FundPortfolio: public fund_portfolio{
+public:    
+    FundPortfolio(int n, fund* fund);
+    ~FundPortfolio();
+    Fund* head();
+    Iterator<Fund> begin() { return Iterator( head() ); }
+    Iterator<Fund> end() { return Iterator( head() + num ); }
+};
+
 // the ground rule is that none of the extended C++ classes should add member variables
 // so the size of the class remain the same as the original struct
 static_assert(sizeof(AllBrokers) == sizeof(all_brokers));
 static_assert(sizeof(Broker) == sizeof(broker));
 static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
+static_assert(sizeof(Fund)  == sizeof(fund));
+static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
 
 #endif

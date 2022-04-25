@@ -57,7 +57,15 @@ static void main_menu()
         rootMenu->Insert(
             "fund",
             [](ostream& out, string broker){
-                out<<"Show " << broker << " Mutual Funds portfolio\n";
+                get_funds(broker.c_str(), [](fund_portfolio* fp){
+                    Table table;
+                    table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit"});
+                    auto fund_portfolio = static_cast<FundPortfolio*>(fp);
+                    for(Fund& fund: *fund_portfolio){
+                        table.add_row({fund.broker, fund.name, to_string(fund.amount), to_string(fund.price), to_string(fund.capital), to_string(fund.market_value), to_string(fund.market_value - fund.capital)});
+                    }
+                    free_funds(fp);
+                });
             },
             "List mutual funds portfolio by broker"
         );
