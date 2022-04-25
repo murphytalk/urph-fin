@@ -60,9 +60,9 @@ struct fund_portfolio{
     fund* first_fund;
 };
 
-typedef void (*OnFunds)(fund_portfolio*);
+typedef void (*OnFunds)(fund_portfolio*, void* param);
 // return all funds if broker == nullptr
-void get_funds(int num, char **fund_ids, OnFunds);
+void get_funds(int num, const char **fund_ids, OnFunds, void*param);
 void free_funds(fund_portfolio*);
 
 }

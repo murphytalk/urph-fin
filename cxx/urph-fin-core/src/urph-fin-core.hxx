@@ -84,17 +84,8 @@ public:
 
 class Fund: public fund{
 public:
-    Fund(const char* b, const char* n, const char* i, int a, double c, double m, double p, timestamp d)
-    {
-        broker = b;
-        name = n;
-        id = i;
-        amount = a;
-        capital = c;
-        market_value = m;
-        price = p;
-        date = d;
-    }    
+    Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double p, timestamp d);
+    ~Fund();
 };
 
 class FundPortfolio: public fund_portfolio{

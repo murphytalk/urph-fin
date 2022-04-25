@@ -57,9 +57,23 @@ static void main_menu()
 
         rootMenu->Insert(
             "fund",
-            [](ostream& out, string broker){
-                /*
-                get_funds(broker.c_str(), [](fund_portfolio* fp){
+            [](ostream& out, string broker_name){
+                Broker* broker = static_cast<Broker*>(get_broker(broker_name.c_str()));
+                if(broker == nullptr){
+                    out << "Unknown broker " << broker_name << std::endl;
+                    return;
+                }
+
+                auto fund_num = broker->size(Broker::active_fund_tag());
+                const char ** ids = new const char* [fund_num];
+                const char ** ids_head = ids;
+                for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
+                    auto& f = *it;
+                    *ids++ = f.id;
+                }                
+
+                get_funds(fund_num, ids_head, [](fund_portfolio* fp, void *param){
+                    ostream* out = reinterpret_cast<ostream*>(param);
                     Table table;
                     table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit"});
                     auto fund_portfolio = static_cast<FundPortfolio*>(fp);
@@ -67,8 +81,10 @@ static void main_menu()
                         table.add_row({fund.broker, fund.name, to_string(fund.amount), to_string(fund.price), to_string(fund.capital), to_string(fund.market_value), to_string(fund.market_value - fund.capital)});
                     }
                     free_funds(fp);
-                });
-                */
+                    *out << table << endl;
+                }, &out);
+
+                delete []ids_head;
             },
             "List mutual funds portfolio by broker"
         );

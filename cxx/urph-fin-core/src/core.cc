@@ -21,6 +21,7 @@
 #include <string>
 #include <functional>
 #include <vector>
+#include <thread>
 
 // 3rd party
 #include "aixlog.hpp"
@@ -154,7 +155,7 @@ Broker::~Broker(){
     delete[] first_cash_balance;
 
     LOG(DEBUG) << "] - active funds [";
-    free_multiple_structs<Broker, ActiveFund>(this, second_member_tag());
+    free_multiple_structs<Broker, ActiveFund>(this, active_fund_tag());
     delete[] first_active_fund;
     LOG(DEBUG) << "] - freed!\n";
 }
@@ -182,6 +183,48 @@ FundPortfolio::~FundPortfolio()
     free_multiple_structs<FundPortfolio, Fund>(this);
     delete []first_fund;
 }
+
+Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double p, timestamp d)
+{
+    broker = copy_str(b);
+    name = copy_str(n);
+    id = copy_str(i);
+    amount = a;
+    capital = c;
+    market_value = m;
+    price = p;
+    date = d;
+}    
+
+Fund::~Fund()
+{
+    delete []broker;
+    delete []name;
+    delete []id;
+}
+
+template<typename T > struct PlacementNew{
+    T* head;
+    T* current;
+    int counter;
+    int max_counter;
+    PlacementNew(int max_num)
+    {
+        max_counter = max_num;
+        counter = 0;
+        head = new T[max_num];
+        current = head;
+    }
+    int allocated_num()
+    {
+        return current - head;
+    }
+    bool has_enough_counter()
+    {
+        return counter >= max_counter;
+    }
+    inline void inc_counter() { ++counter; }
+};
 
 class Cloud{
 private:
@@ -271,19 +314,27 @@ public:
         delete _firebaseApp;
         LOG(DEBUG) << "Cloud instance destroyed\n";
     }
-/*
+
     broker* get_broker(const char* name)
     {
         const auto& doc_ref = _firestore->Collection(COLLECTION_BROKERS).Document(name);
-        auto& f = doc_ref.Get();
+        const auto& f = doc_ref.Get();
         if(Await(f, "broker by name")){
-            f.result().Get()
+            const auto& broker = *f.result();
+            return create_broker(broker, [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, int active_funds_num, active_fund* first_fund){
+                return new Broker(n, ccy_num, first_ccy_balance, active_funds_num, first_fund);
+            });
         }
         else{
             return nullptr;
         }
     }
-*/
+
+    void free_broker(broker* broker)
+    {
+        delete static_cast<Broker*>(broker);
+    }
+
     AllBrokers* get_brokers()
     {
         return for_each_broker<AllBrokers>([](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokers*{
@@ -325,57 +376,70 @@ public:
         delete []names;
     }
 
-    void get_funds(int num, const char **fund_ids, OnFunds onFunds)
+    void get_funds(int num, const char **fund_ids, OnFunds onFunds, void* onFundsCallerProvidedParam)
     {
-        std::vector<FieldValue> ids(num);
+        std::vector<FieldValue> ids;
         std::transform(fund_ids, fund_ids + num, std::back_inserter(ids), [](const char* id){
+            LOG(DEBUG) << "tread(" << std::this_thread::get_id()  << ") Adding fund id " << id << "\n";
             return FieldValue::String(id);
         });
 
         const auto& q = _firestore->Collection("Instruments").WhereIn("id", ids);
-        q.Get().OnCompletion([onFunds](const Future<QuerySnapshot>& future) {
+        q.Get().OnCompletion([onFunds, onFundsCallerProvidedParam](const Future<QuerySnapshot>& future) {
             if (future.error() == Error::kErrorOk) {
                 size_t fund_num = future.result()->size();
-                fund* head = new fund[fund_num];
-                fund* p = head;
+
+                // cannot use auto var allocated in stack, as it will be freed once out of the context of OnCompletion()
+                // and becomes invalid when the lambda is called
+                auto* fund_alloc = new PlacementNew<fund>(fund_num);
+
                 for(const auto& the_fund: future.result()->documents()){
                     // find latest tx
                     auto fund_name = the_fund.Get("name").string_value();
                     auto fund_id = the_fund.id();
-                    LOG(DEBUG) << " fund id=" << fund_id << " name=" << fund_name << "\n";
-                    size_t funds_counted = 0;
+                    LOG(DEBUG) << "tread(" << std::this_thread::get_id()  << ") getting tx of fund id=" << fund_id << " name=" << fund_name << "\n";
                     the_fund.reference().Collection("tx")
                         .OrderBy("date", Query::Direction::kDescending).Limit(1)
-                        .Get().OnCompletion([onFunds, head, &p, fund_num, &funds_counted](const Future<QuerySnapshot>& future) {
-                            ++funds_counted;
+                        .Get().OnCompletion([onFunds,onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
+                            fund_alloc->inc_counter();
+                            LOG(DEBUG) << "tread(" << std::this_thread::get_id() << ") tx result for #" << fund_alloc->counter << " fund\n";
                             if(future.error() == Error::kErrorOk){
                                 if(!future.result()->empty()){
-                                    const auto& tx_ref = future.result()->documents().front();
+                                    const auto& docs = future.result()->documents();
+                                    const auto& tx_ref = docs.front();
                                     const auto& broker = tx_ref.Get("broker").string_value();
                                     const auto& name = tx_ref.Get("instrument_name").string_value();
                                     const auto& id   = tx_ref.Get("instrument_id").string_value();
-                                    new (p++) Fund(
-                                        broker.c_str(), name.c_str(), id.c_str(), 
-                                        (int)tx_ref.Get("amount").integer_value(),
-                                        Cloud::get_num_as_double(tx_ref.Get("capital")),
-                                        Cloud::get_num_as_double(tx_ref.Get("market_value")),
-                                        Cloud::get_num_as_double(tx_ref.Get("price")),
-                                        tx_ref.Get("date").integer_value()
+                                    const auto amt = tx_ref.Get("amount").integer_value();
+                                    double capital = Cloud::get_num_as_double(tx_ref.Get("capital"));
+                                    double market_value = Cloud::get_num_as_double(tx_ref.Get("market_value"));
+                                    double price = Cloud::get_num_as_double(tx_ref.Get("price"));
+                                    timestamp date = tx_ref.Get("date").timestamp_value().seconds();
+                                    LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                                    new (fund_alloc->current++) Fund(
+                                        broker, name, id, 
+                                        (int)amt,
+                                        capital,
+                                        market_value,
+                                        price,
+                                        date
                                     );
+                                    LOG(DEBUG) << "No." << fund_alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
                                 }
                             }
                             else{
                                 LOG(ERROR) << "Failed to query tx from funds \n";
                             }
-                            if(funds_counted >= fund_num){
-                                onFunds(new FundPortfolio((int)(p-head), head)); 
+                            if(fund_alloc->has_enough_counter()){
+                                onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head), onFundsCallerProvidedParam); 
+                                delete fund_alloc;
                             }
                         });
                 }
             }
             else{
                 LOG(ERROR) << "Failed to query funds \n";
-                onFunds(nullptr);
+                onFunds(nullptr, onFundsCallerProvidedParam);
             }
         });
     }
@@ -400,8 +464,8 @@ private:
         const auto& cash = broker.Get("cash");
         const auto& all_ccys = cash.map_value();
         LOG(DEBUG) << " " << broker.id() << "\n";
-        cash_balance * balances = new cash_balance [all_ccys.size()];
-        cash_balance * head = balances;
+        cash_balance* balances = new cash_balance [all_ccys.size()];
+        cash_balance* head = balances;
         for (const auto& b : all_ccys) {
             LOG(DEBUG) << "  " << b.first << " " << b.second << "" "\n";
             new (balances++) CashBalance(b.first, Cloud::get_num_as_double(b.second));
@@ -477,8 +541,17 @@ void free_brokers(all_brokers* data)
 }
 
 
-broker* get_broker(const char* name);
-void free_broker(broker*);
+broker* get_broker(const char* name)
+{
+    assert(cloud != nullptr);
+    return cloud->get_broker(name);
+}
+
+void free_broker(broker* b)
+{
+    assert(cloud != nullptr);
+    cloud->free_broker(b);
+}
 
 char** get_all_broker_names(size_t* size)
 {
@@ -492,10 +565,10 @@ void free_broker_names(char** n,size_t size)
     cloud->free_all_broker_names(n, size);
 }
 
-void get_funds(int num, const char **fund_ids, OnFunds onFunds)
+void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
 {
     assert(cloud != nullptr);
-    cloud->get_funds(num, fund_ids, onFunds);
+    cloud->get_funds(num, fund_ids, onFunds, param);
 }
 
 void free_funds(fund_portfolio* f)
