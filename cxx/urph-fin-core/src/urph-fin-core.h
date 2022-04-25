@@ -32,6 +32,9 @@ struct all_brokers{
     int num;
 };
 
+broker* get_broker(const char* name);
+void free_broker(broker*);
+
 all_brokers* get_brokers();
 void free_brokers(all_brokers*);
 
@@ -59,7 +62,7 @@ struct fund_portfolio{
 
 typedef void (*OnFunds)(fund_portfolio*);
 // return all funds if broker == nullptr
-void get_funds(const char* broker, OnFunds);
+void get_funds(int num, char **fund_ids, OnFunds);
 void free_funds(fund_portfolio*);
 
 }

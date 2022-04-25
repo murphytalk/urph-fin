@@ -13,6 +13,7 @@
 using namespace std;
 using namespace tabulate;
 
+
 static void main_menu()
 {
     try
@@ -57,6 +58,7 @@ static void main_menu()
         rootMenu->Insert(
             "fund",
             [](ostream& out, string broker){
+                /*
                 get_funds(broker.c_str(), [](fund_portfolio* fp){
                     Table table;
                     table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit"});
@@ -66,6 +68,7 @@ static void main_menu()
                     }
                     free_funds(fp);
                 });
+                */
             },
             "List mutual funds portfolio by broker"
         );
