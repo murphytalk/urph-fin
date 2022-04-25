@@ -125,30 +125,38 @@ CashBalance::~CashBalance()
     delete[] ccy;
 }
 
-template<typename Wrapper, typename T>
-void free_multiple_structs(Wrapper* data){
-    T* p = data->head();
-    for(int i = 0; i < data->num ; ++i, ++p){
-        p->~T();
-    }
+ActiveFund::ActiveFund(const std::string& i)
+{
+    id = copy_str(i);
+}
+ActiveFund::~ActiveFund()
+{
+    LOG(DEBUG) << " id= " << id << " ";
+    delete []id;
 }
 
-Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance)
+Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, int active_funds_num, active_fund* first_fund)
 {
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
+
+    this->active_funds_num = active_funds_num;
+    this->first_active_fund = first_fund;
 }
 
 Broker::~Broker(){
     LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
     delete[] name;
+
     free_multiple_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;
+
+    LOG(DEBUG) << "] - active funds [";
+    free_multiple_structs<Broker, ActiveFund>(this, second_member_tag());
+    delete[] first_active_fund;
     LOG(DEBUG) << "] - freed!\n";
 }
-
-CashBalance* Broker::head() { return static_cast<CashBalance*>(first_cash_balance); }
 
 AllBrokers::AllBrokers(int n, broker* broker)
 {
@@ -163,8 +171,6 @@ AllBrokers::~AllBrokers()
     delete []first_broker;
 }
 
-Broker* AllBrokers::head() { return static_cast<Broker*>(first_broker); }
-
 FundPortfolio::FundPortfolio(int n, fund* f)
 {
     num = n;
@@ -175,8 +181,6 @@ FundPortfolio::~FundPortfolio()
     free_multiple_structs<FundPortfolio, Fund>(this);
     delete []first_fund;
 }
-
-Fund* FundPortfolio::head() { return static_cast<Fund*>(first_fund); }
 
 class Cloud{
 private:
@@ -279,12 +283,17 @@ public:
                 cash_balance * head = balances;
                 for (const auto& b : all_ccys) {
                     LOG(DEBUG) << "  " << b.first << " " << b.second << "" "\n";
-                    new (balances) CashBalance(b.first, Cloud::get_num_as_double(b.second));
-                    LOG(DEBUG) << "  " << balances->balance << " " << balances->ccy << "" "\n";
-                    ++balances;
+                    new (balances++) CashBalance(b.first, Cloud::get_num_as_double(b.second));
                 }
-                new (brokers) Broker(broker.id(), all_ccys.size(), head);
-                ++brokers;
+
+                const auto& active_funds = broker.Get("active_funds").array_value();
+                active_fund* funds = new active_fund[active_funds.size()];
+                active_fund* fund_head = funds;
+                for(const auto& f: active_funds){
+                    new (funds++) ActiveFund(f.string_value());
+                }
+                
+                new (brokers++) Broker(broker.id(), all_ccys.size(), head, active_funds.size(), fund_head);
             }
             return new AllBrokers(all_brokers.size(), brokers_head);
         });

@@ -15,10 +15,17 @@ struct cash_balance{
     char* ccy;
     double balance;
 };
+
+struct active_fund{
+    char* id;
+};
+
 struct broker{
     char* name;
     int num;
     cash_balance* first_cash_balance;
+    int active_funds_num;
+    active_fund* first_active_fund;
 };
 struct all_brokers{
     broker* first_broker;
