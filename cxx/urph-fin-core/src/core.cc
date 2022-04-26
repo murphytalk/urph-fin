@@ -571,6 +571,29 @@ void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
     cloud->get_funds(num, fund_ids, onFunds, param);
 }
 
+void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
+{
+    Broker* broker = static_cast<Broker*>(get_broker(broker_name));
+
+    if(broker == nullptr){
+        onFunds(nullptr, param);
+    }
+    else{
+        auto fund_num = broker->size(Broker::active_fund_tag());
+        const char ** ids = new const char* [fund_num];
+        const char ** ids_head = ids;
+        for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
+            auto& f = *it;
+            *ids++ = f.id;
+        }         
+        get_funds(fund_num, ids_head, onFunds, param);       
+
+        delete []ids_head;
+    }
+
+    delete broker;
+}
+
 void free_funds(fund_portfolio* f)
 {
     assert(cloud != nullptr);
