@@ -75,7 +75,7 @@ static void main_menu()
                     }
                     free_funds(fp);
                     for(auto i = 2 ; i <=6 ;++i) table.column(i).format().font_align(FontAlign::right);
-                    table.column(1).format().multi_byte_characters(true).width(50);
+                    table.column(1).format().multi_byte_characters(true);//.width(80);
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
                     *out << "\n" << table << endl;
                 }, &out);
