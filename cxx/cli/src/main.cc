@@ -83,9 +83,17 @@ static void main_menu()
                         table.add_row({fund.broker, fund.name, format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value), format_with_commas(profit)});
                         if(profit < 0)  table[row][6].format().font_color(Color::red);
                     }
+
+                    ++row;
+                    auto sum = calc_fund_sum(fund_portfolio);
+                    table.add_row({"SUM", "", "", "", format_with_commas(sum.capital), format_with_commas(sum.market_value), format_with_commas(sum.profit)});
+                    table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
+                    if(sum.profit < 0)  table[row][6].format().font_color(Color::red);
+
                     free_funds(fp);
+
                     for(auto i = 2 ; i <=6 ;++i) table.column(i).format().font_align(FontAlign::right);
-                    table.column(1).format().multi_byte_characters(true);//.width(80);
+                    table.column(1).format().multi_byte_characters(true);
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
                     *out << "\n" << table << endl;
                 }, &out);

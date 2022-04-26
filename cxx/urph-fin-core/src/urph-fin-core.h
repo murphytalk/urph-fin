@@ -66,5 +66,13 @@ void get_funds(int num, const char **fund_ids, OnFunds, void*param);
 void get_active_funds(const char* broker, OnFunds, void*param);
 void free_funds(fund_portfolio*);
 
+struct fund_sum
+{
+    double market_value;
+    double capital;
+    double profit;
+};
+fund_sum calc_fund_sum(fund_portfolio* portfolio);
+
 }
 #endif // URPH_FIN_CORE_H_

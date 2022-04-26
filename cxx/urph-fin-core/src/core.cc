@@ -21,6 +21,7 @@
 #include <string>
 #include <functional>
 #include <vector>
+#include <numeric>
 
 // 3rd party
 #include "aixlog.hpp"
@@ -631,6 +632,19 @@ void free_funds(fund_portfolio* f)
     assert(cloud != nullptr);
     cloud->free_funds(f);
 }
+
+
+fund_sum calc_fund_sum(fund_portfolio* portfolio)
+{
+    struct fund_sum r = { 0.0, 0.0, 0.0 };
+    return std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, r, [](fund_sum sum, fund& f){ 
+        sum.capital += f.capital; 
+        sum.market_value += f.market_value; 
+        sum.profit +=  f.market_value - f.capital;
+        return sum;
+    });
+}
+
 void urph_fin_core_close()
 {
     delete cloud;
