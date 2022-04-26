@@ -30,6 +30,10 @@ static void main_menu()
                 table.add_row({"Broker", "Currency", "Balance"});
                 auto brokers = static_cast<AllBrokers*>(get_brokers());
                 for(Broker& broker: *brokers){
+                    if(broker.size(default_member_tag()) == 0){
+                        table.add_row({broker.name, "", ""});
+                        continue;
+                    }
                     bool broker_name_printed = false;
                     for(CashBalance& balance: broker){
                         if (broker_name_printed)
