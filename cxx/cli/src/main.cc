@@ -47,11 +47,11 @@ static void main_menu()
                     for(CashBalance& balance: broker){
                         if (broker_name_printed)
                             table.add_row(
-                                {"", balance.ccy, to_string(balance.balance)}
+                                {"", balance.ccy, format_with_commas(balance.balance)}
                             );
                         else{
                             table.add_row(
-                                {broker.name, balance.ccy, to_string(balance.balance)}
+                                {broker.name, balance.ccy, format_with_commas(balance.balance)}
                             );
                             broker_name_printed = true;
                         }
