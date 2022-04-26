@@ -581,25 +581,44 @@ void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
 
 void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
 {
-    Broker* broker = static_cast<Broker*>(get_broker(broker_name));
+    Iterator<Broker> *begin, *end;
+    Broker* broker =  nullptr;
+    AllBrokers* all_brokers = nullptr;
 
-    if(broker == nullptr){
-        onFunds(nullptr, param);
+    int fund_num = 0;
+    std::vector<Broker*> all_broker_pointers;
+
+    if(broker_name != nullptr){
+        broker = static_cast<Broker*>(get_broker(broker_name));
+        if(broker == nullptr){
+            onFunds(nullptr, param);
+            return;
+        }
+        fund_num = broker->size(Broker::active_fund_tag());
+        all_broker_pointers.push_back(broker);
     }
     else{
-        auto fund_num = broker->size(Broker::active_fund_tag());
-        const char ** ids = new const char* [fund_num];
-        const char ** ids_head = ids;
+        all_brokers = static_cast<AllBrokers*>(get_brokers());
+        for(Broker& b: *all_brokers){
+            fund_num += b.size(Broker::active_fund_tag());
+            all_broker_pointers.push_back(&b); 
+        }
+    }
+
+    const char ** ids = new const char* [fund_num];
+    const char ** ids_head = ids;
+    for(auto* broker: all_broker_pointers){
         for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
             auto& f = *it;
             *ids++ = f.id;
         }         
-        get_funds(fund_num, ids_head, onFunds, param);       
-
-        delete []ids_head;
     }
+    get_funds(fund_num, ids_head, onFunds, param);       
+
+    delete []ids_head;
 
     delete broker;
+    delete all_brokers;
 }
 
 void free_funds(fund_portfolio* f)

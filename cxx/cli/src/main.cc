@@ -71,7 +71,7 @@ static void main_menu()
         rootMenu->Insert(
             "fund",
             [](ostream& out, string broker_name){
-                get_active_funds(broker_name.c_str(),[](fund_portfolio* fp, void *param){
+                get_active_funds( broker_name == "all" ? nullptr : broker_name.c_str(),[](fund_portfolio* fp, void *param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     Table table;
                     table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit"});
