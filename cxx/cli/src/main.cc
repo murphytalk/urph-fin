@@ -2,6 +2,8 @@
 #include <memory>
 #include <string>
 #include <mutex>
+#include <iomanip>
+#include <locale>
 #include <condition_variable>
 
 #include <urph-fin-core.hxx>
@@ -12,6 +14,14 @@
 
 using namespace std;
 using namespace tabulate;
+
+template<typename T> std::string format_with_commas(T value)
+{
+    std::stringstream ss;
+    ss.imbue(std::locale(""));
+    ss << std::fixed << value;
+    return ss.str();
+}
 
 static void main_menu()
 {
@@ -70,7 +80,7 @@ static void main_menu()
                     for(Fund& fund: *fund_portfolio){
                         ++row;
                         auto profit = fund.market_value - fund.capital;
-                        table.add_row({fund.broker, fund.name, to_string(fund.amount), to_string(fund.price), to_string(fund.capital), to_string(fund.market_value), to_string(profit)});
+                        table.add_row({fund.broker, fund.name, format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value), format_with_commas(profit)});
                         if(profit < 0)  table[row][6].format().font_color(Color::red);
                     }
                     free_funds(fp);
