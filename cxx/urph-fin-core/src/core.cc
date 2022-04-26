@@ -434,6 +434,11 @@ public:
                                     LOG(ERROR) << "Failed to query tx from funds \n";
                                 }
                                 if(fund_alloc->has_enough_counter()){
+                                    std::sort(fund_alloc->head, fund_alloc->head + fund_alloc->allocated_num(),[](fund& f1, fund& f2){ 
+                                        auto byBroker = strcmp(f1.broker,f2.broker);
+                                        auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;
+                                        return v < 0; 
+                                    });
                                     onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head), onFundsCallerProvidedParam);
                                     delete fund_alloc;
                                 }
