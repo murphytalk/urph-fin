@@ -13,7 +13,6 @@
 using namespace std;
 using namespace tabulate;
 
-
 static void main_menu()
 {
     try
@@ -54,7 +53,7 @@ static void main_menu()
                 table[0].format()
                     .font_style({FontStyle::bold})
                     .font_align(FontAlign::center);
-                out << table << endl;
+                out << "\n" << table << endl;
             },
             "List broker summary"
         );
@@ -67,11 +66,18 @@ static void main_menu()
                     Table table;
                     table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit"});
                     auto fund_portfolio = static_cast<FundPortfolio*>(fp);
+                    int row = 0;
                     for(Fund& fund: *fund_portfolio){
-                        table.add_row({fund.broker, fund.name, to_string(fund.amount), to_string(fund.price), to_string(fund.capital), to_string(fund.market_value), to_string(fund.market_value - fund.capital)});
+                        ++row;
+                        auto profit = fund.market_value - fund.capital;
+                        table.add_row({fund.broker, fund.name, to_string(fund.amount), to_string(fund.price), to_string(fund.capital), to_string(fund.market_value), to_string(profit)});
+                        if(profit < 0)  table[row][6].format().font_color(Color::red);
                     }
                     free_funds(fp);
-                    *out << table << endl;
+                    for(auto i = 2 ; i <=6 ;++i) table.column(i).format().font_align(FontAlign::right);
+                    table.column(1).format().multi_byte_characters(true).width(100);
+                    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+                    *out << "\n" << table << endl;
                 }, &out);
 
             },

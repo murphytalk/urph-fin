@@ -396,8 +396,6 @@ public:
             const auto& q = _firestore->Collection("Instruments").WhereIn("id", ids);
             q.Get().OnCompletion([onFunds, onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
                 if (future.error() == Error::kErrorOk) {
-                    size_t fund_num = future.result()->size();
-
                     for(const auto& the_fund: future.result()->documents()){
                         // find latest tx
                         auto fund_name = the_fund.Get("name").string_value();
