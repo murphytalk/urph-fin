@@ -52,6 +52,8 @@ struct fund{
     double capital;
     double market_value;
     double price;
+    double profit;
+    double ROI;
     timestamp date; 
 };
 
@@ -71,6 +73,7 @@ struct fund_sum
     double market_value;
     double capital;
     double profit;
+    double ROI;
 };
 fund_sum calc_fund_sum(fund_portfolio* portfolio);
 

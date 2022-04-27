@@ -184,7 +184,7 @@ FundPortfolio::~FundPortfolio()
     delete []first_fund;
 }
 
-Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double p, timestamp d)
+Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double prc, double p, double r, timestamp d)
 {
     broker = copy_str(b);
     name = copy_str(n);
@@ -192,7 +192,9 @@ Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int
     amount = a;
     capital = c;
     market_value = m;
-    price = p;
+    price = prc;
+    profit = p;
+    ROI = r;
     date = d;
 }    
 
@@ -418,6 +420,8 @@ public:
                                         double capital = Cloud::get_num_as_double(tx_ref.Get("capital"));
                                         double market_value = Cloud::get_num_as_double(tx_ref.Get("market_value"));
                                         double price = Cloud::get_num_as_double(tx_ref.Get("price"));
+                                        double profit = market_value - capital;
+                                        double roi = profit / capital;
                                         timestamp date = tx_ref.Get("date").timestamp_value().seconds();
                                         LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
                                         new (fund_alloc->current++) Fund(
@@ -426,6 +430,8 @@ public:
                                             capital,
                                             market_value,
                                             price,
+                                            profit,
+                                            roi,
                                             date
                                         );
                                         LOG(DEBUG) << "No." << fund_alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
@@ -636,13 +642,19 @@ void free_funds(fund_portfolio* f)
 
 fund_sum calc_fund_sum(fund_portfolio* portfolio)
 {
-    struct fund_sum r = { 0.0, 0.0, 0.0 };
-    return std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, r, [](fund_sum sum, fund& f){ 
+    struct fund_sum init = { 0.0, 0.0, 0.0 };
+
+    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum sum, fund& f){ 
         sum.capital += f.capital; 
         sum.market_value += f.market_value; 
         sum.profit +=  f.market_value - f.capital;
+        sum.ROI +=  sum.profit/sum.capital;
         return sum;
     });
+
+    r.ROI /= portfolio->num;
+
+    return r;
 }
 
 void urph_fin_core_close()
