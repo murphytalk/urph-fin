@@ -84,7 +84,7 @@ public:
 
 class Fund: public fund{
 public:
-    Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double p, timestamp d);
+    Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double prc, double p, double r, timestamp d);
     ~Fund();
 };
 
