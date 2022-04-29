@@ -25,9 +25,9 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 680,
+    autoHideMenuBar: true,
     webPreferences: {
-      //devTools: isProd ? false : true,
-      devTools: true,
+      devTools: isProd ? false : true,
       contextIsolation: true,
     },
   });
@@ -45,7 +45,7 @@ const createWindow = () => {
     app.quit();
   });
 
-  /*if (!isProd)*/ mainWindow.webContents.openDevTools();
+  if (!isProd) mainWindow.webContents.openDevTools();
 
   mainWindow.on("closed", () => {
     mainWindow = null;
