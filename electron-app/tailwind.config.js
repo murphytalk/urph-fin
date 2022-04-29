@@ -1,5 +1,5 @@
 module.exports = {
-  content: ['./src/frontend/**/*.{html,js,svelte,ts}', './node_modules/tw-elements/dist/js/**/*.js'],
+  content: ['./src/frontend/**/*.{html,js,svelte,ts}'],
   theme: {
     extend: {},
   },
