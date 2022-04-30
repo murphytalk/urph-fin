@@ -19,11 +19,7 @@
 	import ModalDlg from './share/ModalDlg.svelte';
   //import Icon from "svelte-awesome";
   //import { infoCircle } from "svelte-awesome/icons";
-  let aboutVisible = false;
-
-  function showAbout(): void{
-    aboutVisible = true;
-  }
+  let aboutWndIsVisible = false;
 </script>
 
 <div>
@@ -31,7 +27,7 @@
     <div class="max-w-7xl px-2">
       <div class="flex items-center justify-between h-12">
         <div class="flex items-center">
-          <a class="flex-shrink-0" href="#" on:click="{showAbout}">
+          <a class="flex-shrink-0" href="#" on:click="{() => aboutWndIsVisible = true }">
             <img class="h-8 w-8" src="images/crab.png" alt="Logo" />
           </a>
           <div class="hidden md:block">
@@ -68,7 +64,7 @@
   </nav>
 </div>
 
-<ModalDlg bind:shown={aboutVisible}>
+<ModalDlg bind:shown={aboutWndIsVisible}>
 		<div
 			class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100"
 		>

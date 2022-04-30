@@ -13,9 +13,6 @@
 
 <script lang="ts">
   export let shown: boolean = false;
-  function hide(): void{
-    shown = false;
-  }
 </script>
 
 
@@ -26,9 +23,8 @@
 			<button
 				id="ok-btn"
 				class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
-        on:click="{hide}"
-			>
-				OK
+                on:click="{() => shown=false}">
+                OK
 			</button>
 		</div>
     </div>
