@@ -1,5 +1,5 @@
 <style lang="postcss">
- #modal-overlay {
+ .modal-overlay {
     width: 100%;
     height: 100%;
     position: fixed;
@@ -31,6 +31,6 @@
 </div>
 
 {#if shown}
-  <div id='modal-overlay'></div>
+  <div class="modal-overlay"></div>
 {/if}
 
