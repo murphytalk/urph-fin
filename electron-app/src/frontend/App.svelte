@@ -16,17 +16,13 @@
 </style>
 
 <script lang="ts">
+	import ModalDlg from './share/ModalDlg.svelte';
   //import Icon from "svelte-awesome";
   //import { infoCircle } from "svelte-awesome/icons";
   let aboutVisible = false;
 
   function showAbout(): void{
-    console.log('show about');
     aboutVisible = true;
-  }
-
-  function closeAbout(): void{
-    aboutVisible = false;
   }
 </script>
 
@@ -72,9 +68,7 @@
   </nav>
 </div>
 
-<div hidden = {!aboutVisible} class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white z-10" 
->
-	<div class="mt-3 text-center">
+<ModalDlg bind:shown={aboutVisible}>
 		<div
 			class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100"
 		>
@@ -99,18 +93,4 @@
 				Account has been successfully registered!
 			</p>
 		</div>
-		<div class="items-center px-4 py-3">
-			<button
-				id="ok-btn"
-				class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300"
-        on:click="{closeAbout}"
-			>
-				OK
-			</button>
-		</div>
-	</div>
-</div>
-
-{#if aboutVisible}
-  <div id='modal-overlay'></div>
-{/if}
+</ModalDlg>
