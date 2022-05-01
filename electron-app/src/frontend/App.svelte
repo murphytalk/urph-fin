@@ -14,13 +14,15 @@
 <script lang="ts">
 	import Overview from './components/Overview.svelte';
   import Funds from './components/Funds.svelte';
+  import Crypto from './components/Crypto.svelte';
+  import Stocks from './components/Stocks.svelte';
 	import ModalDlg from './share/ModalDlg.svelte';
   import { Router, Route, link } from "svelte-navigator";
   import Fa from 'svelte-fa'
   import { faGaugeHigh, faSackDollar, faChartLine, faBitcoinSign, faCircleInfo} from '@fortawesome/free-solid-svg-icons'  
 
   let aboutWndIsVisible = false;
-  let activeComponent: Overview|Funds;
+  let activeComponent: Overview|Funds|Stocks|Crypto;
 
   $: selected =  (activeComponent && activeComponent.constructor) ? activeComponent.constructor.name : 'Overview';
 </script>
@@ -49,8 +51,8 @@
                 </div>
               </a>
               <a
-                class="inactive-nav"
-                href="/" use:link
+                class="{ selected === 'Stocks' ? 'active-nav' : 'inactive-nav' }"
+                href="/stocks" use:link
               >
                <div class="flex justify-between items-center">
                   <div class="text-xl px-2"><Fa icon={faChartLine} /></div>
@@ -58,10 +60,10 @@
                 </div>
               </a>
               <a
-                class="inactive-nav"
-                href="/" use:link
+                class="{ selected === 'Crypto' ? 'active-nav' : 'inactive-nav' }"
+                href="/crypto" use:link
               >
-               <div class="flex justify-between items-center">
+              <div class="flex justify-between items-center">
                   <div class="text-xl px-2"><Fa icon={faBitcoinSign} /></div>
                   <div>Crypto</div>
                </div>
@@ -77,13 +79,19 @@
 <Router>
     <Route path="/">
       <Overview bind:this={activeComponent}/>
-  </Route>
+    </Route>
     <Route path="funds">
       <Funds bind:this={activeComponent}/>
-  </Route>
+   </Route>
+    <Route path="stocks">
+      <Stocks bind:this={activeComponent}/>
+   </Route>
+    <Route path="crypto">
+      <Crypto bind:this={activeComponent}/>
+   </Route>
 </Router>
-</div>
 
+</div>
 
 <ModalDlg bind:shown={aboutWndIsVisible}>
 		<div
