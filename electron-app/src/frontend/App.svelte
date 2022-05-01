@@ -2,31 +2,36 @@
   @tailwind base;
   @tailwind components;
   @tailwind utilities;
+
+  .inactive-nav{
+    @apply text-gray-300  hover:text-blue-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium;
+  }
+  .active-nav{
+    @apply text-green-600  hover:text-blue-500 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium;
+  }
 </style>
 
 <script lang="ts">
 	import Overview from './components/Overview.svelte';
   import Funds from './components/Funds.svelte';
 	import ModalDlg from './share/ModalDlg.svelte';
-  import { Router, Route, link} from "svelte-navigator";
+  import { Router, Route, link } from "svelte-navigator";
   import Fa from 'svelte-fa'
-  import { faGaugeHigh, faSackDollar, faChartLine, faBitcoinSign} from '@fortawesome/free-solid-svg-icons'  
+  import { faGaugeHigh, faSackDollar, faChartLine, faBitcoinSign, faCircleInfo} from '@fortawesome/free-solid-svg-icons'  
+
   let aboutWndIsVisible = false;
+  let activeComponent: Overview|Funds;
+
+  $: selected =  (activeComponent && activeComponent.constructor) ? activeComponent.constructor.name : 'Overview';
 </script>
 
 <div class="flex flex-col h-full">
-<div>
-  <nav class="bg-white dark:bg-gray-800 shadow">
-    <div class="max-w-7xl px-2">
-      <div class="flex items-center justify-between h-12">
-        <div class="flex items-center">
-          <a class="flex-shrink-0" href="#" on:click="{() => aboutWndIsVisible = true }">
-            <img class="h-8 w-8" src="images/crab.png" alt="Logo" />
-          </a>
-          <div class="hidden md:block">
-            <div class="ml-2 flex items-baseline space-x-2">
+  <nav class="bg-white dark:bg-gray-800 mb-1 shadow flex justify-between">
+      <div class="flex flex-1 justify-between h-12 items-center">
+          <div class="flex items-center">
+            <div class="ml-1 flex items-baseline space-x-2">
               <a
-                class="text-gray-800  dark:text-white  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                class="{ selected === 'Overview' ? 'active-nav' : 'inactive-nav' }"
                 href="/" use:link
               >
                <div class="flex justify-between items-center">
@@ -35,7 +40,7 @@
                 </div>
               </a>
               <a
-                class="text-gray-300  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                class="{ selected === 'Funds' ? 'active-nav' : 'inactive-nav' }"
                 href="funds" use:link
               >
                <div class="flex justify-between items-center">
@@ -44,7 +49,7 @@
                 </div>
               </a>
               <a
-                class="text-gray-300  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                class="inactive-nav"
                 href="/" use:link
               >
                <div class="flex justify-between items-center">
@@ -53,7 +58,7 @@
                 </div>
               </a>
               <a
-                class="text-gray-300  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
+                class="inactive-nav"
                 href="/" use:link
               >
                <div class="flex justify-between items-center">
@@ -61,23 +66,24 @@
                   <div>Crypto</div>
                </div>
               </a>
-            </div>
           </div>
         </div>
+        <a class="mr-1 text-blue-900" href="#" on:click="{() => aboutWndIsVisible = true }">
+            <div class="text-xl px-2"><Fa icon={faCircleInfo} /></div>
+        </a>
       </div>
-    </div>
   </nav>
-</div>
 
 <Router>
     <Route path="/">
-      <Overview/>
+      <Overview bind:this={activeComponent}/>
   </Route>
     <Route path="funds">
-      <Funds/>
+      <Funds bind:this={activeComponent}/>
   </Route>
 </Router>
 </div>
+
 
 <ModalDlg bind:shown={aboutWndIsVisible}>
 		<div
