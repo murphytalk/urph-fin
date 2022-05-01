@@ -4,10 +4,10 @@
   @tailwind utilities;
 
   .inactive-nav{
-    @apply text-gray-300  hover:text-blue-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium;
+    @apply text-gray-300  hover:text-blue-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:no-underline;
   }
   .active-nav{
-    @apply text-green-600  hover:text-blue-500 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium;
+    @apply text-green-600  hover:text-blue-500 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium hover:no-underline;
   }
 </style>
 
