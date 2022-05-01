@@ -60,11 +60,12 @@
     "preversion": "npm-run-all -s lint format"
   },
   "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.1.1",
+    "ag-grid-community": "^27.2.1",
     "electron-log": "^4.3.5",
     "electron-store": "^8.0.0",
     "electron-updater": "^4.3.9",
-    "svelte-awesome": "^2.4.6",
-    "tw-elements": "^1.0.0-alpha12"
+    "svelte-fa": "^2.4.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.1",

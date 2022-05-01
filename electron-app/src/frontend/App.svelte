@@ -2,26 +2,19 @@
   @tailwind base;
   @tailwind components;
   @tailwind utilities;
-
-  #modal-overlay {
-  width: 100%;
-  height: 100%;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 0;
-  background-color: black;
-  opacity: 0.5;  
-}  
 </style>
 
 <script lang="ts">
+	import Overview from './components/Overview.svelte';
+  import Funds from './components/Funds.svelte';
 	import ModalDlg from './share/ModalDlg.svelte';
-  //import Icon from "svelte-awesome";
-  //import { infoCircle } from "svelte-awesome/icons";
+  import { Router, Route, link} from "svelte-navigator";
+  import Fa from 'svelte-fa'
+  import { faGaugeHigh, faSackDollar, faChartLine, faBitcoinSign} from '@fortawesome/free-solid-svg-icons'  
   let aboutWndIsVisible = false;
 </script>
 
+<div class="flex flex-col h-full">
 <div>
   <nav class="bg-white dark:bg-gray-800 shadow">
     <div class="max-w-7xl px-2">
@@ -34,27 +27,39 @@
             <div class="ml-2 flex items-baseline space-x-2">
               <a
                 class="text-gray-800  dark:text-white  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                href="/#"
+                href="/" use:link
               >
-                Dashboard
+               <div class="flex justify-between items-center">
+                  <div class="text-xl px-2"><Fa icon={faGaugeHigh} /></div>
+                  <div>Dashboard</div>
+                </div>
               </a>
               <a
                 class="text-gray-300  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                href="/#"
+                href="funds" use:link
               >
-                Funds
+               <div class="flex justify-between items-center">
+                  <div class="text-xl px-2"><Fa icon={faSackDollar} /></div>
+                  <div>Funds</div>
+                </div>
               </a>
               <a
                 class="text-gray-300  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                href="/#"
+                href="/" use:link
               >
-                Stocks
+               <div class="flex justify-between items-center">
+                  <div class="text-xl px-2"><Fa icon={faChartLine} /></div>
+                  <div>Stocks</div>
+                </div>
               </a>
               <a
                 class="text-gray-300  hover:text-gray-800 dark:hover:text-white px-3 py-2 rounded-md text-sm font-medium"
-                href="/#"
+                href="/" use:link
               >
-                Crypto
+               <div class="flex justify-between items-center">
+                  <div class="text-xl px-2"><Fa icon={faBitcoinSign} /></div>
+                  <div>Crypto</div>
+               </div>
               </a>
             </div>
           </div>
@@ -62,6 +67,16 @@
       </div>
     </div>
   </nav>
+</div>
+
+<Router>
+    <Route path="/">
+      <Overview/>
+  </Route>
+    <Route path="funds">
+      <Funds/>
+  </Route>
+</Router>
 </div>
 
 <ModalDlg bind:shown={aboutWndIsVisible}>
