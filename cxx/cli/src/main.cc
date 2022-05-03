@@ -116,13 +116,16 @@ static void main_menu()
             "List mutual funds portfolio by broker"
         );
 
-        rootMenu->Insert(
-            "stock",
-            [](ostream& out, string broker){
-                out<<"Show " << broker << " Stock & ETF portfolio\n";
+        
+        auto stockMenu = make_unique<cli::Menu >( "stock" );
+        stockMenu->Insert(
+            "list",
+            [](ostream& out){
             },
-            "List stock and ETF portfolio by broker"
+            "List all known stocks"
         );
+
+        rootMenu->Insert(std::move(stockMenu));
 
 
         cli::Cli cli( std::move(rootMenu) );

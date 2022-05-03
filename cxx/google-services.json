@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1069947937763",
+    "project_id": "urph-fin",
+    "storage_bucket": "urph-fin.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1069947937763:android:27fbda67ee84464fc776d6",
+        "android_client_info": {
+          "package_name": "com.murphytalk.urph_fin"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1069947937763-46467dsjbpebt3otq3e01e0pp81ui7sh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCN4xgqKUxgkar0lGO1__ssQ30CzW_pUAM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1069947937763-46467dsjbpebt3otq3e01e0pp81ui7sh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

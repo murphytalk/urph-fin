@@ -11,21 +11,24 @@ typedef void (*OnInitDone)();
 bool urph_fin_core_init(OnInitDone);
 void urph_fin_core_close();
 
+// Funds
 struct cash_balance{
     char* ccy;
     double balance;
 };
 
-struct active_fund{
-    char* id;
+struct strings{
+    int capacity;
+    char** strs;
+    char** last_str;
 };
+void free_strings(strings);
 
 struct broker{
     char* name;
     int num;
     cash_balance* first_cash_balance;
-    int active_funds_num;
-    active_fund* first_active_fund;
+    strings* active_fund_ids;
 };
 struct all_brokers{
     broker* first_broker;
@@ -76,6 +79,45 @@ struct fund_sum
     double ROI;
 };
 fund_sum calc_fund_sum(fund_portfolio* portfolio);
+
+// Stocks & ETF
+struct stock
+{
+    const char* broker;
+    const char* symbol;
+    const char* currency;
+};
+
+const unsigned char BUY   = 0;
+const unsigned char SELL  = 1;
+const unsigned char SPLIT = 2;
+struct stock_tx
+{
+    double fee;
+    double shares;
+    double price;
+    unsigned char side; 
+    timestamp date; 
+};
+
+struct stock_portfolio
+{
+    int num;
+    stock_tx* first_tx;
+};
+
+typedef void (*OnAllStockTx)(stock_portfolio*, void* param);
+// broker = null => all brokers
+void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param);
+void free_stock_portfolio(stock_portfolio*);
+struct stock_portfolio_balance
+{
+    double shares;
+    double capital;
+    double fee;
+};
+stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx);
+
 
 }
 #endif // URPH_FIN_CORE_H_

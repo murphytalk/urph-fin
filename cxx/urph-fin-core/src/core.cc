@@ -127,36 +127,59 @@ CashBalance::~CashBalance()
     delete[] ccy;
 }
 
-ActiveFund::ActiveFund(const std::string& i)
+Strings::Strings(int n)
 {
-    id = copy_str(i);
-}
-ActiveFund::~ActiveFund()
-{
-    LOG(DEBUG) << " id= " << id << " ";
-    delete []id;
+    capacity = n;
+    strs = new char* [n];    
+    last_str = strs;
 }
 
-Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, int active_funds_num, active_fund* first_fund)
+void Strings::add(const std::string& i)
+{
+    if(size() == capacity){
+        std::stringstream ss;
+        ss << "Could not add string [" << i << "] : exceeding capacity " << capacity;
+        throw std::runtime_error(ss.str());
+    }
+    *last_str++ = copy_str(i);
+}
+
+int Strings::size()
+{
+    return last_str - strs;
+}
+
+Strings::~Strings()
+{
+    for(char** p=strs; p!=last_str; ++p){
+        LOG(DEBUG) << *p << ",";
+        delete []*p;
+    }
+    delete []strs;
+}
+
+void free_strings(strings* ss)
+{
+    delete static_cast<Strings*>(ss);
+}
+
+Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds)
 {
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
-
-    this->active_funds_num = active_funds_num;
-    this->first_active_fund = first_fund;
+    active_fund_ids = active_funds;
 }
 
 Broker::~Broker(){
     LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
     delete[] name;
 
-    free_multiple_structs<Broker, CashBalance>(this);
+    free_placement_allocated_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;
 
     LOG(DEBUG) << "] - active funds [";
-    free_multiple_structs<Broker, ActiveFund>(this, active_fund_tag());
-    delete[] first_active_fund;
+    free_strings(active_fund_ids);
     LOG(DEBUG) << "] - freed!\n";
 }
 
@@ -169,7 +192,7 @@ AllBrokers::AllBrokers(int n, broker* broker)
 AllBrokers::~AllBrokers()
 {
     LOG(DEBUG) << "freeing " << num << " brokers \n";
-    free_multiple_structs<AllBrokers, Broker>(this);
+    free_placement_allocated_structs<AllBrokers, Broker>(this);
     delete []first_broker;
 }
 
@@ -180,7 +203,7 @@ FundPortfolio::FundPortfolio(int n, fund* f)
 }
 FundPortfolio::~FundPortfolio()
 {
-    free_multiple_structs<FundPortfolio, Fund>(this);
+    free_placement_allocated_structs<FundPortfolio, Fund>(this);
     delete []first_fund;
 }
 
@@ -203,6 +226,31 @@ Fund::~Fund()
     delete []broker;
     delete []name;
     delete []id;
+}
+
+Stock::Stock(const std::string& b, const std::string& n, const std::string& ccy)
+{
+    broker = copy_str(b);
+    symbol = copy_str(n);
+    currency = copy_str(ccy);
+}
+
+Stock::~Stock()
+{
+    delete []broker;
+    delete []symbol;
+    delete []currency;
+}
+
+StockPortfolio::StockPortfolio(int n, stock_tx *first)
+{
+    num = n;
+    first_tx = first;
+}
+
+StockPortfolio::~StockPortfolio()
+{
+    free_placement_allocated_structs<StockPortfolio, StockTx>(this);
 }
 
 template<typename T > struct PlacementNew{
@@ -235,6 +283,8 @@ private:
     Firestore* _firestore;
 
     static const char COLLECTION_BROKERS [];
+    static const char COLLECTION_INSTRUMENTS[];
+    static const char COLLECTION_TX[];
     static const int FILTER_BY_ID_LIMIT = 10;
 public:
     Cloud(OnInitDone onInitDone){
@@ -324,8 +374,8 @@ public:
         const auto& f = doc_ref.Get();
         if(Await(f, "broker by name")){
             const auto& broker = *f.result();
-            return create_broker(broker, [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, int active_funds_num, active_fund* first_fund){
-                return new Broker(n, ccy_num, first_ccy_balance, active_funds_num, first_fund);
+            return create_broker(broker, [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
+                return new Broker(n, ccy_num, first_ccy_balance, active_funds);
             });
         }
         else{
@@ -345,8 +395,8 @@ public:
             broker* brokers = new broker [all_brokers.size()];
             broker* brokers_head = brokers;
             for (const auto& broker : all_brokers) {
-                Cloud::create_broker(broker, [&brokers](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, int active_funds_num, active_fund* first_fund){
-                    return new (brokers++) Broker(n, ccy_num, first_ccy_balance, active_funds_num, first_fund);
+                Cloud::create_broker(broker, [&brokers](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_fund){
+                    return new (brokers++) Broker(n, ccy_num, first_ccy_balance, active_fund);
                 });
             }
             return new AllBrokers(all_brokers.size(), brokers_head);
@@ -396,7 +446,7 @@ public:
                 return FieldValue::String(id);
             });
 
-            const auto& q = _firestore->Collection("Instruments").WhereIn("id", ids);
+            const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereIn("id", ids);
             q.Get().OnCompletion([onFunds, onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
                 if (future.error() == Error::kErrorOk) {
                     for(const auto& the_fund: future.result()->documents()){
@@ -404,7 +454,7 @@ public:
                         auto fund_name = the_fund.Get("name").string_value();
                         auto fund_id = the_fund.id();
                         LOG(DEBUG) << "getting tx of fund id=" << fund_id << " name=" << fund_name << "\n";
-                        the_fund.reference().Collection("tx")
+                        the_fund.reference().Collection(Cloud::COLLECTION_TX)
                             .OrderBy("date", Query::Direction::kDescending).Limit(1)
                             .Get().OnCompletion([onFunds,onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
                                 fund_alloc->inc_counter();
@@ -470,6 +520,28 @@ public:
         delete p;
     }
 
+    void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param)
+    {
+        const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS)
+            .WhereIn("type", {FieldValue::String("Stock"), FieldValue::String("ETF")})
+            .WhereEqualTo("name", FieldValue::String(symbol));
+
+        q.Get().OnCompletion([broker,onAllStockTx](const Future<QuerySnapshot>& future){
+            if(future.error() == Error::kErrorOk){
+                const auto& stocks = future.result()->documents();
+                const auto& stock = stocks.front();
+                const auto& c = stock.reference().Collection(Cloud::COLLECTION_TX);
+                const auto& qs = broker == nullptr ? c.Get() : c.WhereEqualTo("broker", FieldValue::String(broker)).Get();
+                qs.OnCompletion([onAllStockTx](const Future<QuerySnapshot>& future){
+
+                });
+            }
+            else{
+                LOG(ERROR) << " Failed to query stock tx\n";
+                onAllStockTx(nullptr, nullptr);
+            }
+        });
+    }
 private:
     static inline double get_num_as_double(const FieldValue& fv)
     { 
@@ -479,7 +551,7 @@ private:
 
     static Broker* create_broker(
         const DocumentSnapshot& broker, 
-        std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, int/*active_funds_num*/, active_fund* /*first_fund*/)> create_func)
+        std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, strings* /*active_fund_ids*/)> create_func)
     {
         const auto& cash = broker.Get("cash");
         const auto& all_ccys = cash.map_value();
@@ -492,13 +564,12 @@ private:
         }
 
         const auto& active_funds = broker.Get("active_funds").array_value();
-        active_fund* funds = new active_fund[active_funds.size()];
-        active_fund* fund_head = funds;
+        Strings* funds = new Strings(active_funds.size());
         for(const auto& f: active_funds){
-            new (funds++) ActiveFund(f.string_value());
+            funds->add(f.string_value());
         }
                 
-        return create_func(broker.id(), all_ccys.size(), head, active_funds.size(), fund_head);
+        return create_func(broker.id(), all_ccys.size(), head, funds);
     }
 
     template<typename T> T* for_each_doc(const char* collection_name, std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_docs)
@@ -519,6 +590,8 @@ private:
 };
 
 const char Cloud::COLLECTION_BROKERS[] = "Brokers";
+const char Cloud::COLLECTION_INSTRUMENTS[] = "Instruments";
+const char Cloud::COLLECTION_TX[] = "tx";
 
 Cloud *cloud;
 
@@ -545,6 +618,11 @@ bool urph_fin_core_init(OnInitDone onInitDone)
         LOG(ERROR) << "Failed to init cloud service: " << e.what() << "\n";
         return false;
     }
+}
+
+void urph_fin_core_close()
+{
+    delete cloud;
 }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
@@ -621,9 +699,8 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
     const char ** ids_head = ids;
     for(auto* broker: all_broker_pointers){
         for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
-            auto& f = *it;
-            *ids++ = f.id;
-        }         
+            *ids++ = *it;
+        }
     }
     get_funds(fund_num, ids_head, onFunds, param);       
 
@@ -657,7 +734,16 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
     return r;
 }
 
-void urph_fin_core_close()
+void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)
 {
-    delete cloud;
+}
+
+void free_stock_portfolio(stock_portfolio*)
+{
+
+}
+
+stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx)
+{
+    return {0,0};
 }

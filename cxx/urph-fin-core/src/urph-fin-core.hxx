@@ -36,7 +36,7 @@ private:
 struct default_member_tag {};
 
 template<typename Wrapper, typename T, typename MemberTag=default_member_tag>
-void free_multiple_structs(Wrapper* data, MemberTag mt = MemberTag()){
+void free_placement_allocated_structs(Wrapper* data, MemberTag mt = MemberTag()){
     T* p = data->head(mt);
     for(int i = 0; i < data->size(mt); ++i, ++p){
         p->~T();
@@ -49,15 +49,19 @@ public:
     ~CashBalance();
 };
 
-class ActiveFund: public active_fund{
+class Strings: public strings{
 public:
-    ActiveFund(const std::string& i);
-    ~ActiveFund();
+    Strings(int n);
+    ~Strings();
+    void add(const std::string& s);
+    int size();
+    inline char** begin() { return strs; }
+    inline char** end()   { return last_str; }
 };
 
 class Broker: public broker{
 public:
-    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, int active_funds_num, active_fund* first_fund);
+    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds);
     ~Broker();
 
     inline CashBalance* head(default_member_tag) { return static_cast<CashBalance*>(first_cash_balance); }
@@ -66,10 +70,10 @@ public:
     Iterator<CashBalance> end() { return Iterator( head(default_member_tag()) + num ); }
 
     struct active_fund_tag{};
-    inline ActiveFund* head(active_fund_tag) { return static_cast<ActiveFund*>(first_active_fund); }
-    inline int size(active_fund_tag) { return active_funds_num; }
-    Iterator<ActiveFund> fund_begin() { return Iterator( head(active_fund_tag()) ); }
-    Iterator<ActiveFund> fund_end() { return Iterator( head(active_fund_tag()) + active_funds_num); }
+    inline char** head(active_fund_tag) { return static_cast<Strings*>(active_fund_ids)->begin(); }
+    inline int size(active_fund_tag) { return static_cast<Strings*>(active_fund_ids)->size(); }
+    Iterator<char*> fund_begin() { return Iterator( head(active_fund_tag()) ); }
+    Iterator<char*> fund_end() { return Iterator(static_cast<Strings*>(active_fund_ids)->end()); }
 };
 
 class AllBrokers: public all_brokers{
@@ -99,6 +103,32 @@ public:
     Iterator<Fund> end() { return Iterator( head(default_member_tag()) + num ); }
 };
 
+class Stock: public stock{
+public:
+    Stock(const std::string& b, const std::string& n, const std::string& ccy);
+    ~Stock();
+};
+
+class StockTx: public stock_tx{
+public:    
+    const char* Side(){
+        return side == BUY ? "BUY" :  (side == SELL ? "SELL" : "SPLIT");
+    }
+};
+
+class StockPortfolio: public stock_portfolio{
+public:
+   StockPortfolio(int n, stock_tx *first);
+   ~StockPortfolio();
+
+   inline StockTx* head(default_member_tag) { return static_cast<StockTx*>(first_tx); }
+   inline int size(default_member_tag) { return num; }
+
+   Iterator<StockTx> begin() { return Iterator( head(default_member_tag()) ); }
+   Iterator<StockTx> end() { return Iterator( head(default_member_tag()) + num ); }
+};
+
+
 // the ground rule is that none of the extended C++ classes should add member variables
 // so the size of the class remain the same as the original struct
 static_assert(sizeof(AllBrokers) == sizeof(all_brokers));
@@ -106,5 +136,7 @@ static_assert(sizeof(Broker) == sizeof(broker));
 static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
 static_assert(sizeof(Fund)  == sizeof(fund));
 static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
+static_assert(sizeof(Stock)  == sizeof(stock));
+static_assert(sizeof(StockTx)  == sizeof(stock_tx));
 
 #endif
