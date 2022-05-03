@@ -22,7 +22,7 @@ struct strings{
     char** strs;
     char** last_str;
 };
-void free_strings(strings);
+void free_strings(strings*);
 
 struct broker{
     char* name;
@@ -81,6 +81,8 @@ struct fund_sum
 fund_sum calc_fund_sum(fund_portfolio* portfolio);
 
 // Stocks & ETF
+strings* get_known_stocks(const char* broker);
+
 struct stock
 {
     const char* broker;

@@ -522,11 +522,7 @@ public:
 
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param)
     {
-        const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS)
-            .WhereIn("type", {FieldValue::String("Stock"), FieldValue::String("ETF")})
-            .WhereEqualTo("name", FieldValue::String(symbol));
-
-        q.Get().OnCompletion([broker,onAllStockTx](const Future<QuerySnapshot>& future){
+        get_stocks(broker, symbol).OnCompletion([broker,onAllStockTx](const Future<QuerySnapshot>& future){
             if(future.error() == Error::kErrorOk){
                 const auto& stocks = future.result()->documents();
                 const auto& stock = stocks.front();
@@ -541,6 +537,20 @@ public:
                 onAllStockTx(nullptr, nullptr);
             }
         });
+    }
+
+    strings* get_known_stocks(const char* broker)
+    {
+        const auto& f = get_stocks(broker, nullptr); 
+        if(Await(f, "get known stocks")){
+            const auto& docs = f.result()->documents();
+            Strings* stocks = new Strings(docs.size());
+            for(const auto& stock: docs){
+                stocks->add(stock.id());
+            }
+            return stocks;
+        }
+        else return nullptr;
     }
 private:
     static inline double get_num_as_double(const FieldValue& fv)
@@ -586,6 +596,13 @@ private:
     }
     template<typename T> T* for_each_broker(std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_brokers){
         return for_each_doc(COLLECTION_BROKERS, on_all_brokers);
+    }
+    const Future<QuerySnapshot> get_stocks(const char* broker, const char* symbol)
+    {
+        const auto& q1 = _firestore->Collection(COLLECTION_INSTRUMENTS)
+            .WhereIn("type", {FieldValue::String("Stock"), FieldValue::String("ETF")});
+        const auto& q2 = symbol == nullptr ? q1 : q1.WhereEqualTo("name", FieldValue::String(symbol));
+        return q2.Get();
     }
 };
 
@@ -732,6 +749,12 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
     r.ROI /= portfolio->num;
 
     return r;
+}
+
+strings* get_known_stocks(const char* broker)
+{
+    assert(cloud != nullptr);
+    return cloud->get_known_stocks(broker);
 }
 
 void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)
