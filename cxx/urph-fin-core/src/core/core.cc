@@ -9,7 +9,10 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <cassert>
+#include <numeric>
 
+#include "cloud/cloud.hxx"
 #include "urph-fin-core.hxx"
 
 // 3rd party
@@ -157,4 +160,165 @@ Fund::~Fund()
     delete []broker;
     delete []name;
     delete []id;
+}
+
+Cloud *cloud;
+
+bool urph_fin_core_init(OnInitDone onInitDone)
+{
+    std::vector<AixLog::log_sink_ptr> sinks;
+    
+    auto log_file = getenv("LOGFILE");
+    auto verbose = getenv("VERBOSE");
+    auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
+    if(log_file == nullptr)
+        sinks.push_back(std::make_shared<AixLog::SinkCout>(log_lvl));
+    else  
+        sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file)); 
+    AixLog::Log::init(sinks);
+    
+    LOG(DEBUG) << "urph-fin-core initializing\n";
+
+    try{
+        cloud = create_firestore_instance(onInitDone);
+        return true;
+    }
+    catch(const std::exception& e){
+        LOG(ERROR) << "Failed to init cloud service: " << e.what() << "\n";
+        return false;
+    }
+}
+
+void urph_fin_core_close()
+{
+    delete cloud;
+}
+
+// https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
+all_brokers* get_brokers()
+{
+    assert(cloud != nullptr);
+    return cloud->get_brokers();
+}
+
+void free_brokers(all_brokers* b)
+{
+    AllBrokers* brokers = static_cast<AllBrokers*>(b);
+    delete brokers;
+}
+
+broker* get_broker(const char* name)
+{
+    assert(cloud != nullptr);
+    return cloud->get_broker(name);
+}
+
+void free_broker(broker* b)
+{
+    delete static_cast<Broker*>(b);
+}
+
+char** get_all_broker_names(size_t* size)
+{
+    assert(cloud != nullptr);
+    return cloud->get_all_broker_names(*size);
+}
+
+void free_broker_names(char** names,size_t size)
+{
+    for(size_t i = 0; i < size; ++i){
+        delete[] names[i];
+    }
+    delete []names;
+}
+
+void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
+{
+    assert(cloud != nullptr);
+    cloud->get_funds(num, fund_ids, onFunds, param);
+}
+
+void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
+{
+    Iterator<Broker> *begin, *end;
+    Broker* broker =  nullptr;
+    AllBrokers* all_brokers = nullptr;
+
+    int fund_num = 0;
+    std::vector<Broker*> all_broker_pointers;
+
+    if(broker_name != nullptr){
+        broker = static_cast<Broker*>(get_broker(broker_name));
+        if(broker == nullptr){
+            onFunds(nullptr, param);
+            return;
+        }
+        fund_num = broker->size(Broker::active_fund_tag());
+        all_broker_pointers.push_back(broker);
+    }
+    else{
+        all_brokers = static_cast<AllBrokers*>(get_brokers());
+        for(Broker& b: *all_brokers){
+            fund_num += b.size(Broker::active_fund_tag());
+            all_broker_pointers.push_back(&b); 
+        }
+    }
+
+    const char ** ids = new const char* [fund_num];
+    const char ** ids_head = ids;
+    for(auto* broker: all_broker_pointers){
+        for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
+            *ids++ = *it;
+        }
+    }
+    get_funds(fund_num, ids_head, onFunds, param);       
+
+    delete []ids_head;
+
+    delete broker;
+    delete all_brokers;
+}
+
+void free_funds(fund_portfolio* f)
+{
+    auto p = static_cast<FundPortfolio*>(f);
+    delete p;
+}
+
+
+fund_sum calc_fund_sum(fund_portfolio* portfolio)
+{
+    struct fund_sum init = { 0.0, 0.0, 0.0 };
+
+    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum& sum, fund& f){ 
+        sum.capital += f.capital; 
+        sum.market_value += f.market_value; 
+        sum.profit +=  f.market_value - f.capital;
+        sum.ROI +=  sum.profit/sum.capital;
+        return sum;
+    });
+
+    r.ROI /= portfolio->num;
+
+    return r;
+}
+
+strings* get_known_stocks(const char* broker)
+{
+    assert(cloud != nullptr);
+    return cloud->get_known_stocks(broker);
+}
+
+void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)
+{
+}
+
+void free_stock_portfolio(stock_portfolio*)
+{
+
+}
+
+stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx)
+{
+    return {0,0};
 }

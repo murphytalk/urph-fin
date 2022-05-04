@@ -7,7 +7,6 @@
 #endif  // _WIN32
 
 
-#include <cassert>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -19,12 +18,13 @@
 #include <string>
 #include <functional>
 #include <vector>
-#include <numeric>
 
 // 3rd party
 #include "aixlog.hpp"
 
 #include "../core/urph-fin-core.hxx"
+#include "cloud.hxx"
+
 #include "firebase/auth.h"
 #include "firebase/auth.h"
 #include "firebase/auth/credential.h"
@@ -85,7 +85,7 @@ static bool Await(const firebase::FutureBase& future, const char* name) {
 }
 
 
-class Cloud{
+class GoogleFirestore: public Cloud{
 private:
     App*  _firebaseApp;
     Auth* _firebaseAuth;
@@ -96,7 +96,7 @@ private:
     static const char COLLECTION_TX[];
     static const int FILTER_BY_ID_LIMIT = 10;
 public:
-    Cloud(OnInitDone onInitDone){
+    GoogleFirestore(OnInitDone onInitDone){
         _firebaseApp = 
 #if defined(__ANDROID__)
             App::Create(GetJniEnv(), GetActivity())
@@ -166,7 +166,7 @@ public:
         .OnCompletion(c, (void*)onInitDone);
         
     }
-    ~Cloud(){
+    ~GoogleFirestore(){
         _firebaseAuth->SignOut();
         delete _firestore;
         delete _firebaseAuth;
@@ -189,11 +189,6 @@ public:
         }
     }
 
-    void free_broker(broker* broker)
-    {
-        delete static_cast<Broker*>(broker);
-    }
-
     AllBrokers* get_brokers()
     {
         return for_each_broker<AllBrokers>([](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokers*{
@@ -201,17 +196,12 @@ public:
             broker* brokers = new broker [all_brokers.size()];
             broker* brokers_head = brokers;
             for (const auto& broker : all_brokers) {
-                Cloud::create_broker(broker, [&brokers](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_fund){
+                GoogleFirestore::create_broker(broker, [&brokers](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_fund){
                     return new (brokers++) Broker(n, ccy_num, first_ccy_balance, active_fund);
                 });
             }
             return new AllBrokers(all_brokers.size(), brokers_head);
         });
-    }
-
-    void free_brokers(all_brokers* b){
-        AllBrokers* brokers = static_cast<AllBrokers*>(b);
-        delete brokers;
     }
 
     char** get_all_broker_names(size_t& size)
@@ -226,13 +216,6 @@ public:
             size = all_brokers.size();
             return all_broker_names;
         });
-    }
-    void free_all_broker_names(char** names, size_t size)
-    {
-        for(size_t i = 0; i < size; ++i){
-            delete[] names[i];
-        }
-        delete []names;
     }
 
     void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam)
@@ -260,7 +243,7 @@ public:
                         auto fund_name = the_fund.Get("name").string_value();
                         auto fund_id = the_fund.id();
                         LOG(DEBUG) << "getting tx of fund id=" << fund_id << " name=" << fund_name << "\n";
-                        the_fund.reference().Collection(Cloud::COLLECTION_TX)
+                        the_fund.reference().Collection(GoogleFirestore::COLLECTION_TX)
                             .OrderBy("date", Query::Direction::kDescending).Limit(1)
                             .Get().OnCompletion([onFunds,onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
                                 fund_alloc->inc_counter();
@@ -273,9 +256,9 @@ public:
                                         const auto& name = tx_ref.Get("instrument_name").string_value();
                                         const auto& id   = tx_ref.Get("instrument_id").string_value();
                                         const auto amt = tx_ref.Get("amount").integer_value();
-                                        double capital = Cloud::get_num_as_double(tx_ref.Get("capital"));
-                                        double market_value = Cloud::get_num_as_double(tx_ref.Get("market_value"));
-                                        double price = Cloud::get_num_as_double(tx_ref.Get("price"));
+                                        double capital = GoogleFirestore::get_num_as_double(tx_ref.Get("capital"));
+                                        double market_value = GoogleFirestore::get_num_as_double(tx_ref.Get("market_value"));
+                                        double price = GoogleFirestore::get_num_as_double(tx_ref.Get("price"));
                                         double profit = market_value - capital;
                                         double roi = profit / capital;
                                         timestamp date = tx_ref.Get("date").timestamp_value().seconds();
@@ -320,19 +303,13 @@ public:
         }
     }
 
-    void free_funds(fund_portfolio *f)
-    {
-        auto p = static_cast<FundPortfolio*>(f);
-        delete p;
-    }
-
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param)
     {
         get_stocks(broker, symbol).OnCompletion([broker,onAllStockTx](const Future<QuerySnapshot>& future){
             if(future.error() == Error::kErrorOk){
                 const auto& stocks = future.result()->documents();
                 const auto& stock = stocks.front();
-                const auto& c = stock.reference().Collection(Cloud::COLLECTION_TX);
+                const auto& c = stock.reference().Collection(GoogleFirestore::COLLECTION_TX);
                 const auto& qs = broker == nullptr ? c.Get() : c.WhereEqualTo("broker", FieldValue::String(broker)).Get();
                 qs.OnCompletion([onAllStockTx](const Future<QuerySnapshot>& future){
 
@@ -376,7 +353,7 @@ private:
         cash_balance* head = balances;
         for (const auto& b : all_ccys) {
             LOG(DEBUG) << "  " << b.first << " " << b.second << "" "\n";
-            new (balances++) CashBalance(b.first, Cloud::get_num_as_double(b.second));
+            new (balances++) CashBalance(b.first, GoogleFirestore::get_num_as_double(b.second));
         }
 
         const auto& active_funds = broker.Get("active_funds").array_value();
@@ -412,167 +389,9 @@ private:
     }
 };
 
-const char Cloud::COLLECTION_BROKERS[] = "Brokers";
-const char Cloud::COLLECTION_INSTRUMENTS[] = "Instruments";
-const char Cloud::COLLECTION_TX[] = "tx";
-
-Cloud *cloud;
-
-bool urph_fin_core_init(OnInitDone onInitDone)
-{
-    std::vector<AixLog::log_sink_ptr> sinks;
-    
-    auto log_file = getenv("LOGFILE");
-    auto verbose = getenv("VERBOSE");
-    auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
-    if(log_file == nullptr)
-        sinks.push_back(std::make_shared<AixLog::SinkCout>(log_lvl));
-    else  
-        sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file)); 
-    AixLog::Log::init(sinks);
-    
-    LOG(DEBUG) << "urph-fin-core initializing\n";
-
-    try{
-        cloud = new Cloud(onInitDone);
-        return true;
-    }
-    catch(const std::exception& e){
-        LOG(ERROR) << "Failed to init cloud service: " << e.what() << "\n";
-        return false;
-    }
-}
-
-void urph_fin_core_close()
-{
-    delete cloud;
-}
-
-// https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
-all_brokers* get_brokers()
-{
-    assert(cloud != nullptr);
-    return cloud->get_brokers();
-}
-
-void free_brokers(all_brokers* data)
-{
-    assert(cloud != nullptr);
-    cloud->free_brokers(data);
-}
+const char GoogleFirestore::COLLECTION_BROKERS[] = "Brokers";
+const char GoogleFirestore::COLLECTION_INSTRUMENTS[] = "Instruments";
+const char GoogleFirestore::COLLECTION_TX[] = "tx";
 
 
-broker* get_broker(const char* name)
-{
-    assert(cloud != nullptr);
-    return cloud->get_broker(name);
-}
-
-void free_broker(broker* b)
-{
-    assert(cloud != nullptr);
-    cloud->free_broker(b);
-}
-
-char** get_all_broker_names(size_t* size)
-{
-    assert(cloud != nullptr);
-    return cloud->get_all_broker_names(*size);
-}
-
-void free_broker_names(char** n,size_t size)
-{
-    assert(cloud != nullptr);
-    cloud->free_all_broker_names(n, size);
-}
-
-void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
-{
-    assert(cloud != nullptr);
-    cloud->get_funds(num, fund_ids, onFunds, param);
-}
-
-void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
-{
-    Iterator<Broker> *begin, *end;
-    Broker* broker =  nullptr;
-    AllBrokers* all_brokers = nullptr;
-
-    int fund_num = 0;
-    std::vector<Broker*> all_broker_pointers;
-
-    if(broker_name != nullptr){
-        broker = static_cast<Broker*>(get_broker(broker_name));
-        if(broker == nullptr){
-            onFunds(nullptr, param);
-            return;
-        }
-        fund_num = broker->size(Broker::active_fund_tag());
-        all_broker_pointers.push_back(broker);
-    }
-    else{
-        all_brokers = static_cast<AllBrokers*>(get_brokers());
-        for(Broker& b: *all_brokers){
-            fund_num += b.size(Broker::active_fund_tag());
-            all_broker_pointers.push_back(&b); 
-        }
-    }
-
-    const char ** ids = new const char* [fund_num];
-    const char ** ids_head = ids;
-    for(auto* broker: all_broker_pointers){
-        for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
-            *ids++ = *it;
-        }
-    }
-    get_funds(fund_num, ids_head, onFunds, param);       
-
-    delete []ids_head;
-
-    delete broker;
-    delete all_brokers;
-}
-
-void free_funds(fund_portfolio* f)
-{
-    assert(cloud != nullptr);
-    cloud->free_funds(f);
-}
-
-
-fund_sum calc_fund_sum(fund_portfolio* portfolio)
-{
-    struct fund_sum init = { 0.0, 0.0, 0.0 };
-
-    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum& sum, fund& f){ 
-        sum.capital += f.capital; 
-        sum.market_value += f.market_value; 
-        sum.profit +=  f.market_value - f.capital;
-        sum.ROI +=  sum.profit/sum.capital;
-        return sum;
-    });
-
-    r.ROI /= portfolio->num;
-
-    return r;
-}
-
-strings* get_known_stocks(const char* broker)
-{
-    assert(cloud != nullptr);
-    return cloud->get_known_stocks(broker);
-}
-
-void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)
-{
-}
-
-void free_stock_portfolio(stock_portfolio*)
-{
-
-}
-
-stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx)
-{
-    return {0,0};
-}
+Cloud* create_firestore_instance(OnInitDone onInitDone) { return new GoogleFirestore(onInitDone); }
