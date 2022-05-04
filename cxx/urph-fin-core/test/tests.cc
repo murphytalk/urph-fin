@@ -1,8 +1,12 @@
 #include <gtest/gtest.h>
 
-TEST(HelloTest, BasicAssertions) {
-  // Expect two strings not to be equal.
-  EXPECT_STRNE("hello", "world");
+#include "core/stock.hxx"
+
+TEST(TestStock, Basic) {
+  Stock s1(std::string("Broker"), std::string("SYM"), std::string("USD"));
+  stock* s2 = &s1;
   // Expect equality.
-  EXPECT_EQ(7 * 6, 42);
+  ASSERT_STREQ(s2->broker, "Broker");
+  ASSERT_STREQ(s2->symbol, "SYM");
+  ASSERT_STREQ(s2->currency, "USD");
 }
