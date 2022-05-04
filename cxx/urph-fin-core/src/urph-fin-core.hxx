@@ -7,6 +7,10 @@
 #include <iterator> 
 
 // C++ extentions to make life (much more) easier for C++ clients
+
+// dont forget to free
+char* copy_str(const std::string& str);
+
 template<typename T> struct Iterator
 {
     using iterator_category = std::forward_iterator_tag;
@@ -103,31 +107,6 @@ public:
     Iterator<Fund> end() { return Iterator( head(default_member_tag()) + num ); }
 };
 
-class Stock: public stock{
-public:
-    Stock(const std::string& b, const std::string& n, const std::string& ccy);
-    ~Stock();
-};
-
-class StockTx: public stock_tx{
-public:    
-    const char* Side(){
-        return side == BUY ? "BUY" :  (side == SELL ? "SELL" : "SPLIT");
-    }
-};
-
-class StockPortfolio: public stock_portfolio{
-public:
-   StockPortfolio(int n, stock_tx *first);
-   ~StockPortfolio();
-
-   inline StockTx* head(default_member_tag) { return static_cast<StockTx*>(first_tx); }
-   inline int size(default_member_tag) { return num; }
-
-   Iterator<StockTx> begin() { return Iterator( head(default_member_tag()) ); }
-   Iterator<StockTx> end() { return Iterator( head(default_member_tag()) + num ); }
-};
-
 
 // the ground rule is that none of the extended C++ classes should add member variables
 // so the size of the class remain the same as the original struct
@@ -136,7 +115,5 @@ static_assert(sizeof(Broker) == sizeof(broker));
 static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
 static_assert(sizeof(Fund)  == sizeof(fund));
 static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
-static_assert(sizeof(Stock)  == sizeof(stock));
-static_assert(sizeof(StockTx)  == sizeof(stock_tx));
 
 #endif

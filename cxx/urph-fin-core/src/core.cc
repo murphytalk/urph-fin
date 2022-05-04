@@ -107,7 +107,7 @@ static YAML::Node load_cfg(){
 }
 
 // dont forget to free
-static char* copy_str(const std::string& str)
+char* copy_str(const std::string& str)
 {
     char* p = new char[str.size() + 1];
     strncpy(p, str.c_str(), str.size());
@@ -228,30 +228,7 @@ Fund::~Fund()
     delete []id;
 }
 
-Stock::Stock(const std::string& b, const std::string& n, const std::string& ccy)
-{
-    broker = copy_str(b);
-    symbol = copy_str(n);
-    currency = copy_str(ccy);
-}
 
-Stock::~Stock()
-{
-    delete []broker;
-    delete []symbol;
-    delete []currency;
-}
-
-StockPortfolio::StockPortfolio(int n, stock_tx *first)
-{
-    num = n;
-    first_tx = first;
-}
-
-StockPortfolio::~StockPortfolio()
-{
-    free_placement_allocated_structs<StockPortfolio, StockTx>(this);
-}
 
 template<typename T > struct PlacementNew{
     T* head;

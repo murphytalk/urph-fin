@@ -29,6 +29,11 @@
         "tuple": "cpp",
         "random": "cpp",
         "ratio": "cpp",
-        "iosfwd": "cpp"
-    }
+        "iosfwd": "cpp",
+        "type_traits": "cpp"
+    },
+    "cSpell.words": [
+        "vwap",
+        "urph"
+    ]
 }

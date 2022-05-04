@@ -1,6 +1,9 @@
 #ifndef URPH_FIN_CORE_H_
 #define URPH_FIN_CORE_H_
 
+#include <cstddef>
+#include <cstdint>
+
 // C interface for other languages (flutter plug-in etc.)
 
 extern "C"
@@ -115,8 +118,10 @@ void free_stock_portfolio(stock_portfolio*);
 struct stock_portfolio_balance
 {
     double shares;
-    double capital;
     double fee;
+    // negative value => original investment still in market
+    double liquidated;
+    double vwap;
 };
 stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx);
 
