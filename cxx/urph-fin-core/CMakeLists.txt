@@ -1,6 +1,6 @@
 set(lib_target urph-fin-core)
 
-add_src_libs_ ()
+add_src_libs_ (src)
 
 set(FIREBASE_CPP_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/firebase_cpp_sdk)
 add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase-bin/ EXCLUDE_FROM_ALL)

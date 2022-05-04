@@ -8,8 +8,38 @@
 
 // C++ extentions to make life (much more) easier for C++ clients
 
+struct Config{
+    std::string email;
+    std::string password;       
+};
+
+Config load_cfg();
+
 // dont forget to free
 char* copy_str(const std::string& str);
+
+template<typename T > struct PlacementNew{
+    T* head;
+    T* current;
+    int counter;
+    int max_counter;
+    PlacementNew(int max_num)
+    {
+        max_counter = max_num;
+        counter = 0;
+        head = new T[max_num];
+        current = head;
+    }
+    int allocated_num()
+    {
+        return current - head;
+    }
+    bool has_enough_counter()
+    {
+        return counter >= max_counter;
+    }
+    inline void inc_counter() { ++counter; }
+};
 
 template<typename T> struct Iterator
 {

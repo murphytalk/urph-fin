@@ -6,8 +6,8 @@
 #include <locale>
 #include <condition_variable>
 
-#include <urph-fin-core.hxx>
-#include <stock.hxx>
+#include <core/urph-fin-core.hxx>
+#include <core/stock.hxx>
 
 #include "cli/clilocalsession.h"
 #include <cli/loopscheduler.h>

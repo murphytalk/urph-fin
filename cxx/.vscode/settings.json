@@ -30,7 +30,10 @@
         "random": "cpp",
         "ratio": "cpp",
         "iosfwd": "cpp",
-        "type_traits": "cpp"
+        "type_traits": "cpp",
+        "sstream": "cpp",
+        "stdexcept": "cpp",
+        "cstdlib": "cpp"
     },
     "cSpell.words": [
         "vwap",

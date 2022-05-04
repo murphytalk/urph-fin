@@ -97,7 +97,7 @@ stock_portfolio_balance StockPortfolio::calc()
             }
         }
         auto r = std::reduce(std::execution::par, unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
-            [](UnclosedPosition a, UnclosedPosition& x){
+            [](UnclosedPosition& a, UnclosedPosition& x){
                 a.fee += x.fee;
                 a.price += x.price * x.shares;
                 a.shares += x.shares;

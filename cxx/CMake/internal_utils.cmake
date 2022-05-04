@@ -14,14 +14,14 @@ function (filter_items aItems aRegEx)
     set(${aItems} ${${aItems}} PARENT_SCOPE)
 endfunction (filter_items)
 
-macro(add_src_libs_)
+macro(add_src_libs_ dir)
   ################################
   # Include all c++ source files
   ################################
   unset(the_SRC)
   file(GLOB_RECURSE the_SRC
-    "src/[a-zA-Z]*.cpp"
-    "src/[a-zA-Z]*.cc"
+    "${dir}/[a-zA-Z]*.cpp"
+    "${dir}/[a-zA-Z]*.cc"
     )
   #filter_items(the_SRC "\.cquery_cached_index")
 endmacro()

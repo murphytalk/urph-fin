@@ -1,4 +1,3 @@
-#include <sys/types.h>
 #ifdef _WIN32
 #include <direct.h>
 #define chdir _chdir
@@ -8,7 +7,6 @@
 #endif  // _WIN32
 
 
-#include <cstdlib>
 #include <cassert>
 
 #ifdef _WIN32
@@ -25,9 +23,8 @@
 
 // 3rd party
 #include "aixlog.hpp"
-#include "yaml-cpp/yaml.h"
 
-#include "urph-fin-core.hxx"
+#include "../core/urph-fin-core.hxx"
 #include "firebase/auth.h"
 #include "firebase/auth.h"
 #include "firebase/auth/credential.h"
@@ -87,171 +84,6 @@ static bool Await(const firebase::FutureBase& future, const char* name) {
   return true;
 }
 
-static std::string get_home_dir()
-{
-    const char *homedir;
-#ifdef _WIN32
-    //HOMEPATH or userprofile
-#else
-    if ((homedir = getenv("HOME")) == NULL) {
-        homedir = getpwuid(getuid())->pw_dir;
-    }
-#endif
-    // compiler is smart enough to either do return-value-optimization or use move
-    //https://stackoverflow.com/questions/4986673/c11-rvalues-and-move-semantics-confusion-return-statement
-    return std::string(homedir);
-}
-
-static YAML::Node load_cfg(){
-    return YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
-}
-
-// dont forget to free
-char* copy_str(const std::string& str)
-{
-    char* p = new char[str.size() + 1];
-    strncpy(p, str.c_str(), str.size());
-    p[str.size()] = 0;
-    return p;
-}
-
-CashBalance::CashBalance(const std::string& n, float v)
-{
-    ccy = copy_str(n);
-    balance = v;        
-}
-
-CashBalance::~CashBalance()
-{
-    LOG(DEBUG) << " ccy= " << ccy << " ";
-    delete[] ccy;
-}
-
-Strings::Strings(int n)
-{
-    capacity = n;
-    strs = new char* [n];    
-    last_str = strs;
-}
-
-void Strings::add(const std::string& i)
-{
-    if(size() == capacity){
-        std::stringstream ss;
-        ss << "Could not add string [" << i << "] : exceeding capacity " << capacity;
-        throw std::runtime_error(ss.str());
-    }
-    *last_str++ = copy_str(i);
-}
-
-int Strings::size()
-{
-    return last_str - strs;
-}
-
-Strings::~Strings()
-{
-    for(char** p=strs; p!=last_str; ++p){
-        LOG(DEBUG) << *p << ",";
-        delete []*p;
-    }
-    delete []strs;
-}
-
-void free_strings(strings* ss)
-{
-    delete static_cast<Strings*>(ss);
-}
-
-Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds)
-{
-    name = copy_str(n);
-    num = ccy_num;
-    first_cash_balance = first_ccy_balance;
-    active_fund_ids = active_funds;
-}
-
-Broker::~Broker(){
-    LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
-    delete[] name;
-
-    free_placement_allocated_structs<Broker, CashBalance>(this);
-    delete[] first_cash_balance;
-
-    LOG(DEBUG) << "] - active funds [";
-    free_strings(active_fund_ids);
-    LOG(DEBUG) << "] - freed!\n";
-}
-
-AllBrokers::AllBrokers(int n, broker* broker)
-{
-    num = n;
-    first_broker = broker;
-}
-
-AllBrokers::~AllBrokers()
-{
-    LOG(DEBUG) << "freeing " << num << " brokers \n";
-    free_placement_allocated_structs<AllBrokers, Broker>(this);
-    delete []first_broker;
-}
-
-FundPortfolio::FundPortfolio(int n, fund* f)
-{
-    num = n;
-    first_fund = f;
-}
-FundPortfolio::~FundPortfolio()
-{
-    free_placement_allocated_structs<FundPortfolio, Fund>(this);
-    delete []first_fund;
-}
-
-Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double prc, double p, double r, timestamp d)
-{
-    broker = copy_str(b);
-    name = copy_str(n);
-    id = copy_str(i);
-    amount = a;
-    capital = c;
-    market_value = m;
-    price = prc;
-    profit = p;
-    ROI = r;
-    date = d;
-}    
-
-Fund::~Fund()
-{
-    delete []broker;
-    delete []name;
-    delete []id;
-}
-
-
-
-template<typename T > struct PlacementNew{
-    T* head;
-    T* current;
-    int counter;
-    int max_counter;
-    PlacementNew(int max_num)
-    {
-        max_counter = max_num;
-        counter = 0;
-        head = new T[max_num];
-        current = head;
-    }
-    int allocated_num()
-    {
-        return current - head;
-    }
-    bool has_enough_counter()
-    {
-        return counter >= max_counter;
-    }
-    inline void inc_counter() { ++counter; }
-};
 
 class Cloud{
 private:
@@ -328,11 +160,8 @@ public:
 #if defined(__ANDROID__)
 #else
         auto cfg = load_cfg();
-        auto userCfg = cfg["user"];
-        auto email = userCfg["email"].as<std::string>();
-        auto passwd = userCfg["password"].as<std::string>();
-        LOG(INFO) << "Log in as " << email << "\n"; 
-        _firebaseAuth->SignInWithEmailAndPassword(email.c_str(), passwd.c_str())
+        LOG(INFO) << "Log in as " << cfg.email << "\n"; 
+        _firebaseAuth->SignInWithEmailAndPassword(cfg.email.c_str(), cfg.password.c_str())
 #endif
         .OnCompletion(c, (void*)onInitDone);
         
@@ -715,7 +544,7 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
 {
     struct fund_sum init = { 0.0, 0.0, 0.0 };
 
-    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum sum, fund& f){ 
+    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum& sum, fund& f){ 
         sum.capital += f.capital; 
         sum.market_value += f.market_value; 
         sum.profit +=  f.market_value - f.capital;

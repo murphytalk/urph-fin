@@ -1,6 +1,6 @@
 find_package(Threads REQUIRED)
 
-add_src_libs_()
+add_src_libs_(src)
 
 set(target urph-fin-cli)
 
