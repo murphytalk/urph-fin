@@ -313,12 +313,12 @@ void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, v
 {
 }
 
-void free_stock_portfolio(stock_portfolio*)
+void free_stock_portfolio(stock_tx_list*)
 {
 
 }
 
-stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx)
+stock_balance get_stock_balance(stock_tx_list* tx)
 {
     return {0,0};
 }

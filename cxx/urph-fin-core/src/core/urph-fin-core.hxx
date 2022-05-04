@@ -72,6 +72,7 @@ struct default_member_tag {};
 template<typename Wrapper, typename T, typename MemberTag=default_member_tag>
 void free_placement_allocated_structs(Wrapper* data, MemberTag mt = MemberTag()){
     T* p = data->head(mt);
+    if(p == nullptr) return;
     for(int i = 0; i < data->size(mt); ++i, ++p){
         p->~T();
     }

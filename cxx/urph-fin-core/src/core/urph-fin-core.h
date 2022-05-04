@@ -105,17 +105,29 @@ struct stock_tx
     timestamp date; 
 };
 
-struct stock_portfolio
+struct stock_tx_list
 {
     int num;
     stock_tx* first_tx;
 };
 
-typedef void (*OnAllStockTx)(stock_portfolio*, void* param);
+struct stock_with_tx
+{
+    stock instrument;
+    stock_tx_list tx_list;
+};
+
+struct stock_portfolio
+{
+    int num;
+    stock_with_tx* first_stock_with_tx;
+};
+
+typedef void (*OnAllStockTx)(stock_tx_list*, void* param);
 // broker = null => all brokers
-void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param);
-void free_stock_portfolio(stock_portfolio*);
-struct stock_portfolio_balance
+void get_stock_tx_list(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param);
+void free_stock_tx_list(stock_tx_list*);
+struct stock_balance
 {
     double shares;
     double fee;
@@ -123,7 +135,7 @@ struct stock_portfolio_balance
     double liquidated;
     double vwap;
 };
-stock_portfolio_balance get_stock_portfolio_balance(stock_portfolio* tx);
+stock_balance get_stock_balance(stock_tx_list* tx);
 
 
 }

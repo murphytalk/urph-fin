@@ -3,6 +3,7 @@
  #include <deque>
  #include <numeric>
  #include <execution>
+ #include <cstring>
 
 Stock::Stock(const std::string& b, const std::string& n, const std::string& ccy)
 {
@@ -11,13 +12,29 @@ Stock::Stock(const std::string& b, const std::string& n, const std::string& ccy)
     currency = copy_str(ccy);
 }
 
-Stock::~Stock()
+Stock& Stock::operator=(Stock&& o)
+{
+    free();
+    broker = o.broker;
+    symbol = o.symbol;
+    currency = o.currency;
+    o.broker = nullptr;
+    o.symbol = nullptr;
+    o.currency = nullptr;
+    return *this;
+}
+
+void Stock::free()
 {
     delete []broker;
     delete []symbol;
     delete []currency;
 }
 
+Stock::~Stock()
+{
+    free();
+}
 
 StockTx::StockTx(double s, double p, double f, const std::string sd)
 {
@@ -27,15 +44,41 @@ StockTx::StockTx(double s, double p, double f, const std::string sd)
     side = sd == "BUY" ? BUY : ( sd == "SELL" ? SELL : SPLIT);
 }
 
-StockPortfolio::StockPortfolio(int n, stock_tx *first)
+StockTxList::StockTxList(int n, stock_tx *first)
 {
     num = n;
     first_tx = first;
 }
 
-StockPortfolio::~StockPortfolio()
+StockTxList& StockTxList::operator=(StockTxList&& o)
 {
-    free_placement_allocated_structs<StockPortfolio, StockTx>(this);
+    free();
+    num = o.num;
+    first_tx = o.first_tx;
+    o.num = 0;
+    o.first_tx = nullptr;
+    return *this;
+}
+
+StockTxList::~StockTxList()
+{
+    free();
+}
+
+void StockTxList::free()
+{
+    free_placement_allocated_structs<StockTxList, StockTx>(this);
+}
+
+StockWithTx::StockWithTx(Stock& i, StockTxList& t)
+{
+    Stock* s = static_cast<Stock*>(&instrument);
+    memset(s, 0, sizeof(Stock));
+    *s = std::move(i);
+
+    StockTxList* tx = static_cast<StockTxList*>(&tx_list);
+    memset(tx, 0, sizeof(StockTxList));
+    *tx = std::move(t);
 }
 
 class UnclosedPosition{
@@ -50,10 +93,10 @@ public:
     }
 };
 
-stock_portfolio_balance StockPortfolio::calc()
+stock_balance StockTxList::calc()
 {
     auto unclosed_positions = std::deque<UnclosedPosition>();
-    stock_portfolio_balance balance = {0.0, 0.0, 0.0, 0.0};
+    stock_balance balance = {0.0, 0.0, 0.0, 0.0};
 
     for(const auto& tx: *this){
         balance.fee += tx.fee;
