@@ -237,12 +237,10 @@ public:
         });
     }
 
-    void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam)
+    void get_funds(FundsBuilder* builder, int funds_num, const char **fund_ids_head)
     {
         // cannot use auto var allocated in stack, as it will be freed once out of the context of OnCompletion()
         // and becomes invalid when the lambda is called
-        auto* fund_alloc = new PlacementNew<fund>(funds_num);
-
         int num = 0;
         int remaining = funds_num;
         for(auto fund_ids = fund_ids_head; remaining > 0;){ 
@@ -255,7 +253,7 @@ public:
             });
 
             const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereIn("id", ids);
-            q.Get().OnCompletion([onFunds, onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
+            q.Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
                 if (future.error() == Error::kErrorOk) {
                     for(const auto& the_fund: future.result()->documents()){
                         // find latest tx
@@ -264,9 +262,9 @@ public:
                         LOG(DEBUG) << "getting tx of fund id=" << fund_id << " name=" << fund_name << "\n";
                         the_fund.reference().Collection(FirestoreDao::COLLECTION_TX)
                             .OrderBy("date", Query::Direction::kDescending).Limit(1)
-                            .Get().OnCompletion([onFunds,onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
-                                fund_alloc->inc_counter();
-                                LOG(DEBUG) << "tx result for #" << fund_alloc->counter << " fund\n";
+                            .Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
+                                builder->fund_alloc->inc_counter();
+                                LOG(DEBUG) << "tx result for #" << builder->fund_alloc->counter << " fund\n";
                                 if(future.error() == Error::kErrorOk){
                                     if(!future.result()->empty()){
                                         const auto& docs = future.result()->documents();
@@ -282,7 +280,7 @@ public:
                                         double roi = profit / capital;
                                         timestamp date = tx_ref.Get("date").timestamp_value().seconds();
                                         LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
-                                        new (fund_alloc->current++) Fund(
+                                        builder->add_fund(
                                             broker, name, id,
                                             (int)amt,
                                             capital,
@@ -292,28 +290,21 @@ public:
                                             roi,
                                             date
                                         );
-                                        LOG(DEBUG) << "No." << fund_alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                                        LOG(DEBUG) << "No." << builder->fund_alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
                                     }
                                 }
                                 else{
                                     LOG(ERROR) << "Failed to query tx from funds \n";
                                 }
-                                if(fund_alloc->has_enough_counter()){
-                                    std::sort(fund_alloc->head, fund_alloc->head + fund_alloc->allocated_num(),[](fund& f1, fund& f2){ 
-                                        auto byBroker = strcmp(f1.broker,f2.broker);
-                                        auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;
-                                        return v < 0; 
-                                    });
-                                    onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head), onFundsCallerProvidedParam);
-                                    delete fund_alloc;
+                                if(builder->fund_alloc->has_enough_counter()){
+                                    builder->succeed();
                                 }
                             });
                     }
                 }
                 else{
                     LOG(ERROR) << "Failed to query funds \n";
-                    onFunds(nullptr, onFundsCallerProvidedParam);
-                    delete fund_alloc;
+                    builder->failed();
                 }
             });
 

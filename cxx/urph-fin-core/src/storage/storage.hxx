@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <sstream> 
 #include <string>
+#include <cstring>
 #include <functional>
 #include <vector>
 
@@ -74,6 +75,40 @@ public:
     }
 };
 
+class FundsBuilder{
+public:
+    typedef PlacementNew<fund> FundAlloc;
+    FundAlloc* fund_alloc;
+    FundsBuilder(int funds_num,std::function<void(FundAlloc*)> called_when_succeed){
+        fund_alloc = new PlacementNew<fund>(funds_num);
+        onSuccess = called_when_succeed;
+    }
+    ~FundsBuilder(){
+        delete fund_alloc;
+    }
+    Fund* add_fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
+        return new (fund_alloc->current++) Fund(
+                                            broker, name, id,
+                                            amount,
+                                            capital,
+                                            market_value,
+                                            price,
+                                            profit,
+                                            roi,
+                                            date
+                                        );
+    }
+    inline void succeed() { 
+        onSuccess(fund_alloc); 
+        delete this;
+    }
+    inline void failed(){
+        delete this;
+    }
+private:    
+    std::function<void(FundAlloc*)> onSuccess;
+};
+
 class IStorage{
 public:
     virtual ~IStorage(){}
@@ -110,13 +145,25 @@ public:
         delete p;    
         return b;
     }
+
     char** get_all_broker_names(size_t& size) { 
         std::unique_ptr<AllBrokerNamesBuilder> builder(dao->get_all_broker_names(size));
         return builder->all_broker_names;
     }
-    void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
 
+    void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
+        // self delete upon finish
+        auto *p = new FundsBuilder(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::FundAlloc* fund_alloc){
+            std::sort(fund_alloc->head, fund_alloc->head + fund_alloc->allocated_num(),[](fund& f1, fund& f2){ 
+                auto byBroker = strcmp(f1.broker,f2.broker);
+                auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;
+                return v < 0; 
+            });
+            onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head), onFundsCallerProvidedParam);
+        });
+        dao->get_funds(p, funds_num, fund_ids_head);
     }
+
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param){
 
     }

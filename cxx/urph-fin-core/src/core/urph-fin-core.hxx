@@ -123,7 +123,7 @@ public:
 
 class Fund: public fund{
 public:
-    Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double prc, double p, double r, timestamp d);
+    Fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date);
     ~Fund();
 };
 
