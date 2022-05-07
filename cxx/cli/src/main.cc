@@ -38,9 +38,6 @@ static void main_menu()
     {
         auto rootMenu = make_unique< cli::Menu >( "urph-fin" );
 
-        size_t brokers_num;
-        char **all_broker_names = get_all_broker_names(&brokers_num);
-
         rootMenu->Insert(
             "brokers",
             [](ostream& out){
@@ -155,8 +152,6 @@ static void main_menu()
 
 
         scheduler.Run();
-
-        free_broker_names(all_broker_names, brokers_num);
 
     }
     catch(const std::exception& e)
