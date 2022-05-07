@@ -23,7 +23,7 @@
 #include "aixlog.hpp"
 
 #include "../core/urph-fin-core.hxx"
-#include "cloud.hxx"
+#include "storage.hxx"
 
 #include "firebase/auth.h"
 #include "firebase/auth.h"
@@ -85,7 +85,7 @@ static bool Await(const firebase::FutureBase& future, const char* name) {
 }
 
 
-class GoogleFirestore: public Cloud{
+class FirestoreDao{
 private:
     App*  _firebaseApp;
     Auth* _firebaseAuth;
@@ -94,9 +94,10 @@ private:
     static const char COLLECTION_BROKERS [];
     static const char COLLECTION_INSTRUMENTS[];
     static const char COLLECTION_TX[];
-    static const int FILTER_BY_ID_LIMIT = 10;
+    static const int FILTER_WHERE_IN_LIMIT = 10;
 public:
-    GoogleFirestore(OnInitDone onInitDone){
+    using BrokerType = DocumentSnapshot;
+    FirestoreDao(OnInitDone onInitDone){
         _firebaseApp = 
 #if defined(__ANDROID__)
             App::Create(GetJniEnv(), GetActivity())
@@ -166,7 +167,7 @@ public:
         .OnCompletion(c, (void*)onInitDone);
         
     }
-    ~GoogleFirestore(){
+    ~FirestoreDao(){
         _firebaseAuth->SignOut();
         delete _firestore;
         delete _firebaseAuth;
@@ -174,47 +175,65 @@ public:
         LOG(DEBUG) << "Cloud instance destroyed\n";
     }
 
-    broker* get_broker(const char* name)
-    {
+    BrokerType get_broker_by_name(const char* name){
         const auto& doc_ref = _firestore->Collection(COLLECTION_BROKERS).Document(name);
         const auto& f = doc_ref.Get();
         if(Await(f, "broker by name")){
-            const auto& broker = *f.result();
-            return create_broker(broker, [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
-                return new Broker(n, ccy_num, first_ccy_balance, active_funds);
-            });
+            return *f.result();
         }
-        else{
-            return nullptr;
-        }
+        else throw std::runtime_error("Cannot get broker");
     }
 
-    AllBrokers* get_brokers()
+    std::string get_broker_name(const BrokerType& broker){
+        return broker.id();
+    }
+
+    BrokerBuilder get_broker_cash_balance_and_active_funds(const BrokerType& broker)
     {
-        return for_each_broker<AllBrokers>([](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokers*{
+        const auto& cash = broker.Get("cash");
+        const auto& all_ccys = cash.map_value();
+        LOG(DEBUG) << " " << broker.id() << "\n";
+
+        const auto& active_funds = broker.Get("active_funds").array_value();
+        BrokerBuilder f(all_ccys.size(),active_funds.size());
+
+        for (const auto& b : all_ccys) {
+            LOG(DEBUG) << "  " << b.first << " " << b.second << "" "\n";
+            f.add_cash_balance(b.first, FirestoreDao::get_num_as_double(b.second));
+        }
+
+        for(const auto& a: active_funds){
+            f.add_active_fund(a.string_value());
+        }
+                
+        return f;
+    }
+
+
+    typedef AllBrokerBuilder<FirestoreDao, FirestoreDao::BrokerType> AllBrokerBuilderType;
+    AllBrokerBuilderType* get_brokers()
+    {
+        return for_each_broker<AllBrokerBuilderType>([&](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokerBuilderType*{
+            auto *p = new AllBrokerBuilder<FirestoreDao, FirestoreDao::BrokerType>(all_brokers.size());
             LOG(DEBUG) << "Loading " << all_brokers.size() << " brokers\n";
-            broker* brokers = new broker [all_brokers.size()];
-            broker* brokers_head = brokers;
             for (const auto& broker : all_brokers) {
-                GoogleFirestore::create_broker(broker, [&brokers](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_fund){
-                    return new (brokers++) Broker(n, ccy_num, first_ccy_balance, active_fund);
-                });
+                p->add_broker(this, broker);
             }
-            return new AllBrokers(all_brokers.size(), brokers_head);
+            return p;
         });
     }
 
-    char** get_all_broker_names(size_t& size)
+    AllBrokerNamesBuilder* get_all_broker_names(size_t& size)
     {
         size = 0;
-        return for_each_broker<char*>([&size](const std::vector<DocumentSnapshot>& all_brokers) -> char**{
-            char **all_broker_names = new char* [all_brokers.size()];
+        return for_each_broker<AllBrokerNamesBuilder>([&](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokerNamesBuilder*{
+            AllBrokerNamesBuilder* p = new AllBrokerNamesBuilder(all_brokers.size());
             for (size_t i = 0; i < all_brokers.size(); ++i){
                 auto broker_name = all_brokers[i].id();
-                all_broker_names[i] = copy_str(broker_name);
+                p->add_name(i, broker_name);
             }
             size = all_brokers.size();
-            return all_broker_names;
+            return p;
         });
     }
 
@@ -227,7 +246,7 @@ public:
         int num = 0;
         int remaining = funds_num;
         for(auto fund_ids = fund_ids_head; remaining > 0;){ 
-            num = remaining > FILTER_BY_ID_LIMIT ? FILTER_BY_ID_LIMIT : remaining;
+            num = remaining > FILTER_WHERE_IN_LIMIT ? FILTER_WHERE_IN_LIMIT : remaining;
 
             std::vector<FieldValue> ids;
             std::transform(fund_ids, fund_ids + num, std::back_inserter(ids), [](const char* id){
@@ -243,7 +262,7 @@ public:
                         auto fund_name = the_fund.Get("name").string_value();
                         auto fund_id = the_fund.id();
                         LOG(DEBUG) << "getting tx of fund id=" << fund_id << " name=" << fund_name << "\n";
-                        the_fund.reference().Collection(GoogleFirestore::COLLECTION_TX)
+                        the_fund.reference().Collection(FirestoreDao::COLLECTION_TX)
                             .OrderBy("date", Query::Direction::kDescending).Limit(1)
                             .Get().OnCompletion([onFunds,onFundsCallerProvidedParam, fund_alloc](const Future<QuerySnapshot>& future) {
                                 fund_alloc->inc_counter();
@@ -256,9 +275,9 @@ public:
                                         const auto& name = tx_ref.Get("instrument_name").string_value();
                                         const auto& id   = tx_ref.Get("instrument_id").string_value();
                                         const auto amt = tx_ref.Get("amount").integer_value();
-                                        double capital = GoogleFirestore::get_num_as_double(tx_ref.Get("capital"));
-                                        double market_value = GoogleFirestore::get_num_as_double(tx_ref.Get("market_value"));
-                                        double price = GoogleFirestore::get_num_as_double(tx_ref.Get("price"));
+                                        double capital = FirestoreDao::get_num_as_double(tx_ref.Get("capital"));
+                                        double market_value = FirestoreDao::get_num_as_double(tx_ref.Get("market_value"));
+                                        double price = FirestoreDao::get_num_as_double(tx_ref.Get("price"));
                                         double profit = market_value - capital;
                                         double roi = profit / capital;
                                         timestamp date = tx_ref.Get("date").timestamp_value().seconds();
@@ -309,7 +328,7 @@ public:
             if(future.error() == Error::kErrorOk){
                 const auto& stocks = future.result()->documents();
                 const auto& stock = stocks.front();
-                const auto& c = stock.reference().Collection(GoogleFirestore::COLLECTION_TX);
+                const auto& c = stock.reference().Collection(FirestoreDao::COLLECTION_TX);
                 const auto& qs = broker == nullptr ? c.Get() : c.WhereEqualTo("broker", FieldValue::String(broker)).Get();
                 qs.OnCompletion([onAllStockTx](const Future<QuerySnapshot>& future){
 
@@ -342,29 +361,6 @@ private:
         return fv.type() == FieldValue::Type::kInteger ? (double)fv.integer_value() : fv.double_value(); 
     }
 
-    static Broker* create_broker(
-        const DocumentSnapshot& broker, 
-        std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, strings* /*active_fund_ids*/)> create_func)
-    {
-        const auto& cash = broker.Get("cash");
-        const auto& all_ccys = cash.map_value();
-        LOG(DEBUG) << " " << broker.id() << "\n";
-        cash_balance* balances = new cash_balance [all_ccys.size()];
-        cash_balance* head = balances;
-        for (const auto& b : all_ccys) {
-            LOG(DEBUG) << "  " << b.first << " " << b.second << "" "\n";
-            new (balances++) CashBalance(b.first, GoogleFirestore::get_num_as_double(b.second));
-        }
-
-        const auto& active_funds = broker.Get("active_funds").array_value();
-        Strings* funds = new Strings(active_funds.size());
-        for(const auto& f: active_funds){
-            funds->add(f.string_value());
-        }
-                
-        return create_func(broker.id(), all_ccys.size(), head, funds);
-    }
-
     template<typename T> T* for_each_doc(const char* collection_name, std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_docs)
     {
         const auto& ref = _firestore->Collection(collection_name);
@@ -389,9 +385,8 @@ private:
     }
 };
 
-const char GoogleFirestore::COLLECTION_BROKERS[] = "Brokers";
-const char GoogleFirestore::COLLECTION_INSTRUMENTS[] = "Instruments";
-const char GoogleFirestore::COLLECTION_TX[] = "tx";
+const char FirestoreDao::COLLECTION_BROKERS[] = "Brokers";
+const char FirestoreDao::COLLECTION_INSTRUMENTS[] = "Instruments";
+const char FirestoreDao::COLLECTION_TX[] = "tx";
 
-
-Cloud* create_firestore_instance(OnInitDone onInitDone) { return new GoogleFirestore(onInitDone); }
+IStorage * create_firestore_instance(OnInitDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }

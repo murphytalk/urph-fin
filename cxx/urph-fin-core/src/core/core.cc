@@ -12,7 +12,7 @@
 #include <cassert>
 #include <numeric>
 
-#include "cloud/cloud.hxx"
+#include "storage/storage.hxx"
 #include "urph-fin-core.hxx"
 
 // 3rd party
@@ -162,7 +162,7 @@ Fund::~Fund()
     delete []id;
 }
 
-Cloud *cloud;
+IStorage *cloud;
 
 bool urph_fin_core_init(OnInitDone onInitDone)
 {
