@@ -76,6 +76,7 @@ public:
 
 class IStorage{
 public:
+    virtual ~IStorage(){}
     virtual Broker* get_broker(const char* name) = 0;
     virtual AllBrokers* get_brokers() = 0;
     virtual char** get_all_broker_names(size_t& size) = 0;
@@ -90,7 +91,11 @@ class Storage: public IStorage{
 public:
     Storage(OnInitDone onInitDone){
         dao = std::make_unique<DAO>(onInitDone);
+        LOG(DEBUG) << "Storage instance created\n";
     };
+    virtual ~Storage(){
+        LOG(DEBUG) << "Storage instance freed\n";
+    }
 
     Broker* get_broker(const char* name)
     {

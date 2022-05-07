@@ -165,14 +165,14 @@ public:
         _firebaseAuth->SignInWithEmailAndPassword(cfg.email.c_str(), cfg.password.c_str())
 #endif
         .OnCompletion(c, (void*)onInitDone);
-        
+        LOG(DEBUG) << "FirestoreDao created\n";
     }
     ~FirestoreDao(){
         _firebaseAuth->SignOut();
         delete _firestore;
         delete _firebaseAuth;
         delete _firebaseApp;
-        LOG(DEBUG) << "Cloud instance destroyed\n";
+        LOG(DEBUG) << "FirestoreDao destroyed\n";
     }
 
     BrokerType get_broker_by_name(const char* name){
