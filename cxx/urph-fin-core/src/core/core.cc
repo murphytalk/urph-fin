@@ -162,7 +162,7 @@ Fund::~Fund()
     delete []id;
 }
 
-IStorage *cloud;
+IStorage *storage;
 
 bool urph_fin_core_init(OnInitDone onInitDone)
 {
@@ -180,25 +180,25 @@ bool urph_fin_core_init(OnInitDone onInitDone)
     LOG(DEBUG) << "urph-fin-core initializing\n";
 
     try{
-        cloud = create_firestore_instance(onInitDone);
+        storage = create_firestore_instance(onInitDone);
         return true;
     }
     catch(const std::exception& e){
-        LOG(ERROR) << "Failed to init cloud service: " << e.what() << "\n";
+        LOG(ERROR) << "Failed to init storage service: " << e.what() << "\n";
         return false;
     }
 }
 
 void urph_fin_core_close()
 {
-    delete cloud;
+    delete storage;
 }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
 all_brokers* get_brokers()
 {
-    assert(cloud != nullptr);
-    return cloud->get_brokers();
+    assert(storage != nullptr);
+    return storage->get_brokers();
 }
 
 void free_brokers(all_brokers* b)
@@ -209,8 +209,8 @@ void free_brokers(all_brokers* b)
 
 broker* get_broker(const char* name)
 {
-    assert(cloud != nullptr);
-    return cloud->get_broker(name);
+    assert(storage != nullptr);
+    return storage->get_broker(name);
 }
 
 void free_broker(broker* b)
@@ -220,15 +220,15 @@ void free_broker(broker* b)
 
 strings* get_all_broker_names(size_t* size)
 {
-    assert(cloud != nullptr);
-    return cloud->get_all_broker_names(*size);
+    assert(storage != nullptr);
+    return storage->get_all_broker_names(*size);
 }
 
 
 void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
 {
-    assert(cloud != nullptr);
-    cloud->get_funds(num, fund_ids, onFunds, param);
+    assert(storage != nullptr);
+    storage->get_funds(num, fund_ids, onFunds, param);
 }
 
 void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
@@ -298,8 +298,8 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
 
 strings* get_known_stocks(const char* broker)
 {
-    assert(cloud != nullptr);
-    return cloud->get_known_stocks(broker);
+    assert(storage != nullptr);
+    return storage->get_known_stocks(broker);
 }
 
 void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)
