@@ -64,17 +64,18 @@ public:
     }
 };
 
-class AllBrokerNamesBuilder{
+class StringsBuilder{
 public:
-    char **all_broker_names;
-    AllBrokerNamesBuilder(int n){
-        all_broker_names = new char* [n];
+    Strings *strings;
+    StringsBuilder(int n){
+        strings = new Strings(n);
     }
-    void add_name(int i, const std::string& name){
-        all_broker_names[i] = copy_str(name);
-    }
+    void add(const std::string& str){
+        strings->add(str);
+    }        
 };
 
+// todo: how to ensure this is allocated in heap
 class FundsBuilder{
 public:
     typedef PlacementNew<fund> FundAlloc;
@@ -114,7 +115,7 @@ public:
     virtual ~IStorage(){}
     virtual Broker* get_broker(const char* name) = 0;
     virtual AllBrokers* get_brokers() = 0;
-    virtual char** get_all_broker_names(size_t& size) = 0;
+    virtual strings* get_all_broker_names(size_t& size) = 0;
     virtual void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual strings* get_known_stocks(const char* broker) = 0;
@@ -146,9 +147,9 @@ public:
         return b;
     }
 
-    char** get_all_broker_names(size_t& size) { 
-        std::unique_ptr<AllBrokerNamesBuilder> builder(dao->get_all_broker_names(size));
-        return builder->all_broker_names;
+    strings* get_all_broker_names(size_t& size) { 
+        std::unique_ptr<StringsBuilder> builder(dao->get_all_broker_names(size));
+        return builder->strings;
     }
 
     void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
@@ -167,7 +168,10 @@ public:
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param){
 
     }
-    strings* get_known_stocks(const char* broker) { return dao->get_known_stocks(broker); }
+    strings* get_known_stocks(const char* broker) { 
+        const auto& builder = dao->get_known_stocks(broker);
+        return builder.strings; 
+    }
 };
 
 IStorage * create_firestore_instance(OnInitDone onInitDone);

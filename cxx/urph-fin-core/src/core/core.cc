@@ -218,19 +218,12 @@ void free_broker(broker* b)
     delete static_cast<Broker*>(b);
 }
 
-char** get_all_broker_names(size_t* size)
+strings* get_all_broker_names(size_t* size)
 {
     assert(cloud != nullptr);
     return cloud->get_all_broker_names(*size);
 }
 
-void free_broker_names(char** names,size_t size)
-{
-    for(size_t i = 0; i < size; ++i){
-        delete[] names[i];
-    }
-    delete []names;
-}
 
 void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
 {

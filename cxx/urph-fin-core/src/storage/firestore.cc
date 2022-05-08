@@ -94,7 +94,7 @@ private:
     static const char COLLECTION_BROKERS [];
     static const char COLLECTION_INSTRUMENTS[];
     static const char COLLECTION_TX[];
-    static const int FILTER_WHERE_IN_LIMIT = 10;
+    static const int FILTER_WHERE_IN_LIMIT = 10; // Firestore API constrain
 public:
     using BrokerType = DocumentSnapshot;
     FirestoreDao(OnInitDone onInitDone){
@@ -223,14 +223,14 @@ public:
         });
     }
 
-    AllBrokerNamesBuilder* get_all_broker_names(size_t& size)
+    StringsBuilder* get_all_broker_names(size_t& size)
     {
         size = 0;
-        return for_each_broker<AllBrokerNamesBuilder>([&](const std::vector<DocumentSnapshot>& all_brokers) -> AllBrokerNamesBuilder*{
-            AllBrokerNamesBuilder* p = new AllBrokerNamesBuilder(all_brokers.size());
+        return for_each_broker<StringsBuilder>([&](const std::vector<DocumentSnapshot>& all_brokers) -> StringsBuilder*{
+            StringsBuilder* p = new StringsBuilder(all_brokers.size());
             for (size_t i = 0; i < all_brokers.size(); ++i){
                 auto broker_name = all_brokers[i].id();
-                p->add_name(i, broker_name);
+                p->add(broker_name);
             }
             size = all_brokers.size();
             return p;
@@ -332,18 +332,18 @@ public:
         });
     }
 
-    strings* get_known_stocks(const char* broker)
+    StringsBuilder get_known_stocks(const char* broker)
     {
         const auto& f = get_stocks(broker, nullptr); 
         if(Await(f, "get known stocks")){
             const auto& docs = f.result()->documents();
-            Strings* stocks = new Strings(docs.size());
+            StringsBuilder builder(docs.size());
             for(const auto& stock: docs){
-                stocks->add(stock.id());
+                builder.add(stock.id());
             }
-            return stocks;
+            return builder;
         }
-        else return nullptr;
+        else throw std::runtime_error("Failed to get known stocks");
     }
 private:
     static inline double get_num_as_double(const FieldValue& fv)
