@@ -95,10 +95,13 @@
         "source_location": "cpp",
         "utility": "cpp",
         "stop_token": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "__memory": "cpp"
     },
     "cSpell.words": [
         "vwap",
         "urph"
-    ]
+    ],
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
 }
