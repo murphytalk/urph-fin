@@ -5,9 +5,8 @@
  #include <execution>
  #include <cstring>
 
-Stock::Stock(const std::string& b, const std::string& n, const std::string& ccy)
+Stock::Stock(const std::string& n, const std::string& ccy)
 {
-    broker = copy_str(b);
     symbol = copy_str(n);
     currency = copy_str(ccy);
 }
@@ -15,10 +14,8 @@ Stock::Stock(const std::string& b, const std::string& n, const std::string& ccy)
 Stock& Stock::operator=(Stock&& o)
 {
     free();
-    broker = o.broker;
     symbol = o.symbol;
     currency = o.currency;
-    o.broker = nullptr;
     o.symbol = nullptr;
     o.currency = nullptr;
     return *this;
@@ -26,7 +23,6 @@ Stock& Stock::operator=(Stock&& o)
 
 void Stock::free()
 {
-    delete []broker;
     delete []symbol;
     delete []currency;
 }
@@ -36,12 +32,18 @@ Stock::~Stock()
     free();
 }
 
-StockTx::StockTx(double s, double p, double f, const std::string sd)
+StockTx::StockTx(const std::string& b, double s, double p, double f, const std::string sd)
 {
+    broker = copy_str(b);
     shares = s;
     price = p;
     fee = f;
     side = sd == "BUY" ? BUY : ( sd == "SELL" ? SELL : SPLIT);
+}
+
+StockTx::~StockTx()
+{
+    delete []broker;
 }
 
 StockTxList::StockTxList(int n, stock_tx *first)

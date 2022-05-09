@@ -6,11 +6,10 @@
 class Stock: public stock{
 public:
     Stock(){
-        broker = nullptr;
         symbol = nullptr;
         currency = nullptr;
     }
-    Stock(const std::string& b, const std::string& n, const std::string& ccy);
+    Stock(const std::string& n, const std::string& ccy);
     Stock& operator=(Stock&&);
     ~Stock();
 private:
@@ -19,7 +18,8 @@ private:
 
 class StockTx: public stock_tx{
 public: 
-    StockTx(double s, double p, double f, const std::string side);
+    StockTx(const std::string& b, double s, double p, double f, const std::string side);
+    ~StockTx();
     const char* Side(){
         return side == BUY ? "BUY" :  (side == SELL ? "SELL" : "SPLIT");
     }

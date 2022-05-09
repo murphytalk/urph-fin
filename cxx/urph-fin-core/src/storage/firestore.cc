@@ -294,7 +294,7 @@ public:
                                     }
                                 }
                                 else{
-                                    LOG(ERROR) << "Failed to query tx from funds \n";
+                                    throw std::runtime_error("Failed to query tx from funds");
                                 }
                                 if(builder->fund_alloc->has_enough_counter()){
                                     builder->succeed();
@@ -303,8 +303,8 @@ public:
                     }
                 }
                 else{
-                    LOG(ERROR) << "Failed to query funds \n";
                     builder->failed();
+                    throw std::runtime_error("Failed to query funds");
                 }
             });
 
@@ -313,21 +313,43 @@ public:
         }
     }
 
-    void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param)
+    void get_stock_portfolio(StockPortfolioBuilder* builder, const char* broker, const char* symbol)
     {
-        get_stocks(broker, symbol).OnCompletion([broker,onAllStockTx](const Future<QuerySnapshot>& future){
+        get_stocks(broker, symbol).OnCompletion([builder](const Future<QuerySnapshot>& future){
             if(future.error() == Error::kErrorOk){
                 const auto& stocks = future.result()->documents();
-                const auto& stock = stocks.front();
-                const auto& c = stock.reference().Collection(FirestoreDao::COLLECTION_TX);
-                const auto& qs = broker == nullptr ? c.Get() : c.WhereEqualTo("broker", FieldValue::String(broker)).Get();
-                qs.OnCompletion([onAllStockTx](const Future<QuerySnapshot>& future){
-
-                });
+                builder->prepare_stock_alloc(stocks.size());
+                for(const auto& stock: stocks){
+                    const auto& symbol = stock.id();
+                    const auto& ccy = stock.Get("ccy").string_value();
+                    builder->add_stock(symbol, ccy);
+                    const auto& qs = stock.reference().Collection(FirestoreDao::COLLECTION_TX).Get();
+                    qs.OnCompletion([builder, &symbol](const Future<QuerySnapshot>& future){
+                        builder->incr_counter(symbol);
+                        if(future.error() == Error::kErrorOk){
+                            const auto& txx = future.result()->documents();
+                            builder->prepare_tx_alloc(symbol, txx.size());
+                            for(const auto& tx: txx){
+                                const timestamp date = tx.Get("date").timestamp_value().seconds();
+                                const double price = FirestoreDao::get_num_as_double(tx.Get("price"));
+                                const double fee = FirestoreDao::get_num_as_double(tx.Get("fee")); 
+                                const double shares = FirestoreDao::get_num_as_double(tx.Get("shares")); 
+                                const auto& type = tx.Get("type").string_value();
+                                const auto& broker = tx.Get("broker").string_value();
+                                builder->addTx(broker, symbol, type, price, shares, fee, date);
+                            }
+                        }
+                        else{
+                            std::ostringstream ss;
+                            ss << "Cannot get tx: symbol = [" << symbol << "]";
+                            throw std::runtime_error(ss.str());
+                        }
+                    });
+                }
             }
             else{
-                LOG(ERROR) << " Failed to query stock tx\n";
-                onAllStockTx(nullptr, nullptr);
+                builder->failed();
+                throw std::runtime_error(" Failed to query stock tx");
             }
         });
     }
@@ -372,7 +394,8 @@ private:
         const auto& q1 = _firestore->Collection(COLLECTION_INSTRUMENTS)
             .WhereIn("type", {FieldValue::String("Stock"), FieldValue::String("ETF")});
         const auto& q2 = symbol == nullptr ? q1 : q1.WhereEqualTo("name", FieldValue::String(symbol));
-        return q2.Get();
+        const auto& q3 = broker == nullptr ? q2 : q2.WhereEqualTo("broker", FieldValue::String(broker));
+        return q3.Get();
     }
 };
 

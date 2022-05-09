@@ -194,6 +194,10 @@ void urph_fin_core_close()
     delete storage;
 }
 
+#define TRY try{
+#define CATCH(error_ret) }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); return error_ret; }    
+#define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); }    
+
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
 all_brokers* get_brokers()
 {
@@ -210,7 +214,9 @@ void free_brokers(all_brokers* b)
 broker* get_broker(const char* name)
 {
     assert(storage != nullptr);
+    TRY
     return storage->get_broker(name);
+    CATCH(nullptr)
 }
 
 void free_broker(broker* b)
@@ -221,14 +227,18 @@ void free_broker(broker* b)
 strings* get_all_broker_names(size_t* size)
 {
     assert(storage != nullptr);
+    TRY
     return storage->get_all_broker_names(*size);
+    CATCH(nullptr)
 }
 
 
 void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
 {
     assert(storage != nullptr);
+    TRY
     storage->get_funds(num, fund_ids, onFunds, param);
+    CATCH_NO_RET
 }
 
 void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
@@ -264,7 +274,9 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
             *ids++ = *it;
         }
     }
+    TRY
     get_funds(fund_num, ids_head, onFunds, param);       
+    CATCH_NO_RET
 
     delete []ids_head;
 
@@ -299,7 +311,9 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
 strings* get_known_stocks(const char* broker)
 {
     assert(storage != nullptr);
+    TRY
     return storage->get_known_stocks(broker);
+    CATCH(nullptr)
 }
 
 void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)

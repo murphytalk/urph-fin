@@ -8,9 +8,16 @@
 #include <cstring>
 #include <functional>
 #include <vector>
+#include <map>
+ #include <execution>
 
+#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
+#include <iostream>
+#define LOG(x) std::cout
+#else
 // 3rd party
 #include "aixlog.hpp"
+#endif
 
 #include "../core/urph-fin-core.hxx"
 #include "../core/stock.hxx"
@@ -28,7 +35,7 @@ public:
         head = balances;
     }
     void add_cash_balance(const std::string& currency, double balance){
-        LOG(DEBUG) << "  " << currency << " " << balance << "" "\n";
+        LOG(DEBUG) << "  " << currency << " " << balance << " \n";
         new (balances++) CashBalance(currency, balance);
     }
     void add_active_fund(const std::string& active_fund_id){
@@ -75,16 +82,16 @@ public:
     }        
 };
 
-// todo: how to ensure this is allocated in heap
 class FundsBuilder{
 public:
     typedef PlacementNew<fund> FundAlloc;
     FundAlloc* fund_alloc;
-    FundsBuilder(int funds_num,std::function<void(FundAlloc*)> called_when_succeed){
-        fund_alloc = new PlacementNew<fund>(funds_num);
-        onSuccess = called_when_succeed;
+
+    static FundsBuilder* create(int funds_num,std::function<void(FundAlloc*)> called_when_succeed){
+        return new FundsBuilder(funds_num, called_when_succeed);
     }
-    ~FundsBuilder(){
+
+   ~FundsBuilder(){
         delete fund_alloc;
     }
     Fund* add_fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
@@ -108,6 +115,72 @@ public:
     }
 private:    
     std::function<void(FundAlloc*)> onSuccess;
+    // ensure this cannot be allocated in stack
+    FundsBuilder(int funds_num,std::function<void(FundAlloc*)> called_when_succeed){
+        fund_alloc = new PlacementNew<fund>(funds_num);
+        onSuccess = called_when_succeed;
+    }
+ };
+
+class StockPortfolioBuilder{
+public:
+    ~StockPortfolioBuilder(){
+        delete stock_alloc;
+        for(const auto& i: tx){
+            delete i.second;
+        }
+    }
+    typedef PlacementNew<stock> StockAlloc;
+    typedef PlacementNew<stock_tx> TxAlloc;
+    typedef std::map<std::string, TxAlloc*> TxAllocPointerBySymbol;
+    typedef std::function<void(StockAlloc*, const TxAllocPointerBySymbol&)> OnSuccess;
+
+    static StockPortfolioBuilder* create(OnSuccess callback){
+        return new StockPortfolioBuilder(callback);
+    }
+
+    StockAlloc* stock_alloc; 
+    Stock* add_stock(const std::string& symbol, const std::string& ccy){
+        return new (stock_alloc->current++) Stock(symbol, ccy);
+    }
+    void prepare_stock_alloc(int n) {
+        stock_alloc = new StockAlloc(n);
+    }
+    void prepare_tx_alloc(const std::string& symbol, int num){
+        tx[symbol] = new TxAlloc(num);
+    }
+    void addTx(const std::string& broker,const std::string& symbol, const std::string& type, const double price, const double shares, const double fee, const timestamp date){
+        const auto s = tx.find(symbol);
+        if(s != tx.end()){
+            auto& tx_alloc = s->second;
+            new (tx_alloc->current++) StockTx(broker, shares, price, fee, type);
+            check_completion();
+        }
+        else throw std::runtime_error("Cannot find tx for stock " + symbol);
+    }
+    void check_completion(){
+        if(std::find_if(std::execution::par,tx.begin(), tx.end(),[](const auto& alloc){ return !alloc.second->has_enough_counter(); }) == tx.end()){
+            // no more pending
+            onSuccess(stock_alloc, tx);
+            delete this;
+        }
+    }
+    void incr_counter(const std::string& symbol){
+        const auto s = tx.find(symbol);
+        if(s != tx.end()){
+            s->second->inc_counter();
+        }
+    }
+    inline void failed(){
+        delete this;
+    }
+private:
+    OnSuccess onSuccess;
+    StockPortfolioBuilder(OnSuccess on_success){ 
+        stock_alloc = nullptr;
+        onSuccess = on_success;
+    }
+    TxAllocPointerBySymbol tx;
 };
 
 class IStorage{
@@ -154,7 +227,7 @@ public:
 
     void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
         // self delete upon finish
-        auto *p = new FundsBuilder(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::FundAlloc* fund_alloc){
+        auto *p = FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::FundAlloc* fund_alloc){
             std::sort(fund_alloc->head, fund_alloc->head + fund_alloc->allocated_num(),[](fund& f1, fund& f2){ 
                 auto byBroker = strcmp(f1.broker,f2.broker);
                 auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;

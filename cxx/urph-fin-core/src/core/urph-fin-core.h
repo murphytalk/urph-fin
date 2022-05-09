@@ -87,7 +87,6 @@ strings* get_known_stocks(const char* broker);
 
 struct stock
 {
-    const char* broker;
     const char* symbol;
     const char* currency;
 };
@@ -97,6 +96,7 @@ const unsigned char SELL  = 1;
 const unsigned char SPLIT = 2;
 struct stock_tx
 {
+    const char* broker;
     double fee;
     double shares;
     double price;
