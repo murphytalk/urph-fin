@@ -239,7 +239,8 @@ public:
     }
 
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param){
-        std::unique_ptr<StockPortfolioBuilder> builder(
+        // self delete upon finish
+        auto *builder = 
             StockPortfolioBuilder::create([onAllStockTx, caller_provided_param](StockPortfolioBuilder::StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx){
                 stock_with_tx* head = new stock_with_tx[stock_alloc->allocated_num()];
                 stock_with_tx* current = head;
@@ -253,9 +254,8 @@ public:
                     }    
                 }
                 onAllStockTx(new StockPortfolio(stock_alloc->allocated_num(), head), caller_provided_param);
-            })
-        );
-        dao->get_stock_portfolio(builder.get(), broker, symbol);
+            });
+        dao->get_stock_portfolio(builder, broker, symbol);
     }
     strings* get_known_stocks(const char* broker) { 
         const auto& builder = dao->get_known_stocks(broker);
