@@ -72,15 +72,27 @@ void StockTxList::free()
     free_placement_allocated_structs<StockTxList, StockTx>(this);
 }
 
-StockWithTx::StockWithTx(Stock& i, StockTxList& t)
+StockWithTx::StockWithTx(stock* i, stock_tx_list* t)
 {
-    Stock* s = static_cast<Stock*>(&instrument);
-    memset(s, 0, sizeof(Stock));
-    *s = std::move(i);
+    instrument = i;
+    tx_list = t;
+}
 
-    StockTxList* tx = static_cast<StockTxList*>(&tx_list);
-    memset(tx, 0, sizeof(StockTxList));
-    *tx = std::move(t);
+StockWithTx::~StockWithTx()
+{
+    delete instrument;
+    delete tx_list;
+}
+
+StockPortfolio::StockPortfolio(int n, stock_with_tx* first)
+{
+    num = n;
+    first_stock_with_tx = first;
+}
+
+StockPortfolio::~StockPortfolio()
+{
+    free_placement_allocated_structs<StockPortfolio, StockWithTx>(this);
 }
 
 class UnclosedPosition{

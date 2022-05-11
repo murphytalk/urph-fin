@@ -325,11 +325,11 @@ public:
                     builder->add_stock(symbol, ccy);
                     const auto& qs = stock.reference().Collection(FirestoreDao::COLLECTION_TX).Get();
                     qs.OnCompletion([builder, &symbol](const Future<QuerySnapshot>& future){
-                        builder->incr_counter(symbol);
                         if(future.error() == Error::kErrorOk){
                             const auto& txx = future.result()->documents();
                             builder->prepare_tx_alloc(symbol, txx.size());
                             for(const auto& tx: txx){
+                                builder->incr_counter(symbol);
                                 const timestamp date = tx.Get("date").timestamp_value().seconds();
                                 const double price = FirestoreDao::get_num_as_double(tx.Get("price"));
                                 const double fee = FirestoreDao::get_num_as_double(tx.Get("fee")); 

@@ -27,10 +27,6 @@ public:
 
 class StockTxList: public stock_tx_list{
 public:
-    StockTxList(){
-        num = 0;
-        first_tx = nullptr;
-    }
     StockTxList(int n, stock_tx *first);
     StockTxList& operator=(StockTxList&&);
     ~StockTxList();
@@ -48,14 +44,21 @@ private:
 
 class StockWithTx: public stock_with_tx{
 public:
-    StockWithTx(Stock& i, StockTxList& t);
+    StockWithTx(stock* i, stock_tx_list* t);
+    ~StockWithTx();
 };
 
 class StockPortfolio: public stock_portfolio{
 public:
     StockPortfolio(int n, stock_with_tx* first);
     ~StockPortfolio();
-};
+
+    inline StockWithTx* head(default_member_tag) { return static_cast<StockWithTx*>(first_stock_with_tx); }
+    inline int size(default_member_tag) { return num; }
+
+    Iterator<StockWithTx> begin() { return Iterator( head(default_member_tag()) ); }
+    Iterator<StockWithTx> end() { return Iterator( head(default_member_tag()) + num ); }
+ };
 
 static_assert(sizeof(Stock)  == sizeof(stock));
 static_assert(sizeof(StockTx)  == sizeof(stock_tx));

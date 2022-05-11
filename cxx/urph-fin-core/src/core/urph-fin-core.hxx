@@ -34,6 +34,10 @@ template<typename T > struct PlacementNew{
     {
         return current - head;
     }
+    T* end()
+    {
+        return current + 1;
+    }
     bool has_enough_counter()
     {
         return counter >= max_counter;

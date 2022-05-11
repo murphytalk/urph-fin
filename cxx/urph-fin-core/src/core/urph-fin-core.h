@@ -112,8 +112,8 @@ struct stock_tx_list
 
 struct stock_with_tx
 {
-    stock instrument;
-    stock_tx_list tx_list;
+    stock* instrument;
+    stock_tx_list* tx_list;
 };
 
 struct stock_portfolio
@@ -122,10 +122,10 @@ struct stock_portfolio
     stock_with_tx* first_stock_with_tx;
 };
 
-typedef void (*OnAllStockTx)(stock_tx_list*, void* param);
+typedef void (*OnAllStockTx)(stock_portfolio*, void* param);
 // broker = null => all brokers
 void get_stock_tx_list(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param);
-void free_stock_tx_list(stock_tx_list*);
+void free_stock_tx_list(stock_portfolio*);
 struct stock_balance
 {
     double shares;

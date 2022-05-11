@@ -239,7 +239,23 @@ public:
     }
 
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param){
-
+        std::unique_ptr<StockPortfolioBuilder> builder(
+            StockPortfolioBuilder::create([onAllStockTx, caller_provided_param](StockPortfolioBuilder::StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx){
+                stock_with_tx* head = new stock_with_tx[stock_alloc->allocated_num()];
+                stock_with_tx* current = head;
+                for(auto* b = stock_alloc->head; b != stock_alloc->end(); ++b){
+                    auto tx_iter = tx.find(b->symbol);      
+                    if(tx_iter == tx.end()){
+                        throw std::runtime_error(std::string("Cannot find tx for stock ") + b->symbol);
+                    }
+                    else{
+                        new (current++) StockWithTx(b, new StockTxList(tx_iter->second->allocated_num(), tx_iter->second->head));
+                    }    
+                }
+                onAllStockTx(new StockPortfolio(stock_alloc->allocated_num(), head), caller_provided_param);
+            })
+        );
+        dao->get_stock_portfolio(builder.get(), broker, symbol);
     }
     strings* get_known_stocks(const char* broker) { 
         const auto& builder = dao->get_known_stocks(broker);
