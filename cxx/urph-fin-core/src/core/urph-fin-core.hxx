@@ -30,15 +30,15 @@ template<typename T > struct PlacementNew{
         head = new T[max_num];
         current = head;
     }
-    int allocated_num()
+    int allocated_num() const
     {
         return current - head;
     }
     T* end()
     {
-        return current + 1;
+        return current;
     }
-    bool has_enough_counter()
+    bool has_enough_counter() const
     {
         return counter >= max_counter;
     }

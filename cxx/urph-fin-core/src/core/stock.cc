@@ -32,13 +32,14 @@ Stock::~Stock()
     free();
 }
 
-StockTx::StockTx(const std::string& b, double s, double p, double f, const std::string sd)
+StockTx::StockTx(const std::string& b, double s, double p, double f, const std::string sd, timestamp dt)
 {
     broker = copy_str(b);
     shares = s;
     price = p;
     fee = f;
     side = sd == "BUY" ? BUY : ( sd == "SELL" ? SELL : SPLIT);
+    date = dt;
 }
 
 StockTx::~StockTx()

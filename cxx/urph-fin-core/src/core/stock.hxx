@@ -18,7 +18,7 @@ private:
 
 class StockTx: public stock_tx{
 public: 
-    StockTx(const std::string& b, double s, double p, double f, const std::string side);
+    StockTx(const std::string& b, double s, double p, double f, const std::string side,timestamp );
     ~StockTx();
     const char* Side(){
         return side == BUY ? "BUY" :  (side == SELL ? "SELL" : "SPLIT");

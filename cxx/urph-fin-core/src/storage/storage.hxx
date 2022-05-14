@@ -9,7 +9,8 @@
 #include <functional>
 #include <vector>
 #include <map>
- #include <execution>
+#include <execution>
+#include <limits>
 
 #ifdef GTEST_INCLUDE_GTEST_GTEST_H_
 #include <iostream>
@@ -144,6 +145,7 @@ public:
         return new (stock_alloc->current++) Stock(symbol, ccy);
     }
     void prepare_stock_alloc(int n) {
+        unfinished_brokers = n;
         stock_alloc = new StockAlloc(n);
     }
     void prepare_tx_alloc(const std::string& symbol, int num){
@@ -152,18 +154,11 @@ public:
     void addTx(const std::string& broker,const std::string& symbol, const std::string& type, const double price, const double shares, const double fee, const timestamp date){
         const auto s = tx.find(symbol);
         if(s != tx.end()){
-            auto& tx_alloc = s->second;
-            new (tx_alloc->current++) StockTx(broker, shares, price, fee, type);
-            check_completion();
+            const auto& tx_alloc = s->second;
+            new (tx_alloc->current++) StockTx(broker, shares, price, fee, type, date);
+            check_completion(*tx_alloc);
         }
         else throw std::runtime_error("Cannot find tx for stock " + symbol);
-    }
-    void check_completion(){
-        if(std::find_if(std::execution::par,tx.begin(), tx.end(),[](const auto& alloc){ return !alloc.second->has_enough_counter(); }) == tx.end()){
-            // no more pending
-            onSuccess(stock_alloc, tx);
-            delete this;
-        }
     }
     void incr_counter(const std::string& symbol){
         const auto s = tx.find(symbol);
@@ -175,12 +170,22 @@ public:
         delete this;
     }
 private:
+    int unfinished_brokers = std::numeric_limits<int>::max();
+    TxAllocPointerBySymbol tx;
     OnSuccess onSuccess;
     StockPortfolioBuilder(OnSuccess on_success){ 
         stock_alloc = nullptr;
         onSuccess = on_success;
     }
-    TxAllocPointerBySymbol tx;
+    void check_completion(const TxAlloc& alloc){
+        if(alloc.has_enough_counter()){
+            if(--unfinished_brokers == 0){
+                // no more pending
+                onSuccess(stock_alloc, tx);
+                delete this;
+            }
+        }
+    }
 };
 
 class IStorage{
