@@ -99,8 +99,9 @@
         "__memory": "cpp"
     },
     "cSpell.words": [
-        "vwap",
-        "urph"
+        "STREQ",
+        "urph",
+        "vwap"
     ],
     "editor.insertSpaces": true,
     "editor.tabSize": 4,
