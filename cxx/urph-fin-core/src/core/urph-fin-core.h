@@ -112,6 +112,7 @@ struct stock_tx_list
 
 struct stock_with_tx
 {
+    //owner of the stock pointer is stock_portfolio, leave the memory free to it
     stock* instrument;
     stock_tx_list* tx_list;
 };
@@ -119,6 +120,7 @@ struct stock_with_tx
 struct stock_portfolio
 {
     int num;
+    stock* first_stock;
     stock_with_tx* first_stock_with_tx;
 };
 
@@ -135,7 +137,6 @@ struct stock_balance
     double vwap;
 };
 stock_balance get_stock_balance(stock_tx_list* tx);
-
 
 }
 #endif // URPH_FIN_CORE_H_

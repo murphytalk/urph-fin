@@ -10,7 +10,7 @@ public:
         currency = nullptr;
     }
     Stock(const std::string& n, const std::string& ccy);
-    //Stock& operator=(Stock&&);
+    Stock& operator=(Stock&&);
     ~Stock();
 private:
     void free();
@@ -28,7 +28,7 @@ public:
 class StockTxList: public stock_tx_list{
 public:
     StockTxList(int n, stock_tx *first);
-    //StockTxList& operator=(StockTxList&&);
+    StockTxList& operator=(StockTxList&&);
     ~StockTxList();
 
     inline StockTx* head(default_member_tag) { return static_cast<StockTx*>(first_tx); }
@@ -50,14 +50,19 @@ public:
 
 class StockPortfolio: public stock_portfolio{
 public:
-    StockPortfolio(int n, stock_with_tx* first);
+    StockPortfolio(int n, stock* first_stock, stock_with_tx* first);
     ~StockPortfolio();
 
     inline StockWithTx* head(default_member_tag) { return static_cast<StockWithTx*>(first_stock_with_tx); }
     inline int size(default_member_tag) { return num; }
-
     Iterator<StockWithTx> begin() { return Iterator( head(default_member_tag()) ); }
     Iterator<StockWithTx> end() { return Iterator( head(default_member_tag()) + num ); }
+
+    struct stock_tag {};
+    inline Stock* head(stock_tag) { return static_cast<Stock*>(first_stock); }
+    inline int size(stock_tag) { return num; }
+    Iterator<Stock> stock_begin() { return Iterator( head(stock_tag()) ); }
+    Iterator<Stock> stock_end() { return Iterator( head(stock_tag()) + num ); }
  };
 
 static_assert(sizeof(Stock)  == sizeof(stock));

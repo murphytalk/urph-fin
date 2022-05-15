@@ -17,9 +17,8 @@ Stock::Stock(const std::string& n, const std::string& ccy)
 {
     symbol = copy_str(n);
     currency = copy_str(ccy);
-    LOG(DEBUG)<<"created stock "<< this<< "," << symbol<<"@"<<currency<<"\n";
 }
-/*
+
 Stock& Stock::operator=(Stock&& o)
 {
     free();
@@ -29,7 +28,7 @@ Stock& Stock::operator=(Stock&& o)
     o.currency = nullptr;
     return *this;
 }
-*/
+
 void Stock::free()
 {
     delete []symbol;
@@ -38,9 +37,7 @@ void Stock::free()
 
 Stock::~Stock()
 {
-    LOG(DEBUG)<<"free stock "<<symbol<<"@"<<currency<<"\n";
     free();
-    LOG(DEBUG)<<"done free stock\n";
 }
 
 StockTx::StockTx(const std::string& b, double s, double p, double f, const std::string sd, timestamp dt)
@@ -63,7 +60,7 @@ StockTxList::StockTxList(int n, stock_tx *first)
     num = n;
     first_tx = first;
 }
-/*
+
 StockTxList& StockTxList::operator=(StockTxList&& o)
 {
     free();
@@ -73,7 +70,7 @@ StockTxList& StockTxList::operator=(StockTxList&& o)
     o.first_tx = nullptr;
     return *this;
 }
-*/
+
 StockTxList::~StockTxList()
 {
     free();
@@ -93,15 +90,14 @@ StockWithTx::StockWithTx(stock* i, stock_tx_list* t)
 
 StockWithTx::~StockWithTx()
 {
-    LOG(DEBUG)<<"about to free stock "<< instrument << "," << instrument->symbol<<"@"<<instrument->currency<<"\n";
-    delete static_cast<Stock*>(instrument);
-    LOG(DEBUG)<<"freed stock "<<instrument<<"\n";
+    //owner of the instrument pointer is stock_portfolio, leave the memory free to it
     delete static_cast<StockTxList*>(tx_list);
 }
 
-StockPortfolio::StockPortfolio(int n, stock_with_tx* first)
+StockPortfolio::StockPortfolio(int n, stock* first_s,stock_with_tx* first)
 {
     num = n;
+    first_stock = first_s;
     first_stock_with_tx = first;
 }
 
@@ -109,6 +105,9 @@ StockPortfolio::~StockPortfolio()
 {
     free_placement_allocated_structs<StockPortfolio, StockWithTx>(this);
     delete []first_stock_with_tx;
+
+    free_placement_allocated_structs<StockPortfolio, Stock>(this, stock_tag());
+    delete []first_stock;
 }
 
 class UnclosedPosition{

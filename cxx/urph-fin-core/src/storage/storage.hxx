@@ -259,7 +259,7 @@ public:
                         new (current++) StockWithTx(b, new StockTxList(tx_iter->second->allocated_num(), tx_iter->second->head));
                     }    
                 }
-                onAllStockTx(new StockPortfolio(stock_alloc->allocated_num(), head), caller_provided_param);
+                onAllStockTx(new StockPortfolio(stock_alloc->allocated_num(), stock_alloc->head, head), caller_provided_param);
             });
         dao->get_stock_portfolio(builder, broker, symbol);
     }

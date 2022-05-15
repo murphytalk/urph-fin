@@ -11,7 +11,7 @@ TEST(TestStock, Basic)
   ASSERT_STREQ(s2->symbol, "SYM");
   ASSERT_STREQ(s2->currency, "USD");
 }
-/*
+
 TEST(TestStock, MoveAssignment)
 {
   Stock s1(std::string("SYM"), std::string("USD"));
@@ -23,7 +23,7 @@ TEST(TestStock, MoveAssignment)
   ASSERT_EQ(s1.symbol, nullptr);
   ASSERT_EQ(s1.currency, nullptr);
 }
-*/
+
 struct stock_test_data{
   std::string symbol;
   std::string currency;
