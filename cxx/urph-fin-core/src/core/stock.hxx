@@ -20,7 +20,7 @@ class StockTx: public stock_tx{
 public: 
     StockTx(const std::string& b, double s, double p, double f, const std::string side,timestamp );
     ~StockTx();
-    const char* Side(){
+    const char* Side() const{
         return side == BUY ? "BUY" :  (side == SELL ? "SELL" : "SPLIT");
     }
 };

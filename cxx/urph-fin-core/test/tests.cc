@@ -95,29 +95,32 @@ public:
 
 TEST(TestStockPortfolio, get_stock_all_portfolio)
 {
+  auto triggered = false;
   auto storage = Storage<MockedStocksDao>(nullptr);
   storage.get_stock_portfolio(nullptr, nullptr, [](stock_portfolio* p, void* param){
+    bool *triggered = reinterpret_cast<bool*>(param);
+    *triggered = true;
     ASSERT_EQ(p->num, stocks.size());
     StockPortfolio *port = static_cast<StockPortfolio*>(p);
     int stock_idx = 0;
     for(const auto& stx: *port){
       ASSERT_STREQ(stx.instrument->symbol, stocks[stock_idx].symbol.c_str());
       ASSERT_STREQ(stx.instrument->currency, stocks[stock_idx].currency.c_str());
-      /*
+
+      const auto &txs = *all_tx[stock_idx++];
+      auto *list = static_cast<StockTxList*>(stx.tx_list);
       int tx_idx = 0;
-      StockTxList *list = static_cast<StockTxList*>(stx.tx_list);
       for(const auto& tx: *list){
-        ASSERT_EQ(tx.broker, sym1_tx[tx_idx].broker);
-        ASSERT_EQ(tx.side, sym1_tx[tx_idx].side);
-        ASSERT_EQ(tx.price, sym1_tx[tx_idx].price);
-        ASSERT_EQ(tx.shares, sym1_tx[tx_idx].shares);
-        ASSERT_EQ(tx.fee, sym1_tx[tx_idx].fee);
-        ASSERT_EQ(tx.date, sym1_tx[tx_idx].date);
-        tx_idx++;
+        ASSERT_STREQ(tx.broker, txs[tx_idx].broker.c_str());
+        ASSERT_STREQ(tx.Side(), txs[tx_idx].side.c_str());
+        ASSERT_EQ(tx.price, txs[tx_idx].price);
+        ASSERT_EQ(tx.shares, txs[tx_idx].shares);
+        ASSERT_EQ(tx.fee, txs[tx_idx].fee);
+        ASSERT_EQ(tx.date, txs[tx_idx].date);
+        ++tx_idx;
       }
-      */
-      stock_idx++; 
     }
     delete port;
-  },nullptr);
+  },&triggered);
+  ASSERT_TRUE(triggered);
 }
