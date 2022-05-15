@@ -143,28 +143,45 @@ public:
 
     StockAlloc* stock_alloc; 
     Stock* add_stock(const std::string& symbol, const std::string& ccy){
+        LOG(DEBUG) << "adding stock " << symbol << "@" << ccy << "\n";
         return new (stock_alloc->current++) Stock(symbol, ccy);
     }
     void prepare_stock_alloc(int n) {
+        LOG(DEBUG) << "Got " << n << " stocks\n";
         unfinished_brokers = n;
         stock_alloc = new StockAlloc(n);
     }
     void prepare_tx_alloc(const std::string& symbol, int num){
-        tx[symbol] = new TxAlloc(num);
+        LOG(DEBUG) << "Got " << num << " tx for " << symbol << "\n";
+        if(num == 0){
+            --unfinished_brokers;
+        }
+        else tx[symbol] = new TxAlloc(num);
+    }
+    void rm_stock(const std::string& symbol){
+        auto it = tx.find(symbol);
+        if(it!=tx.end()){
+            delete it->second;
+            tx.erase(it);
+        }
+        --unfinished_brokers;
     }
     void addTx(const std::string& broker,const std::string& symbol, const std::string& type, const double price, const double shares, const double fee, const timestamp date){
+        LOG(DEBUG) << "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares << "\n";
         const auto s = tx.find(symbol);
         if(s != tx.end()){
             const auto& tx_alloc = s->second;
             new (tx_alloc->current++) StockTx(broker, shares, price, fee, type, date);
+            LOG(DEBUG) << "Added tx@" << date << " for " << symbol << " broker=" << broker << "\n";
             check_completion(*tx_alloc);
         }
         else throw std::runtime_error("Cannot find tx for stock " + symbol);
     }
     void incr_counter(const std::string& symbol){
+        LOG(DEBUG) << "Increasing counter for " << symbol << "\n";
         const auto s = tx.find(symbol);
         if(s != tx.end()){
-            s->second->inc_counter();
+            LOG(DEBUG) << "Increased counter for " << symbol << " to " << s->second->inc_counter() << "\n";
         }
     }
     inline void failed(){
@@ -179,8 +196,11 @@ private:
         onSuccess = on_success;
     }
     void check_completion(const TxAlloc& alloc){
+        LOG(DEBUG) << "Checking completion: cur =" << alloc.counter << ", max=" << alloc.max_counter << "\n";
         if(alloc.has_enough_counter()){
-            if(--unfinished_brokers == 0){
+            --unfinished_brokers;
+            LOG(DEBUG) << "Enough tx , remaining stocks = " << unfinished_brokers << "\n";
+            if(unfinished_brokers == 0){
                 // no more pending
                 onSuccess(stock_alloc, tx);
                 delete this;
@@ -248,18 +268,25 @@ public:
         // self delete upon finish
         auto *builder = 
             StockPortfolioBuilder::create([onAllStockTx, caller_provided_param](StockPortfolioBuilder::StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx){
-                stock_with_tx* head = new stock_with_tx[stock_alloc->allocated_num()];
+                const auto stock_num = stock_alloc->allocated_num();
+                stock_with_tx* head = new stock_with_tx[stock_num];
+                memset(head, 0, sizeof(stock_with_tx) * stock_num);
                 stock_with_tx* current = head;
                 for(auto* b = stock_alloc->head; b != stock_alloc->end(); ++b){
                     auto tx_iter = tx.find(b->symbol);      
+                    int tx_num;
+                    stock_tx* first;
                     if(tx_iter == tx.end()){
-                        throw std::runtime_error(std::string("Cannot find tx for stock ") + b->symbol);
+                        tx_num = 0;
+                        first = nullptr;
                     }
                     else{
-                        new (current++) StockWithTx(b, new StockTxList(tx_iter->second->allocated_num(), tx_iter->second->head));
+                        tx_num = tx_iter->second->allocated_num();
+                        first = tx_iter->second->head;
                     }    
+                    new (current++) StockWithTx(b, new StockTxList(tx_num, first));
                 }
-                onAllStockTx(new StockPortfolio(stock_alloc->allocated_num(), stock_alloc->head, head), caller_provided_param);
+                onAllStockTx(new StockPortfolio(stock_num, stock_alloc->head, head), caller_provided_param);
             });
         dao->get_stock_portfolio(builder, broker, symbol);
     }

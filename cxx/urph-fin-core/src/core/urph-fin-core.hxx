@@ -42,7 +42,7 @@ template<typename T > struct PlacementNew{
     {
         return counter >= max_counter;
     }
-    inline void inc_counter() { ++counter; }
+    inline int inc_counter() { return ++counter; }
 };
 
 template<typename T> struct Iterator

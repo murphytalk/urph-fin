@@ -316,16 +316,22 @@ strings* get_known_stocks(const char* broker)
     CATCH(nullptr)
 }
 
-void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param)
+void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx callback, void* caller_provided_param)
 {
+    assert(storage != nullptr);
+    TRY
+    storage->get_stock_portfolio(broker, symbol,callback, caller_provided_param);  
+    CATCH_NO_RET
 }
 
-void free_stock_portfolio(stock_tx_list*)
+void free_stock_portfolio(stock_portfolio *p)
 {
-
+    auto port = static_cast<StockPortfolio*>(p);
+    delete port;
 }
 
 stock_balance get_stock_balance(stock_tx_list* tx)
 {
-    return {0,0};
+    auto p = static_cast<StockTxList*>(tx);
+    return p->calc();
 }

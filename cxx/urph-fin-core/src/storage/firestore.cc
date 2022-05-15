@@ -342,9 +342,8 @@ public:
                             }
                         }
                         else{
-                            std::ostringstream ss;
-                            ss << "Cannot get tx: symbol = [" << symbol << "]";
-                            throw std::runtime_error(ss.str());
+                            LOG(WARNING) << "Cannot get tx: symbol = [" << symbol << "]\n";
+                            builder->rm_stock(symbol);
                         }
                     });
                 }

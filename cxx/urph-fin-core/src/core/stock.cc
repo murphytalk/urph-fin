@@ -4,6 +4,7 @@
  #include <numeric>
  #include <execution>
  #include <cstring>
+ #include <cmath>
 
 #ifdef GTEST_INCLUDE_GTEST_GTEST_H_
 #include <iostream>
@@ -122,6 +123,7 @@ public:
     }
 };
 
+static const double NaN = std::nan("");
 stock_balance StockTxList::calc()
 {
     auto unclosed_positions = std::deque<UnclosedPosition>();
@@ -151,7 +153,8 @@ stock_balance StockTxList::calc()
                 auto& first_unclosed_pos = unclosed_positions.front();
                 for(auto shares = tx.shares; shares > 0;){
                     if(unclosed_positions.empty()){
-                        throw std::runtime_error("Not enough unclosed position");
+                        LOG(ERROR) << "Not enough unclosed position: still have " << shares << " shares to sell";
+                        return {NaN, NaN, NaN, NaN};
                     }
                     else if (first_unclosed_pos.shares > shares){
                         first_unclosed_pos.shares -= shares;

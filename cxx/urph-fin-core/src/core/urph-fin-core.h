@@ -126,8 +126,8 @@ struct stock_portfolio
 
 typedef void (*OnAllStockTx)(stock_portfolio*, void* param);
 // broker = null => all brokers
-void get_stock_tx_list(const char* broker, const char* symbol, OnAllStockTx, void* caller_provided_param);
-void free_stock_tx_list(stock_portfolio*);
+void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx callback, void* caller_provided_param);
+void free_stock_portfolio(stock_portfolio *p);
 struct stock_balance
 {
     double shares;

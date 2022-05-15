@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <locale>
 #include <condition_variable>
+#include <cmath>
 
 #include <core/urph-fin-core.hxx>
 #include <core/stock.hxx>
@@ -17,19 +18,43 @@
 using namespace std;
 using namespace tabulate;
 
-template<typename T> std::string format_with_commas(T value)
+template<typename T> static std::string format_with_commas(T value)
 {
+    if(std::isnan(value)) return "N/A";
+
     std::stringstream ss;
     ss.imbue(std::locale(""));
     ss << std::fixed << value;
     return ss.str();
 }
 
-template<typename T> std::string percentage(T value)
+template<typename T> static std::string percentage(T value)
 {
     std::stringstream ss;
     ss << value * 100 << "%";
     return ss.str();
+}
+
+static void print_stock_list(ostream& out, stock_portfolio*p)
+{
+    Table table;
+    table.add_row({"Symbol", "Currency", "VWAP", "Shares", "Liquidated", "Fee"});
+    auto *port = static_cast<StockPortfolio*>(p);
+    for(auto const& stockWithTx: *port){
+        auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+        auto balance = tx_list->calc();
+        table.add_row({
+            stockWithTx.instrument->symbol,
+            stockWithTx.instrument->currency,
+            format_with_commas(balance.vwap),
+            format_with_commas(balance.shares),
+            format_with_commas(balance.liquidated),
+            format_with_commas(balance.fee)
+        });
+    }
+    free_stock_portfolio(p);
+    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+    out << "\n" << table << endl;
 }
 
 static void main_menu()
@@ -118,7 +143,7 @@ static void main_menu()
 
         auto stockMenu = make_unique<cli::Menu >( "stock" );
         stockMenu->Insert(
-            "list",
+            "known",
             [](ostream& out){
                 auto stocks = get_known_stocks(nullptr);
                 Table table;
@@ -133,6 +158,27 @@ static void main_menu()
             },
             "List all known stocks"
         );
+        stockMenu->Insert(
+            "list",
+            [](ostream& out){
+                get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+                    ostream* out = reinterpret_cast<ostream*>(param);
+                    print_stock_list(*out, p);
+               }, &out);
+            },
+            "List stock balance"
+        );
+        stockMenu->Insert(
+            "sym",
+            [](ostream& out, string symbol){
+                get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
+                    ostream* out = reinterpret_cast<ostream*>(param);
+                    print_stock_list(*out, p);
+               }, &out);
+            },
+            "List specified stock's balance"
+        );
+
 
         rootMenu->Insert(std::move(stockMenu));
 
