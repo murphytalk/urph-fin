@@ -117,8 +117,8 @@ public:
     double fee;
 
     void split(double factor){
-        price = price / factor;
-        shares = shares * factor;
+        price  /=  factor;
+        shares *=  factor;
     }
 };
 
@@ -164,19 +164,22 @@ stock_balance StockTxList::calc()
                     else{
                         unclosed_positions.pop_front();
                         shares -= first_unclosed_pos.shares;
+                        first_unclosed_pos = unclosed_positions.front();
                     }
                 }
             }
         }
-        auto r = std::reduce(std::execution::par, unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
-            [](UnclosedPosition& a, UnclosedPosition& x){
-                a.fee += x.fee;
-                a.price += x.price * x.shares;
-                a.shares += x.shares;
-                return a;
-            }
-        );
-        balance.vwap = r.shares == 0 ? 0 : (r.price + r.fee) / r.shares;
     }
+    auto r = std::reduce(std::execution::par, unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
+        [](UnclosedPosition& a, UnclosedPosition& x){
+            a.fee += x.fee;
+            // price here is used to save market value
+            a.price += x.price * x.shares;
+            a.shares += x.shares;
+            return a;
+        }
+    );
+    balance.vwap = r.shares == 0 ? 0 : r.price  / r.shares;
+    
     return balance;
 }

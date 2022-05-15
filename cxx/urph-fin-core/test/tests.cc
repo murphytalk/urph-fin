@@ -119,6 +119,37 @@ TEST(TestStockPortfolio, get_stock_all_portfolio)
         ASSERT_EQ(tx.date, txs[tx_idx].date);
         ++tx_idx;
       }
+
+      auto balance = list->calc();
+      if(std::string(stx.instrument->symbol) == "SYM1"){
+        // SYM1 shares/price change:
+        // 10/100 => 20/50 => [20/50, 20/40] 
+        //        => sold 30*100 , remains [10/40]
+        const double expected_liq =  -10*100 - 20*40 + 30.0 * 100.0;
+        const double expected_fee = 3.0;
+        ASSERT_EQ(expected_fee, balance.fee);
+        ASSERT_EQ(expected_liq, balance.liquidated);
+        const double expected_shares = 10.0;
+        ASSERT_EQ(expected_shares, balance.shares);
+        ASSERT_EQ(40.0, balance.vwap);
+      }
+      else{
+        // SYM2 shares/price change:
+        // 10/100 => [10/100,20/40] 
+        //        => sold 30*100 , remains 0
+        //        => [30/100] 
+        //        => sold 20*40 , remains [10/100]
+        //        => [10/100, 20,60]
+        const double expected_liq =  
+          -10*100 - 20*40 + 30.0 * 100.0
+          -30*100 + 20*40 - 20*60;
+        const double expected_fee = 6.0;
+        ASSERT_EQ(expected_fee, balance.fee);
+        ASSERT_EQ(expected_liq, balance.liquidated);
+        const double expected_shares = 10.0 + 20.0;
+        ASSERT_EQ(expected_shares, balance.shares);
+        ASSERT_EQ((10.0*100.0 + 20.0*60.0)/expected_shares , balance.vwap);
+      }
     }
     delete port;
   },&triggered);
