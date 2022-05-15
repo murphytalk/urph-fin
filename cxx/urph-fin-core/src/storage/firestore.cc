@@ -48,6 +48,7 @@ using ::firebase::firestore::CollectionReference;
 using ::firebase::firestore::DocumentReference;
 using ::firebase::firestore::DocumentSnapshot;
 using ::firebase::firestore::FieldValue;
+using ::firebase::firestore::FieldPath;
 using ::firebase::firestore::Query;
 using ::firebase::firestore::QuerySnapshot;
 using ::firebase::firestore::Error;
@@ -252,9 +253,10 @@ public:
                 return FieldValue::String(id);
             });
 
-            const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereIn("id", ids);
+            const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereIn(FieldPath::DocumentId(), ids);
             q.Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
                 if (future.error() == Error::kErrorOk) {
+                    LOG(DEBUG) << "Got " << future.result()->size() << " funds\n";
                     for(const auto& the_fund: future.result()->documents()){
                         // find latest tx
                         auto fund_name = the_fund.Get("name").string_value();
