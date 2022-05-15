@@ -5,12 +5,21 @@
  #include <execution>
  #include <cstring>
 
+#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
+#include <iostream>
+#define LOG(x) std::cout
+#else
+// 3rd party
+#include "aixlog.hpp"
+#endif
+
 Stock::Stock(const std::string& n, const std::string& ccy)
 {
     symbol = copy_str(n);
     currency = copy_str(ccy);
+    LOG(DEBUG)<<"created stock "<< this<< "," << symbol<<"@"<<currency<<"\n";
 }
-
+/*
 Stock& Stock::operator=(Stock&& o)
 {
     free();
@@ -20,7 +29,7 @@ Stock& Stock::operator=(Stock&& o)
     o.currency = nullptr;
     return *this;
 }
-
+*/
 void Stock::free()
 {
     delete []symbol;
@@ -29,7 +38,9 @@ void Stock::free()
 
 Stock::~Stock()
 {
+    LOG(DEBUG)<<"free stock "<<symbol<<"@"<<currency<<"\n";
     free();
+    LOG(DEBUG)<<"done free stock\n";
 }
 
 StockTx::StockTx(const std::string& b, double s, double p, double f, const std::string sd, timestamp dt)
@@ -52,7 +63,7 @@ StockTxList::StockTxList(int n, stock_tx *first)
     num = n;
     first_tx = first;
 }
-
+/*
 StockTxList& StockTxList::operator=(StockTxList&& o)
 {
     free();
@@ -62,7 +73,7 @@ StockTxList& StockTxList::operator=(StockTxList&& o)
     o.first_tx = nullptr;
     return *this;
 }
-
+*/
 StockTxList::~StockTxList()
 {
     free();
@@ -71,6 +82,7 @@ StockTxList::~StockTxList()
 void StockTxList::free()
 {
     free_placement_allocated_structs<StockTxList, StockTx>(this);
+    delete []first_tx;
 }
 
 StockWithTx::StockWithTx(stock* i, stock_tx_list* t)
@@ -81,8 +93,10 @@ StockWithTx::StockWithTx(stock* i, stock_tx_list* t)
 
 StockWithTx::~StockWithTx()
 {
-    delete instrument;
-    delete tx_list;
+    LOG(DEBUG)<<"about to free stock "<< instrument << "," << instrument->symbol<<"@"<<instrument->currency<<"\n";
+    delete static_cast<Stock*>(instrument);
+    LOG(DEBUG)<<"freed stock "<<instrument<<"\n";
+    delete static_cast<StockTxList*>(tx_list);
 }
 
 StockPortfolio::StockPortfolio(int n, stock_with_tx* first)
@@ -94,6 +108,7 @@ StockPortfolio::StockPortfolio(int n, stock_with_tx* first)
 StockPortfolio::~StockPortfolio()
 {
     free_placement_allocated_structs<StockPortfolio, StockWithTx>(this);
+    delete []first_stock_with_tx;
 }
 
 class UnclosedPosition{

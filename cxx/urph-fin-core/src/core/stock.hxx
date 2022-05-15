@@ -10,7 +10,7 @@ public:
         currency = nullptr;
     }
     Stock(const std::string& n, const std::string& ccy);
-    Stock& operator=(Stock&&);
+    //Stock& operator=(Stock&&);
     ~Stock();
 private:
     void free();
@@ -28,7 +28,7 @@ public:
 class StockTxList: public stock_tx_list{
 public:
     StockTxList(int n, stock_tx *first);
-    StockTxList& operator=(StockTxList&&);
+    //StockTxList& operator=(StockTxList&&);
     ~StockTxList();
 
     inline StockTx* head(default_member_tag) { return static_cast<StockTx*>(first_tx); }

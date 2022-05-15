@@ -20,6 +20,7 @@
 #include "aixlog.hpp"
 #endif
 
+
 #include "../core/urph-fin-core.hxx"
 #include "../core/stock.hxx"
 
@@ -45,7 +46,7 @@ public:
 };
 
 template<typename DAO, typename BrokerType>
-Broker* create_broker(
+static Broker* create_broker(
     DAO* dao,
     const BrokerType& broker, 
     std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, strings* /*active_fund_ids*/)> create_func)
