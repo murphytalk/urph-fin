@@ -19,8 +19,7 @@
 #include <functional>
 #include <vector>
 
-// 3rd party
-#include "aixlog.hpp"
+#include "../utils.hxx"
 
 #include "../core/urph-fin-core.hxx"
 #include "storage.hxx"
@@ -84,7 +83,6 @@ static bool Await(const firebase::FutureBase& future, const char* name) {
   }
   return true;
 }
-
 
 class FirestoreDao{
 private:
@@ -396,6 +394,7 @@ private:
             .WhereIn("type", {FieldValue::String("Stock"), FieldValue::String("ETF")});
         const auto& q2 = symbol == nullptr ? q1 : q1.WhereEqualTo("name", FieldValue::String(symbol));
         const auto& q3 = broker == nullptr ? q2 : q2.WhereEqualTo("broker", FieldValue::String(broker));
+        LOG(DEBUG) << "Querying stocks: broker=" << NULL_STR(broker) << ",symbol=" << NULL_STR(symbol) << "\n";
         return q3.Get();
     }
 };

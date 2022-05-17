@@ -6,13 +6,7 @@
  #include <cstring>
  #include <cmath>
 
-#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
-#include <iostream>
-#define LOG(x) std::cout
-#else
-// 3rd party
-#include "aixlog.hpp"
-#endif
+#include "../utils.hxx"
 
 Stock::Stock(const std::string& n, const std::string& ccy)
 {
@@ -150,24 +144,24 @@ stock_balance StockTxList::calc()
             }
             else{
                 // sell
-                auto& first_unclosed_pos = unclosed_positions.front();
+                auto first_unclosed_pos = unclosed_positions.front().shares;
                 for(auto shares = tx.shares; shares > 0;){
                     if(unclosed_positions.empty()){
                         LOG(ERROR) << "Not enough unclosed position: still have " << shares << " shares to sell";
                         return {NaN, NaN, NaN, NaN};
                     }
-                    else if (first_unclosed_pos.shares > shares){
-                        first_unclosed_pos.shares -= shares;
+                    else if (first_unclosed_pos > shares){
+                        unclosed_positions.begin()->shares = first_unclosed_pos - shares;
                         shares = 0;
                     }
-                    else if (first_unclosed_pos.shares == shares){
+                    else if (first_unclosed_pos == shares){
                         unclosed_positions.pop_front();
                         shares = 0;
                     }
                     else{
+                        shares -= first_unclosed_pos;
                         unclosed_positions.pop_front();
-                        shares -= first_unclosed_pos.shares;
-                        first_unclosed_pos = unclosed_positions.front();
+                        first_unclosed_pos = unclosed_positions.front().shares;
                     }
                 }
             }

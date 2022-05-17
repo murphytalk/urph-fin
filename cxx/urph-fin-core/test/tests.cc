@@ -57,6 +57,8 @@ static std::vector<stock_tx_test_data> sym2_tx = {
   {30.0, 100.0, 1.0, "BUY"  , "broker1", 3000}, // shares: 30
   {20.0,  40.0, 1.0, "SELL" , "broker1", 4000}, // shares: 10
   {20.0,  60.0, 1.0, "BUY"  , "broker2", 4000}, // shares: 30
+  {10.0,  70.0, 1.0, "BUY"  , "broker3", 4000}, // shares: 40
+  {15.0, 100.0, 1.0, "SELL" , "broker2", 5000}, // shares: 25
 };
 
 static std::vector<stock_tx_test_data>* all_tx[] = {&sym1_tx, &sym2_tx};
@@ -139,16 +141,18 @@ TEST(TestStockPortfolio, get_stock_all_portfolio)
         //        => sold 30*100 , remains 0
         //        => [30/100] 
         //        => sold 20*40 , remains [10/100]
-        //        => [10/100, 20,60]
+        //        => [10/100, 20/60]
+        //        => [10/100, 20/60, 10/70]
+        //        => sold 10*100 + 5*100, remains [15/60, 10/70]
         const double expected_liq =  
           -10*100 - 20*40 + 30.0 * 100.0
-          -30*100 + 20*40 - 20*60;
-        const double expected_fee = 6.0;
+          -30*100 + 20*40 - 20*60 - 10*70 + 10*100 + 5*100;
+        const double expected_fee = 8.0;
         ASSERT_EQ(expected_fee, balance.fee);
         ASSERT_EQ(expected_liq, balance.liquidated);
-        const double expected_shares = 10.0 + 20.0;
+        const double expected_shares = 15.0 + 10.0;
         ASSERT_EQ(expected_shares, balance.shares);
-        ASSERT_EQ((10.0*100.0 + 20.0*60.0)/expected_shares , balance.vwap);
+        ASSERT_EQ((15.0*60.0 + 10.0*70.0)/expected_shares , balance.vwap);
       }
     }
     delete port;

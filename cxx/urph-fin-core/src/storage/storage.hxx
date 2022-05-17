@@ -12,15 +12,8 @@
 #include <execution>
 #include <limits>
 
-#ifdef GTEST_INCLUDE_GTEST_GTEST_H_
-#include <iostream>
-#define LOG(x) std::cout
-#else
-// 3rd party
-#include "aixlog.hpp"
-#endif
 
-
+#include "../utils.hxx"
 #include "../core/urph-fin-core.hxx"
 #include "../core/stock.hxx"
 
