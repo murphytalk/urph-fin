@@ -178,7 +178,31 @@ static void main_menu()
             },
             "List specified stock's balance"
         );
-
+        stockMenu->Insert(
+            "tx",
+            [](ostream& out, string symbol){
+                get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
+                    ostream* out = reinterpret_cast<ostream*>(param);
+                    Table table;
+                    table.add_row({"Date", "Type", "Price", "Shares", "Fee"});
+                    auto *port = static_cast<StockPortfolio*>(p);
+                    auto *tx = static_cast<StockTxList*>(port->first_stock_with_tx->tx_list);
+                    for(StockTx& tx: *tx){
+                        table.add_row({
+                            std::to_string(tx.date), 
+                            tx.Side(), 
+                            format_with_commas(tx.price), 
+                            format_with_commas(tx.shares), 
+                            format_with_commas(tx.fee)
+                        });
+                    }
+                    free_stock_portfolio(p);
+                    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+                    *out << "\n" << table << endl;
+                }, &out);
+            },
+            "List specified stock's transactions"
+        );
 
         rootMenu->Insert(std::move(stockMenu));
 
