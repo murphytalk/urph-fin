@@ -154,7 +154,7 @@ public:
     void prepare_tx_alloc(const std::string& symbol, int num){
         LOG(DEBUG) << "Got " << num << " tx for " << symbol << "\n";
         if(num == 0){
-            --unfinished_brokers;
+            check_completion(nullptr);
         }
         else tx[symbol] = new TxAlloc(num);
     }
@@ -173,7 +173,7 @@ public:
             const auto& tx_alloc = s->second;
             new (tx_alloc->current++) StockTx(broker, shares, price, fee, type, date);
             LOG(DEBUG) << "Added tx@" << date << " for " << symbol << " broker=" << broker << "\n";
-            check_completion(*tx_alloc);
+            check_completion(tx_alloc);
         }
         else throw std::runtime_error("Cannot find tx for stock " + symbol);
     }
@@ -181,7 +181,8 @@ public:
         LOG(DEBUG) << "Increasing counter for " << symbol << "\n";
         const auto s = tx.find(symbol);
         if(s != tx.end()){
-            LOG(DEBUG) << "Increased counter for " << symbol << " to " << s->second->inc_counter() << "\n";
+            auto counter = s->second->inc_counter();
+            LOG(DEBUG) << "Increased counter for " << symbol << " to " << counter  << "\n";
         }
     }
     inline void failed(){
@@ -195,9 +196,11 @@ private:
         stock_alloc = nullptr;
         onSuccess = on_success;
     }
-    void check_completion(const TxAlloc& alloc){
-        LOG(DEBUG) << "Checking completion: cur =" << alloc.counter << ", max=" << alloc.max_counter << "\n";
-        if(alloc.has_enough_counter()){
+    void check_completion(const TxAlloc* alloc){
+        if(alloc!=nullptr){
+            LOG(DEBUG) << "Checking completion: cur =" << alloc->counter << ", max=" << alloc->max_counter << "\n";
+        }
+        if(alloc == nullptr || alloc->has_enough_counter()){
             --unfinished_brokers;
             LOG(DEBUG) << "Enough tx , remaining stocks = " << unfinished_brokers << "\n";
             if(unfinished_brokers == 0){
