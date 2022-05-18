@@ -6,6 +6,9 @@
 #include <locale>
 #include <condition_variable>
 #include <cmath>
+#include <ctime>
+
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <core/urph-fin-core.hxx>
 #include <core/stock.hxx>
@@ -17,6 +20,15 @@
 
 using namespace std;
 using namespace tabulate;
+
+static std::string format_timestamp(timestamp t)
+{
+    using namespace boost::posix_time;
+    using namespace boost::gregorian;
+    time_t t1 = t;
+    ptime pt = from_time_t(t1);
+    return to_simple_string(pt);
+}
 
 template<typename T> static std::string format_with_commas(T value)
 {
@@ -189,7 +201,7 @@ static void main_menu()
                     auto *tx = static_cast<StockTxList*>(port->first_stock_with_tx->tx_list);
                     for(StockTx& tx: *tx){
                         table.add_row({
-                            std::to_string(tx.date), 
+                            format_timestamp(tx.date), 
                             tx.Side(), 
                             format_with_commas(tx.price), 
                             format_with_commas(tx.shares), 
