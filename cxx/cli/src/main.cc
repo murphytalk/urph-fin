@@ -7,6 +7,8 @@
 #include <condition_variable>
 #include <cmath>
 
+#include <boost/date_time/posix_time/posix_time.hpp>
+
 #include <core/urph-fin-core.hxx>
 #include <core/stock.hxx>
 
@@ -17,6 +19,14 @@
 
 using namespace std;
 using namespace tabulate;
+
+static std::string format_timestamp(timestamp t)
+{
+    using namespace boost::posix_time;
+    using namespace boost::gregorian;
+    ptime pt = from_time_t(t);
+    return to_simple_string(pt);
+}
 
 template<typename T> static std::string format_with_commas(T value)
 {
@@ -53,6 +63,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
         });
     }
     free_stock_portfolio(p);
+    for(auto i = 2 ; i <= 5 ;++i) table.column(i).format().font_align(FontAlign::right);
     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
     out << "\n" << table << endl;
 }
@@ -189,7 +200,7 @@ static void main_menu()
                     auto *tx = static_cast<StockTxList*>(port->first_stock_with_tx->tx_list);
                     for(StockTx& tx: *tx){
                         table.add_row({
-                            std::to_string(tx.date), 
+                            format_timestamp(tx.date), 
                             tx.Side(), 
                             format_with_commas(tx.price), 
                             format_with_commas(tx.shares), 
@@ -198,6 +209,7 @@ static void main_menu()
                     }
                     free_stock_portfolio(p);
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+                    for(auto i = 2 ; i <= 4 ;++i) table.column(i).format().font_align(FontAlign::right);
                     *out << "\n" << table << endl;
                 }, &out);
             },

@@ -35,5 +35,6 @@ firebase_cpp_sdk/
 *build/
 v/
 
+google-services.json
 mem.txt
 .cache/
