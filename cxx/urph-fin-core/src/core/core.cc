@@ -24,6 +24,7 @@ static std::string get_home_dir()
     const char *homedir;
 #ifdef _WIN32
     //HOMEPATH or userprofile
+    homedir = getenv("USERPROFILE");
 #else
     if ((homedir = getenv("HOME")) == NULL) {
         homedir = getpwuid(getuid())->pw_dir;
@@ -162,7 +163,7 @@ Fund::~Fund()
     delete []id;
 }
 
-IStorage *storage;
+AbstractStorage *storage;
 
 bool urph_fin_core_init(OnInitDone onInitDone)
 {

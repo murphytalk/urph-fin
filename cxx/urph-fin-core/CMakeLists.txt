@@ -7,7 +7,6 @@ add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase-bin/ EXCLUDE_FROM_ALL)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
 
-
 add_library (${lib_target} ${the_SRC})
 
 add_log_header(${lib_target})

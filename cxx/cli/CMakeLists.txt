@@ -1,6 +1,10 @@
 find_package(Threads REQUIRED)
+set(Boost_USE_STATIC_LIBS ON)
 find_package(Boost COMPONENTS date_time REQUIRED)
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})	
+if (Boost_FOUND)
+    include_directories(${Boost_INCLUDE_DIRS})
+    link_directories(${Boost_LIBRARY_DIRS})
+endif ()
 
 add_src_libs_(src)
 

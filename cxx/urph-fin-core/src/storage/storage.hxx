@@ -10,6 +10,7 @@
 #include <vector>
 #include <map>
 #include <execution>
+//#include <new>
 #include <limits>
 
 
@@ -61,7 +62,13 @@ public:
     }
     Broker* add_broker(DAO* dao, const BrokerType& b){
         return create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
-            return new (all_brokers++) Broker(n, ccy_num, first_ccy_balance, active_funds);
+#ifdef _MSC_VER
+            void* p = all_brokers++;
+            return new (p)
+#else
+            return new (all_brokers++) 
+#endif
+                Broker(n, ccy_num, first_ccy_balance, active_funds);
         });
     }
 };
@@ -182,6 +189,9 @@ public:
         delete this;
     }
 private:
+#ifdef _MSC_VER
+#undef max
+#endif
     int unfinished_brokers = std::numeric_limits<int>::max();
     TxAllocPointerBySymbol tx;
     OnSuccess onSuccess;
@@ -205,9 +215,9 @@ private:
     }
 };
 
-class IStorage{
+class AbstractStorage{
 public:
-    virtual ~IStorage(){}
+    virtual ~AbstractStorage(){}
     virtual Broker* get_broker(const char* name) = 0;
     virtual AllBrokers* get_brokers() = 0;
     virtual strings* get_all_broker_names(size_t& size) = 0;
@@ -217,7 +227,7 @@ public:
 };
 
 template<typename DAO>
-class Storage: public IStorage{
+class Storage: public AbstractStorage{
     std::unique_ptr<DAO> dao;
 public:
     Storage(OnInitDone onInitDone){
@@ -292,6 +302,6 @@ public:
     }
 };
 
-IStorage * create_firestore_instance(OnInitDone onInitDone);
+AbstractStorage * create_firestore_instance(OnInitDone onInitDone);
 
 #endif

@@ -403,4 +403,4 @@ const char FirestoreDao::COLLECTION_BROKERS[] = "Brokers";
 const char FirestoreDao::COLLECTION_INSTRUMENTS[] = "Instruments";
 const char FirestoreDao::COLLECTION_TX[] = "tx";
 
-IStorage * create_firestore_instance(OnInitDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }
+AbstractStorage * create_firestore_instance(OnInitDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }
