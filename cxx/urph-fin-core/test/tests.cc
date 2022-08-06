@@ -162,17 +162,35 @@ TEST(TestStockPortfolio, get_stock_all_portfolio1)
   },&triggered);
   ASSERT_TRUE(triggered);
 }
-/*
+
+static std::vector<stock_test_data> test2_stocks = {
+  {"0700.HK", "HKD"},
+};
+static std::vector<stock_tx_test_data> test2_tx = {
+  {100.0, 369.0, 72.75,  "BUY"  , "broker1", 1000},
+  {100.0, 260.0, 51.302, "BUY"  , "broker1", 2000},
+  {100.0, 468.6, 99.76,  "BUY"  , "broker1", 3000},
+  {100.0, 373.0, 79.90,  "BUY"  , "broker1", 4000},
+};
+
 TEST(TestStockPortfolio, get_stock_all_portfolio2)
 {
   auto triggered = false;
-  static std::vector<stock_tx_test_data>* all_tx[] = {&sym1_tx, &sym2_tx};
-  auto storage = Storage<MockedStocksDao>(new MockedStocksDao(all_tx));
+  static std::vector<stock_tx_test_data>* all_tx[] = {&test2_tx};
+  auto storage = Storage<MockedStocksDao>(new MockedStocksDao(test2_stocks, all_tx));
   storage.get_stock_portfolio(nullptr, nullptr, [](stock_portfolio* p, void* param){
     bool *triggered = reinterpret_cast<bool*>(param);
     *triggered = true;
+    StockPortfolio *port = static_cast<StockPortfolio*>(p);
+    for(const auto& stx: *port){
+      auto *list = static_cast<StockTxList*>(stx.tx_list);
+      auto balance = list->calc();
+      ASSERT_EQ(balance.shares, 400 );
+      ASSERT_EQ(balance.vwap, 367.65);
+      break;
+    }
+    delete port;
   }, &triggered);
   ASSERT_TRUE(triggered);
 }
-*/
  

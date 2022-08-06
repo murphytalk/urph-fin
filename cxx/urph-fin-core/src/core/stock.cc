@@ -167,7 +167,7 @@ stock_balance StockTxList::calc()
             }
         }
     }
-    auto r = std::reduce(std::execution::par, unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
+    auto r = std::accumulate(unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
         [](UnclosedPosition& a, UnclosedPosition& x){
             a.fee += x.fee;
             // price here is used to save market value
