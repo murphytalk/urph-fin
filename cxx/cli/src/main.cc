@@ -8,10 +8,8 @@
 #include <cmath>
 #include <ctime>
 
-#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
-
 #include <core/urph-fin-core.hxx>
 #include <core/stock.hxx>
 
@@ -89,7 +87,7 @@ static void main_menu()
                         continue;
                     }
                     bool broker_name_printed = false;
-                    for(CashBalance& balance: broker){
+                    for(const CashBalance& balance: broker){
                         if (broker_name_printed)
                             table.add_row(
                                 {"", balance.ccy, format_with_commas(balance.balance)}
@@ -122,7 +120,7 @@ static void main_menu()
                     table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit", "ROI"});
                     auto fund_portfolio = static_cast<FundPortfolio*>(fp);
                     int row = 0;
-                    for(Fund& fund: *fund_portfolio){
+                    for(const Fund& fund: *fund_portfolio){
                         ++row;
                         table.add_row({fund.broker, fund.name, 
                             format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value), 
@@ -198,12 +196,13 @@ static void main_menu()
                 get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     Table table;
-                    table.add_row({"Date", "Type", "Price", "Shares", "Fee"});
+                    table.add_row({"Date", "Broker", "Type", "Price", "Shares", "Fee"});
                     auto *port = static_cast<StockPortfolio*>(p);
                     auto *tx = static_cast<StockTxList*>(port->first_stock_with_tx->tx_list);
                     for(StockTx& tx: *tx){
                         table.add_row({
-                            format_timestamp(tx.date), 
+                            format_timestamp(tx.date),
+                            tx.broker, 
                             tx.Side(), 
                             format_with_commas(tx.price), 
                             format_with_commas(tx.shares), 
@@ -212,7 +211,7 @@ static void main_menu()
                     }
                     free_stock_portfolio(p);
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-                    for(auto i = 2 ; i <= 4 ;++i) table.column(i).format().font_align(FontAlign::right);
+                    for(auto i = 3 ; i <= 5 ;++i) table.column(i).format().font_align(FontAlign::right);
                     *out << "\n" << table << endl;
                 }, &out);
             },
