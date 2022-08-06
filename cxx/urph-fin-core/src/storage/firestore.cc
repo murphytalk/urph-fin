@@ -18,6 +18,7 @@
 #include <string>
 #include <functional>
 #include <vector>
+#include <algorithm>
 
 #include "../utils.hxx"
 
@@ -242,6 +243,7 @@ public:
         // and becomes invalid when the lambda is called
         int num = 0;
         int remaining = funds_num;
+        LOG(DEBUG) << "Expecting " << funds_num << " funds\n";
         for(auto fund_ids = fund_ids_head; remaining > 0;){ 
             num = remaining > FILTER_WHERE_IN_LIMIT ? FILTER_WHERE_IN_LIMIT : remaining;
 
@@ -250,7 +252,7 @@ public:
                 LOG(DEBUG) << "Adding fund id " << id << "\n";
                 return FieldValue::String(id);
             });
-
+            LOG(DEBUG) << "Querying tx for " << ids.size() << " funds\n";
             const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereIn(FieldPath::DocumentId(), ids);
             q.Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
                 if (future.error() == Error::kErrorOk) {
