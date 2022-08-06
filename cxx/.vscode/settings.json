@@ -96,7 +96,8 @@
         "utility": "cpp",
         "stop_token": "cpp",
         "cinttypes": "cpp",
-        "__memory": "cpp"
+        "__memory": "cpp",
+        "execution": "cpp"
     },
     "cSpell.words": [
         "STREQ",

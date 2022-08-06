@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
         {
             "name": "(gdb) cli",
             "type": "cppdbg",
@@ -22,6 +23,10 @@
                     "name": "PATH",
                     "value": "$PATH:${command:cmake.launchTargetDirectory}"
                 },
+                {
+                    "name": "VERBOSE",
+                    "value": "1"
+                }
             ],
             //"externalConsole": true,
             "MIMode": "gdb",
@@ -38,7 +43,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/urph-fin-core/test",
-            "args": [],
+            "args": ["--gtest_filter=TestStockPortfolio.get_stock_all_portfolio2"],
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
             "setupCommands": [
