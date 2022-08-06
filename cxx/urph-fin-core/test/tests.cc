@@ -38,34 +38,12 @@ struct stock_tx_test_data{
   timestamp date;
 };
 
-static std::vector<stock_test_data> stocks = {
-  {"SYM1", "USD"},
-  {"SYM2", "USD"},
-};
-
-static std::vector<stock_tx_test_data> sym1_tx = {
-  {10.0, 100.0, 1.0, "BUY"  , "broker1", 1000},
-  { 0.0,   2.0, 0.0, "SPLIT", "broker1", 2000}, // total shares after split: 20
-  {20.0,  40.0, 1.0, "BUY"  , "broker2", 3000}, // shares: 40
-  {30.0, 100.0, 1.0, "SELL" , "broker2", 4000}, // shares: 10
-};
-
-static std::vector<stock_tx_test_data> sym2_tx = {
-  {10.0, 100.0, 1.0, "BUY"  , "broker1", 1000},
-  {20.0,  40.0, 1.0, "BUY"  , "broker2", 2000}, // shares: 30
-  {30.0, 100.0, 1.0, "SELL" , "broker2", 3000}, // shares:  0
-  {30.0, 100.0, 1.0, "BUY"  , "broker1", 3000}, // shares: 30
-  {20.0,  40.0, 1.0, "SELL" , "broker1", 4000}, // shares: 10
-  {20.0,  60.0, 1.0, "BUY"  , "broker2", 4000}, // shares: 30
-  {10.0,  70.0, 1.0, "BUY"  , "broker3", 4000}, // shares: 40
-  {15.0, 100.0, 1.0, "SELL" , "broker2", 5000}, // shares: 25
-};
-
-static std::vector<stock_tx_test_data>* all_tx[] = {&sym1_tx, &sym2_tx};
 class MockedStocksDao
 {
+  std::vector<stock_tx_test_data>** all_tx;
+  std::vector<stock_test_data>& stocks;
 public:
-  MockedStocksDao(OnInitDone){}
+  MockedStocksDao(std::vector<stock_test_data>& s, std::vector<stock_tx_test_data>** tx):stocks(s), all_tx(tx){}
   typedef int BrokerType;
   BrokerType get_broker_by_name(const char *) { return 0; }
   std::string get_broker_name(const BrokerType &) { return std::string(""); }
@@ -95,19 +73,44 @@ public:
   }
 };
 
-TEST(TestStockPortfolio, get_stock_all_portfolio)
+static std::vector<stock_test_data> test1_stocks = {
+  {"SYM1", "USD"},
+  {"SYM2", "USD"},
+};
+
+static std::vector<stock_tx_test_data> sym1_tx = {
+  {10.0, 100.0, 1.0, "BUY"  , "broker1", 1000},
+  { 0.0,   2.0, 0.0, "SPLIT", "broker1", 2000}, // total shares after split: 20
+  {20.0,  40.0, 1.0, "BUY"  , "broker2", 3000}, // shares: 40
+  {30.0, 100.0, 1.0, "SELL" , "broker2", 4000}, // shares: 10
+};
+
+static std::vector<stock_tx_test_data> sym2_tx = {
+  {10.0, 100.0, 1.0, "BUY"  , "broker1", 1000},
+  {20.0,  40.0, 1.0, "BUY"  , "broker2", 2000}, // shares: 30
+  {30.0, 100.0, 1.0, "SELL" , "broker2", 3000}, // shares:  0
+  {30.0, 100.0, 1.0, "BUY"  , "broker1", 3000}, // shares: 30
+  {20.0,  40.0, 1.0, "SELL" , "broker1", 4000}, // shares: 10
+  {20.0,  60.0, 1.0, "BUY"  , "broker2", 4000}, // shares: 30
+  {10.0,  70.0, 1.0, "BUY"  , "broker3", 4000}, // shares: 40
+  {15.0, 100.0, 1.0, "SELL" , "broker2", 5000}, // shares: 25
+};
+
+
+TEST(TestStockPortfolio, get_stock_all_portfolio1)
 {
   auto triggered = false;
-  auto storage = Storage<MockedStocksDao>(nullptr);
+  static std::vector<stock_tx_test_data>* all_tx[] = {&sym1_tx, &sym2_tx};
+  auto storage = Storage<MockedStocksDao>(new MockedStocksDao(test1_stocks, all_tx));
   storage.get_stock_portfolio(nullptr, nullptr, [](stock_portfolio* p, void* param){
     bool *triggered = reinterpret_cast<bool*>(param);
     *triggered = true;
-    ASSERT_EQ(p->num, stocks.size());
+    ASSERT_EQ(p->num, test1_stocks.size());
     StockPortfolio *port = static_cast<StockPortfolio*>(p);
     int stock_idx = 0;
     for(const auto& stx: *port){
-      ASSERT_STREQ(stx.instrument->symbol, stocks[stock_idx].symbol.c_str());
-      ASSERT_STREQ(stx.instrument->currency, stocks[stock_idx].currency.c_str());
+      ASSERT_STREQ(stx.instrument->symbol, test1_stocks[stock_idx].symbol.c_str());
+      ASSERT_STREQ(stx.instrument->currency, test1_stocks[stock_idx].currency.c_str());
 
       const auto &txs = *all_tx[stock_idx++];
       auto *list = static_cast<StockTxList*>(stx.tx_list);
@@ -159,3 +162,17 @@ TEST(TestStockPortfolio, get_stock_all_portfolio)
   },&triggered);
   ASSERT_TRUE(triggered);
 }
+/*
+TEST(TestStockPortfolio, get_stock_all_portfolio2)
+{
+  auto triggered = false;
+  static std::vector<stock_tx_test_data>* all_tx[] = {&sym1_tx, &sym2_tx};
+  auto storage = Storage<MockedStocksDao>(new MockedStocksDao(all_tx));
+  storage.get_stock_portfolio(nullptr, nullptr, [](stock_portfolio* p, void* param){
+    bool *triggered = reinterpret_cast<bool*>(param);
+    *triggered = true;
+  }, &triggered);
+  ASSERT_TRUE(triggered);
+}
+*/
+ 

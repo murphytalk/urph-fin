@@ -224,7 +224,11 @@ public:
         dao = std::make_unique<DAO>(onInitDone);
         LOG(DEBUG) << "Storage instance created\n";
     };
-    virtual ~Storage(){
+    Storage(DAO *p){
+        dao = std::unique_ptr<DAO>(p);
+        LOG(DEBUG) << "Storage instance created\n";
+    };
+     virtual ~Storage(){
         LOG(DEBUG) << "Storage instance freed\n";
     }
 
