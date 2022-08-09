@@ -3,6 +3,26 @@
 #include "core/stock.hxx"
 #include "storage/storage.hxx"
 
+TEST(TestStrings, Basic)
+{
+  const char* expected[] = {"123", "456", "789"};
+
+  Strings ss(sizeof(expected)/sizeof(char*));
+  ss.add(expected[0]);
+  ss.add(expected[1]);
+  ss.add(expected[2]);
+
+  ASSERT_EQ(3, ss.size());
+  int i = 0;
+  char** pp = ss.to_str_array();
+  char** head = pp;
+  for(char* p: ss){
+    ASSERT_STREQ(expected[i  ], p);
+    ASSERT_STREQ(expected[i++], *pp++);
+  }
+  delete []head;
+}
+
 TEST(TestStock, Basic)
 {
   Stock s1(std::string("SYM"), std::string("USD"));

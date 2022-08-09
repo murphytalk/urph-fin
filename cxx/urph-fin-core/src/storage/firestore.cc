@@ -94,6 +94,7 @@ private:
     static const char COLLECTION_BROKERS [];
     static const char COLLECTION_INSTRUMENTS[];
     static const char COLLECTION_TX[];
+    static const char COLLECTION_QUOTES[];
     static const int FILTER_WHERE_IN_LIMIT = 10; // Firestore API constrain
 public:
     using BrokerType = DocumentSnapshot;
@@ -241,62 +242,36 @@ public:
     {
         // cannot use auto var allocated in stack, as it will be freed once out of the context of OnCompletion()
         // and becomes invalid when the lambda is called
-            const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS);
-            filter_where_in(q, fund_ids_head, funds_num,[builder](const Future<QuerySnapshot>& future) {
-                if (future.error() == Error::kErrorOk) {
-                    LOG(DEBUG) << "Got " << future.result()->size() << " funds\n";
-                    for(const auto& the_fund: future.result()->documents()){
-                        // find latest tx
-                        auto fund_name = the_fund.Get("name").string_value();
-                        auto fund_id = the_fund.id();
-                        LOG(DEBUG) << "getting tx of fund id=" << fund_id << " name=" << fund_name << "\n";
-                        the_fund.reference().Collection(FirestoreDao::COLLECTION_TX)
-                            .OrderBy("date", Query::Direction::kDescending).Limit(1)
-                            .Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
-                                builder->alloc->inc_counter();
-                                LOG(DEBUG) << "tx result for #" << builder->alloc->counter << " fund\n";
-                                if(future.error() == Error::kErrorOk){
-                                    if(!future.result()->empty()){
-                                        const auto& docs = future.result()->documents();
-                                        const auto& tx_ref = docs.front();
-                                        const auto& broker = tx_ref.Get("broker").string_value();
-                                        const auto& name = tx_ref.Get("instrument_name").string_value();
-                                        const auto& id   = tx_ref.Get("instrument_id").string_value();
-                                        const auto amt = tx_ref.Get("amount").integer_value();
-                                        double capital = FirestoreDao::get_num_as_double(tx_ref.Get("capital"));
-                                        double market_value = FirestoreDao::get_num_as_double(tx_ref.Get("market_value"));
-                                        double price = FirestoreDao::get_num_as_double(tx_ref.Get("price"));
-                                        double profit = market_value - capital;
-                                        double roi = profit / capital;
-                                        timestamp date = tx_ref.Get("date").timestamp_value().seconds();
-                                        LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
-                                        builder->add_fund(
-                                            broker, name, id,
-                                            (int)amt,
-                                            capital,
-                                            market_value,
-                                            price,
-                                            profit,
-                                            roi,
-                                            date
-                                        );
-                                        LOG(DEBUG) << "No." << builder->alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
-                                    }
-                                }
-                                else{
-                                    throw std::runtime_error("Failed to query tx from funds");
-                                }
-                                if(builder->alloc->has_enough_counter()){
-                                    builder->succeed();
-                                }
-                            });
-                    }
-                }
-                else{
-                    builder->failed();
-                    throw std::runtime_error("Failed to query funds");
-                }
-            });
+        auto q = _firestore->Collection(COLLECTION_INSTRUMENTS);
+        filter_where_in(q, fund_ids_head, funds_num,[builder](const Future<QuerySnapshot>& future) {
+            FirestoreDao::sub_collection(builder, future, FirestoreDao::COLLECTION_TX,
+                [](const Query& q){ return q.OrderBy("date", Query::Direction::kDescending).Limit(1); },
+                [builder](const std::vector<DocumentSnapshot>& docs){
+                                    const auto& tx_ref = docs.front();
+                                    const auto& broker = tx_ref.Get("broker").string_value();
+                                    const auto& name = tx_ref.Get("instrument_name").string_value();
+                                    const auto& id   = tx_ref.Get("instrument_id").string_value();
+                                    const auto amt = tx_ref.Get("amount").integer_value();
+                                    double capital = FirestoreDao::get_num_as_double(tx_ref.Get("capital"));
+                                    double market_value = FirestoreDao::get_num_as_double(tx_ref.Get("market_value"));
+                                    double price = FirestoreDao::get_num_as_double(tx_ref.Get("price"));
+                                    double profit = market_value - capital;
+                                    double roi = profit / capital;
+                                    timestamp date = tx_ref.Get("date").timestamp_value().seconds();
+                                    LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                                    builder->add_fund(
+                                        broker, name, id,
+                                        (int)amt,
+                                        capital,
+                                        market_value,
+                                        price,
+                                        profit,
+                                        roi,
+                                        date
+                                    );
+                                    LOG(DEBUG) << "No." << builder->alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                });
+        });
     }
 
     void get_stock_portfolio(StockPortfolioBuilder* builder, const char* broker, const char* symbol)
@@ -352,16 +327,71 @@ public:
         }
         else throw std::runtime_error("Failed to get known stocks");
     }
-    /* 
-    void get_latest_quotes(LatestQuotesBuilder* builder)
+
+    void get_latest_quotes(LatestQuotesBuilder* builder, int num, const char **symbols_head)
     {
-        const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS)
-            .WhereNotEqualTo("type", FieldValue::String("Funds"))
-            .WhereEqualTo("name", FieldValue::String(symbol));
-        q.Get().
-    }*/
+        auto q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereNotEqualTo("type", FieldValue::String("Funds"));
+        filter_where_in(q, symbols_head, num, [builder](const Future<QuerySnapshot>& future){
+             FirestoreDao::sub_collection(builder, future, FirestoreDao::COLLECTION_QUOTES, 
+                [](const Query& q){ return q.OrderBy("date", Query::Direction::kDescending).Limit(1); },
+                [builder](const std::vector<DocumentSnapshot>& docs){
+                    const auto& quote = docs.front();
+                    const auto& symbol = quote.Get("instrument").string_value();
+                    const auto& price = quote.Get("price");
+                    double p = 0.0;
+                    if(price.is_valid()){
+                        p = FirestoreDao::get_num_as_double(price);
+                    }
+                    else{
+                        p = FirestoreDao::get_num_as_double(quote.Get("rate"));
+                    }
+                    const auto& date = quote.Get("date").integer_value();
+                    builder->add_quote(symbol, date, p);
+                });
+        });
+    }
 private:
-    void filter_where_in(const CollectionReference& q, const char **ids_head, int total_num, std::function<void(const Future<QuerySnapshot>&)> callback){
+    template<typename T>
+    static void sub_collection(Builder<T>* builder,
+                               const Future<QuerySnapshot>& parent_doc_future, 
+                               const char* sub_collection_name,
+                               //todo: crashes if it is defined to return reference: std::function<const Query&(const Query&)>
+                               //https://stackoverflow.com/questions/32871606/odd-return-behavior-with-stdfunction-created-from-lambda-c
+                               std::function<const Query(const Query&)> filter,
+                               std::function<void(const std::vector<DocumentSnapshot>&)> callback)
+    {
+        if(parent_doc_future.error() == Error::kErrorOk){
+            LOG(DEBUG) << "Got " << parent_doc_future.result()->size() << " parent docs\n";
+            for(const auto& sub: parent_doc_future.result()->documents()){
+                auto name = sub.Get("name").string_value();
+                auto id = sub.id();
+                LOG(DEBUG) << "Getting sub collection of parent doc id=" << id << " name=" << name << "\n";
+                const auto& q = filter(sub.reference().Collection(sub_collection_name)).Get();
+                q.OnCompletion([builder,callback](const Future<QuerySnapshot>& f) {
+                    builder->alloc->inc_counter();
+                    LOG(DEBUG) << "Got sub collection for #" << builder->alloc->counter << " parent doc\n";
+                    if(f.error() == Error::kErrorOk){
+                        const auto* doc = f.result();
+                        if(!doc->empty()){
+                            callback(doc->documents());
+                        }
+                    }
+                    else{
+                        throw std::runtime_error("Failed to query tx from funds");
+                    }
+                    if(builder->alloc->has_enough_counter()){
+                        builder->succeed();
+                    }
+                });
+            }
+        }
+        else{
+            builder->failed();
+            throw std::runtime_error("Failed to query last quotes");
+        }
+    }
+
+    void filter_where_in(const Query& q, const char **ids_head, int total_num, std::function<void(const Future<QuerySnapshot>&)> callback){
         int num = 0;
         int remaining = total_num;
         LOG(DEBUG) << "Expecting " << total_num << " results\n";
@@ -379,7 +409,6 @@ private:
             remaining -= num;
         }
     }
- 
 
     static inline double get_num_as_double(const FieldValue& fv)
     { 
@@ -416,5 +445,6 @@ private:
 const char FirestoreDao::COLLECTION_BROKERS[] = "Brokers";
 const char FirestoreDao::COLLECTION_INSTRUMENTS[] = "Instruments";
 const char FirestoreDao::COLLECTION_TX[] = "tx";
+const char FirestoreDao::COLLECTION_QUOTES[] = "quotes";
 
 IStorage * create_firestore_instance(OnInitDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }

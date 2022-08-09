@@ -83,6 +83,16 @@ int Strings::size()
     return last_str - strs;
 }
 
+char** Strings::to_str_array()
+{
+    char ** ids = new char*[size()];
+    char ** pp = ids;
+    for(char* p: *this){
+        *pp++ = p;
+    }
+    return ids;
+}
+
 Strings::~Strings()
 {
     for(char** p=strs; p!=last_str; ++p){
