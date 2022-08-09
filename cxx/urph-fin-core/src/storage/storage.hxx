@@ -77,45 +77,56 @@ public:
     }        
 };
 
-class FundsBuilder{
+template <typename T>
+class Builder{
 public:
-    typedef PlacementNew<fund> FundAlloc;
-    FundAlloc* fund_alloc;
+    typedef PlacementNew<T> Alloc;
+    Alloc* alloc;
 
-    static FundsBuilder* create(int funds_num,std::function<void(FundAlloc*)> called_when_succeed){
-        return new FundsBuilder(funds_num, called_when_succeed);
+    static Builder<T>* create(int num,std::function<void(Alloc*)> called_when_succeed){
+        return new Builder<T>(num, called_when_succeed);
     }
 
-   ~FundsBuilder(){
-        delete fund_alloc;
-    }
-    Fund* add_fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
-        return new (fund_alloc->current++) Fund(
-                                            broker, name, id,
-                                            amount,
-                                            capital,
-                                            market_value,
-                                            price,
-                                            profit,
-                                            roi,
-                                            date
-                                        );
+   ~Builder(){
+        delete alloc;
     }
     inline void succeed() { 
-        onSuccess(fund_alloc); 
+        onSuccess(alloc); 
         delete this;
     }
     inline void failed(){
         delete this;
     }
 private:    
-    std::function<void(FundAlloc*)> onSuccess;
+    std::function<void(Alloc*)> onSuccess;
     // ensure this cannot be allocated in stack
-    FundsBuilder(int funds_num,std::function<void(FundAlloc*)> called_when_succeed){
-        fund_alloc = new PlacementNew<fund>(funds_num);
+    Builder(int num,std::function<void(Alloc*)> called_when_succeed){
+        alloc = new PlacementNew<T>(num);
         onSuccess = called_when_succeed;
     }
  };
+
+class FundsBuilder: public Builder<fund>{
+public:
+    Fund* add_fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
+        return new (alloc->current++) Fund(broker, name, id,
+                                           amount,
+                                           capital,
+                                           market_value,
+                                           price,
+                                           profit,
+                                           roi,
+                                           date
+        );
+    }
+};
+
+class LatestQuotesBuilder: public Builder<quote>{
+public:
+    Quote* add_quote(const std::string& symbol, timestamp date, double rate){
+        return new (alloc->current++) Quote(symbol, date, rate);
+    }
+};
 
 class StockPortfolioBuilder{
 public:
@@ -205,6 +216,7 @@ private:
     }
 };
 
+
 class IStorage{
 public:
     virtual ~IStorage(){}
@@ -252,14 +264,14 @@ public:
 
     void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
         // self delete upon finish
-        auto *p = FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::FundAlloc* fund_alloc){
+        auto *p = static_cast<FundsBuilder*>(FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::Alloc* fund_alloc){
             std::sort(fund_alloc->head, fund_alloc->head + fund_alloc->allocated_num(),[](fund& f1, fund& f2){ 
                 auto byBroker = strcmp(f1.broker,f2.broker);
                 auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;
                 return v < 0; 
             });
             onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head), onFundsCallerProvidedParam);
-        });
+        }));
         dao->get_funds(p, funds_num, fund_ids_head);
     }
 

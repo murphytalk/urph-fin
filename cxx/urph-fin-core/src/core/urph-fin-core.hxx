@@ -141,6 +141,11 @@ public:
     Iterator<Fund> begin() { return Iterator( head(default_member_tag()) ); }
     Iterator<Fund> end() { return Iterator( head(default_member_tag()) + num ); }
 };
+class Quote: public quote{
+public:
+    Quote(const std::string& s, timestamp t, double r);
+    ~Quote();
+};
 
 
 // the ground rule is that none of the extended C++ classes should add member variables

@@ -138,6 +138,14 @@ struct stock_balance
 };
 stock_balance get_stock_balance(stock_tx_list* tx);
 
+struct quote
+{
+    char*     symbol;
+    timestamp date;
+    double    rate;
+};
+
+
 void add_stock_tx (const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date);
 void add_stock_tx2(const char* broker, const char* symbol, double shares, double price, const char* side, const char* date);
 

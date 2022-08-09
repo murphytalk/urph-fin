@@ -162,6 +162,18 @@ Fund::~Fund()
     delete []id;
 }
 
+Quote::Quote(const std::string& s, timestamp t, double r)
+{
+    symbol = copy_str(s);
+    date = t;
+    rate = r;
+}
+
+Quote::~Quote()
+{
+    delete []symbol;
+}
+
 IStorage *storage;
 
 bool urph_fin_core_init(OnInitDone onInitDone)

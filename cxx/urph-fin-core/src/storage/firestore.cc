@@ -241,20 +241,8 @@ public:
     {
         // cannot use auto var allocated in stack, as it will be freed once out of the context of OnCompletion()
         // and becomes invalid when the lambda is called
-        int num = 0;
-        int remaining = funds_num;
-        LOG(DEBUG) << "Expecting " << funds_num << " funds\n";
-        for(auto fund_ids = fund_ids_head; remaining > 0;){ 
-            num = remaining > FILTER_WHERE_IN_LIMIT ? FILTER_WHERE_IN_LIMIT : remaining;
-
-            std::vector<FieldValue> ids;
-            std::transform(fund_ids, fund_ids + num, std::back_inserter(ids), [](const char* id){
-                LOG(DEBUG) << "Adding fund id " << id << "\n";
-                return FieldValue::String(id);
-            });
-            LOG(DEBUG) << "Querying tx for " << ids.size() << " funds\n";
-            const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereIn(FieldPath::DocumentId(), ids);
-            q.Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
+            const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS);
+            filter_where_in(q, fund_ids_head, funds_num,[builder](const Future<QuerySnapshot>& future) {
                 if (future.error() == Error::kErrorOk) {
                     LOG(DEBUG) << "Got " << future.result()->size() << " funds\n";
                     for(const auto& the_fund: future.result()->documents()){
@@ -265,8 +253,8 @@ public:
                         the_fund.reference().Collection(FirestoreDao::COLLECTION_TX)
                             .OrderBy("date", Query::Direction::kDescending).Limit(1)
                             .Get().OnCompletion([builder](const Future<QuerySnapshot>& future) {
-                                builder->fund_alloc->inc_counter();
-                                LOG(DEBUG) << "tx result for #" << builder->fund_alloc->counter << " fund\n";
+                                builder->alloc->inc_counter();
+                                LOG(DEBUG) << "tx result for #" << builder->alloc->counter << " fund\n";
                                 if(future.error() == Error::kErrorOk){
                                     if(!future.result()->empty()){
                                         const auto& docs = future.result()->documents();
@@ -292,13 +280,13 @@ public:
                                             roi,
                                             date
                                         );
-                                        LOG(DEBUG) << "No." << builder->fund_alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                                        LOG(DEBUG) << "No." << builder->alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
                                     }
                                 }
                                 else{
                                     throw std::runtime_error("Failed to query tx from funds");
                                 }
-                                if(builder->fund_alloc->has_enough_counter()){
+                                if(builder->alloc->has_enough_counter()){
                                     builder->succeed();
                                 }
                             });
@@ -309,10 +297,6 @@ public:
                     throw std::runtime_error("Failed to query funds");
                 }
             });
-
-            fund_ids += num;
-            remaining -= num;
-        }
     }
 
     void get_stock_portfolio(StockPortfolioBuilder* builder, const char* broker, const char* symbol)
@@ -368,7 +352,35 @@ public:
         }
         else throw std::runtime_error("Failed to get known stocks");
     }
+    /* 
+    void get_latest_quotes(LatestQuotesBuilder* builder)
+    {
+        const auto& q = _firestore->Collection(COLLECTION_INSTRUMENTS)
+            .WhereNotEqualTo("type", FieldValue::String("Funds"))
+            .WhereEqualTo("name", FieldValue::String(symbol));
+        q.Get().
+    }*/
 private:
+    void filter_where_in(const CollectionReference& q, const char **ids_head, int total_num, std::function<void(const Future<QuerySnapshot>&)> callback){
+        int num = 0;
+        int remaining = total_num;
+        LOG(DEBUG) << "Expecting " << total_num << " results\n";
+        for(auto id = ids_head; remaining > 0;){ 
+            num = remaining > FILTER_WHERE_IN_LIMIT ? FILTER_WHERE_IN_LIMIT : remaining;
+
+            std::vector<FieldValue> ids;
+            std::transform(id, id + num, std::back_inserter(ids), [](const char* id){
+                LOG(DEBUG) << "Adding id " << id << "\n";
+                return FieldValue::String(id);
+            });
+            LOG(DEBUG) << "Querying  for " << ids.size() << " results\n";
+            q.WhereIn(FieldPath::DocumentId(), ids).Get().OnCompletion(callback);
+            id += num;
+            remaining -= num;
+        }
+    }
+ 
+
     static inline double get_num_as_double(const FieldValue& fv)
     { 
         if(fv.is_null()) return 0.0;
