@@ -96,6 +96,8 @@ public:
     int size();
     inline char** begin() { return strs; }
     inline char** end()   { return last_str; }
+    // caller is responsible to free the mem
+    char** to_str_array();
 };
 
 class Broker: public broker{
