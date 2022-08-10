@@ -6,7 +6,7 @@
 #include <vector>
 #include <iterator> 
 
-// C++ extentions to make life (much more) easier for C++ clients
+// C++ extensions to make life (much more) easier for C++ clients
 
 struct Config{
     std::string email;
@@ -149,6 +149,22 @@ public:
     ~Quote();
 };
 
+class Quotes: public quotes{
+public:
+    Quotes(int n, quote* head){
+        num = n;
+        first = head;
+    }
+    ~Quotes(){
+        free_placement_allocated_structs<Quotes, Quote>(this);
+        delete []first;
+    }
+    inline Quote* head(default_member_tag) { return static_cast<Quote*>(first); }
+    inline int size(default_member_tag) { return num; }
+    Iterator<Quote> begin() { return Iterator(head(default_member_tag())); }
+    Iterator<Quote> end()   { return Iterator(head(default_member_tag()) + num); }
+};
+
 
 // the ground rule is that none of the extended C++ classes should add member variables
 // so the size of the class remain the same as the original struct
@@ -157,5 +173,7 @@ static_assert(sizeof(Broker) == sizeof(broker));
 static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
 static_assert(sizeof(Fund)  == sizeof(fund));
 static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
+static_assert(sizeof(Quote)  == sizeof(quote));
+static_assert(sizeof(Quotes)  == sizeof(quotes));
 
 #endif

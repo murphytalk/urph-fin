@@ -91,10 +91,12 @@ public:
         delete alloc;
     }
     inline void succeed() { 
+        LOG(DEBUG) << "Builder succeeded\n";
         onSuccess(alloc); 
         delete this;
     }
     inline void failed(){
+        LOG(DEBUG) << "Builder failed\n";
         delete this;
     }
 private:    
@@ -124,6 +126,7 @@ public:
 class LatestQuotesBuilder: public Builder<quote>{
 public:
     Quote* add_quote(const std::string& symbol, timestamp date, double rate){
+        LOG(DEBUG) << "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate <<"\n";
         return new (alloc->current++) Quote(symbol, date, rate);
     }
 };
@@ -226,6 +229,7 @@ public:
     virtual void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual strings* get_known_stocks(const char* broker) = 0;
+    virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
 };
 
 template<typename DAO>
@@ -304,6 +308,25 @@ public:
     strings* get_known_stocks(const char* broker) { 
         const auto& builder = dao->get_known_stocks(broker);
         return builder.strings; 
+    }
+    void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param){
+        if (symbols_head == nullptr){
+            dao->get_non_fund_symbols([onQuotes, caller_provided_param, this](Strings* symbols){
+                char** sym_head = symbols->to_str_array();
+                auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(symbols->size(),[sym_head, onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
+                    onQuotes(new Quotes(alloc->allocated_num(), alloc->head), caller_provided_param);
+                    delete []sym_head;
+                }));
+                dao->get_latest_quotes(builder, symbols->size(), const_cast<const char**>(sym_head));
+                delete symbols;
+            });
+        }
+        else{
+            auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(num,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
+                onQuotes(new Quotes(alloc->allocated_num(), alloc->head), caller_provided_param);
+            }));
+            dao->get_latest_quotes(builder, num, symbols_head);
+        }
     }
 };
 

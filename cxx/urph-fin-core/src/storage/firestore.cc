@@ -12,6 +12,7 @@
 #include <windows.h>
 #endif  // _WIN32
 
+#include <cassert>
 #include <memory>
 #include <stdexcept>
 #include <sstream> 
@@ -309,7 +310,9 @@ public:
             }
             else{
                 builder->failed();
-                throw std::runtime_error(" Failed to query stock tx");
+                std::ostringstream ss;
+                ss << "Failed to query stock tx , error code=" << future.error();
+                throw std::runtime_error(ss.str());
             }
         });
     }
@@ -328,10 +331,24 @@ public:
         else throw std::runtime_error("Failed to get known stocks");
     }
 
+    void get_non_fund_symbols(std::function<void(Strings*)> onResult)
+    {
+        _firestore->Collection(COLLECTION_INSTRUMENTS).WhereNotEqualTo("type", FieldValue::String("Funds"))
+            .Get().OnCompletion([onResult](const Future<QuerySnapshot>& future){
+                const auto& docs = future.result()->documents();
+                Strings* symbols = new Strings(docs.size());
+                for(const auto& d: docs){
+                    symbols->add(d.id());
+                }
+                onResult(symbols);
+            });
+    }
+
     void get_latest_quotes(LatestQuotesBuilder* builder, int num, const char **symbols_head)
     {
-        auto q = _firestore->Collection(COLLECTION_INSTRUMENTS).WhereNotEqualTo("type", FieldValue::String("Funds"));
-        filter_where_in(q, symbols_head, num, [builder](const Future<QuerySnapshot>& future){
+        assert(num!=0 && symbols_head != nullptr);
+        auto const& q = _firestore->Collection(COLLECTION_INSTRUMENTS);
+        filter_where_in(q, symbols_head, num,[builder](const Future<QuerySnapshot>& future){
              FirestoreDao::sub_collection(builder, future, FirestoreDao::COLLECTION_QUOTES, 
                 [](const Query& q){ return q.OrderBy("date", Query::Direction::kDescending).Limit(1); },
                 [builder](const std::vector<DocumentSnapshot>& docs){
@@ -345,7 +362,7 @@ public:
                     else{
                         p = FirestoreDao::get_num_as_double(quote.Get("rate"));
                     }
-                    const auto& date = quote.Get("date").integer_value();
+                    const auto& date = quote.Get("date").timestamp_value().seconds();
                     builder->add_quote(symbol, date, p);
                 });
         });
@@ -360,7 +377,8 @@ private:
                                std::function<const Query(const Query&)> filter,
                                std::function<void(const std::vector<DocumentSnapshot>&)> callback)
     {
-        if(parent_doc_future.error() == Error::kErrorOk){
+        auto errCode = parent_doc_future.error();
+        if( errCode == Error::kErrorOk){
             LOG(DEBUG) << "Got " << parent_doc_future.result()->size() << " parent docs\n";
             for(const auto& sub: parent_doc_future.result()->documents()){
                 auto name = sub.Get("name").string_value();
@@ -377,7 +395,8 @@ private:
                         }
                     }
                     else{
-                        throw std::runtime_error("Failed to query tx from funds");
+                        builder->failed();
+                        throw std::runtime_error("Failed to query sub collection");
                     }
                     if(builder->alloc->has_enough_counter()){
                         builder->succeed();
@@ -387,7 +406,9 @@ private:
         }
         else{
             builder->failed();
-            throw std::runtime_error("Failed to query last quotes");
+            std::ostringstream ss;
+            ss << "Failed to query sub collection "<< sub_collection_name << ", error code=" << errCode;
+            throw std::runtime_error(ss.str());
         }
     }
 

@@ -99,6 +99,7 @@ Strings::~Strings()
         LOG(DEBUG) << *p << ",";
         delete []*p;
     }
+    LOG(DEBUG)<<" deleted\n";
     delete []strs;
 }
 
@@ -356,4 +357,18 @@ stock_balance get_stock_balance(stock_tx_list* tx)
 {
     auto p = static_cast<StockTxList*>(tx);
     return p->calc();
+}
+
+void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param)
+{
+    assert(storage != nullptr);
+    TRY
+    storage->get_quotes(num, symbols_head, onQuotes, caller_provided_param);
+    CATCH_NO_RET
+}
+
+void free_quotes(quotes* q)
+{
+    auto quotes = static_cast<Quotes*>(q);
+    delete quotes;
 }

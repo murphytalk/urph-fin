@@ -145,6 +145,16 @@ struct quote
     double    rate;
 };
 
+struct quotes
+{
+    int num;
+    quote* first;
+};
+typedef void (*OnQuotes)(quotes*, void* param);
+// num == 0 or symbols_head == nullptr => all stock & ETF & FX
+void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param);
+void free_quotes(quotes* q);
+
 
 void add_stock_tx (const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date);
 void add_stock_tx2(const char* broker, const char* symbol, double shares, double price, const char* side, const char* date);

@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <cmath>
 #include <ctime>
+#include <unordered_map>
 
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -67,6 +68,29 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
     for(auto i = 2 ; i <= 5 ;++i) table.column(i).format().font_align(FontAlign::right);
     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
     out << "\n" << table << endl;
+}
+
+static quotes* all_quotes = nullptr;
+static std::unordered_map<std::string, const Quote*> quotes_by_symbol;
+static std::condition_variable cv2;
+static void get_all_quotes()
+{
+    std::mutex m;
+    if(all_quotes == nullptr){
+        std::lock_guard<std::mutex> lk(m);
+        get_quotes(0, nullptr, [](quotes*q, void* p){
+            all_quotes = q;
+            Quotes *Q = static_cast<Quotes*>(q);
+            for(auto const& qq: *Q){
+                quotes_by_symbol[std::string(qq.symbol)] = &qq;
+            }
+            cv2.notify_one();
+        }, nullptr);
+    }
+    {
+        std::unique_lock<std::mutex> lk(m);
+        cv2.wait(lk);
+    }
 }
 
 static void main_menu()
@@ -173,6 +197,7 @@ static void main_menu()
         stockMenu->Insert(
             "list",
             [](ostream& out){
+                get_all_quotes();
                 get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     print_stock_list(*out, p);
@@ -183,6 +208,7 @@ static void main_menu()
         stockMenu->Insert(
             "sym",
             [](ostream& out, string symbol){
+                get_all_quotes();
                 get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     print_stock_list(*out, p);
@@ -223,13 +249,16 @@ static void main_menu()
 
         cli::Cli cli( std::move(rootMenu) );
         // global exit action
-        cli.ExitAction( [](auto& out){ out << "Goodbye.\n"; } );
+        cli.ExitAction( [](auto& out){ 
+            out << "Goodbye.\n"; 
+        });
 
         cli::LoopScheduler scheduler;
         cli::CliLocalTerminalSession localSession(cli, scheduler, std::cout, 200);
         localSession.ExitAction(
             [&scheduler](auto& out) // session exit action
             {
+                free_quotes(all_quotes);
                 scheduler.Stop();
             }
         );
