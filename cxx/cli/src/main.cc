@@ -47,29 +47,6 @@ template<typename T> static std::string percentage(T value)
     return ss.str();
 }
 
-static void print_stock_list(ostream& out, stock_portfolio*p)
-{
-    Table table;
-    table.add_row({"Symbol", "Currency", "VWAP", "Shares", "Liquidated", "Fee"});
-    auto *port = static_cast<StockPortfolio*>(p);
-    for(auto const& stockWithTx: *port){
-        auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
-        auto balance = tx_list->calc();
-        table.add_row({
-            stockWithTx.instrument->symbol,
-            stockWithTx.instrument->currency,
-            format_with_commas(balance.vwap),
-            format_with_commas(balance.shares),
-            format_with_commas(balance.liquidated),
-            format_with_commas(balance.fee)
-        });
-    }
-    free_stock_portfolio(p);
-    for(auto i = 2 ; i <= 5 ;++i) table.column(i).format().font_align(FontAlign::right);
-    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-    out << "\n" << table << endl;
-}
-
 static quotes* all_quotes = nullptr;
 static std::unordered_map<std::string, const Quote*> quotes_by_symbol;
 static void get_all_quotes()
@@ -82,6 +59,70 @@ static void get_all_quotes()
             quotes_by_symbol[quote.symbol] = &quote;
         }
     }
+}
+
+
+static const char jpy[] = "JPY";
+static inline double to_jpy(double fx_rate, double value)
+{
+    return std::isnan(fx_rate) || std::isnan(value) ? std::nan("") : fx_rate * value;
+}
+static double get_rate(const std::string& symbol)
+{
+    auto it = quotes_by_symbol.find(symbol);
+    return it == quotes_by_symbol.end() ? std::nan("") : it->second->rate;
+}
+
+static void print_stock_list(ostream& out, stock_portfolio*p)
+{
+    Table table;
+    table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee"});
+    auto *port = static_cast<StockPortfolio*>(p);
+    double market_value_sum_jpy, profit_sum_jpy = 0.0;
+    int row = 0;
+    for(auto const& stockWithTx: *port){
+        ++row;
+        auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+        auto balance = tx_list->calc();
+        double fx_rate = 1.0;
+        if(strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy)/sizeof(char)) != 0){
+            fx_rate = get_rate(stockWithTx.instrument->currency + std::string(jpy));
+        }
+        double market_value, profit,profit_jpy = std::nan("");
+        double price = get_rate(stockWithTx.instrument->symbol);
+        if(!std::isnan(price) && !std::isnan(fx_rate)){
+            market_value =  price * balance.shares;
+            profit = (price - balance.vwap) * balance.shares;
+            profit_jpy = fx_rate * profit;
+            market_value_sum_jpy += fx_rate * market_value;
+            profit_sum_jpy += profit_jpy;
+        }
+        table.add_row({
+            stockWithTx.instrument->symbol,
+            stockWithTx.instrument->currency,
+            format_with_commas(balance.vwap),
+            format_with_commas(price),
+            format_with_commas(balance.shares),
+            format_with_commas(market_value),
+            format_with_commas(to_jpy(fx_rate, market_value)),
+            format_with_commas(profit),
+            format_with_commas(profit_jpy),
+            format_with_commas(balance.liquidated),
+            format_with_commas(to_jpy(fx_rate, balance.liquidated)),
+            format_with_commas(balance.fee)
+        });
+        if(!std::isnan(profit) && profit < 0){
+            table[row][7].format().font_color(Color::red);
+            table[row][8].format().font_color(Color::red);
+        }
+    }
+    ++row;
+    table.add_row({"SUM", "", "", "", "", "", format_with_commas(market_value_sum_jpy), "", format_with_commas(profit_sum_jpy), "", "", ""});
+    table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
+    free_stock_portfolio(p);
+    for(auto i = 2 ; i <= 11 ;++i) table.column(i).format().font_align(FontAlign::right);
+    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+    out << "\n" << table << endl;
 }
 
 static void main_menu()
