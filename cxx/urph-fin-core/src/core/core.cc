@@ -11,6 +11,8 @@
 #include <cstring>
 #include <cassert>
 #include <numeric>
+#include <mutex>
+#include <condition_variable>
 
 #include "storage/storage.hxx"
 #include "urph-fin-core.hxx"
@@ -359,12 +361,39 @@ stock_balance get_stock_balance(stock_tx_list* tx)
     return p->calc();
 }
 
-void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param)
+void get_quotes_async(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param)
 {
     assert(storage != nullptr);
     TRY
     storage->get_quotes(num, symbols_head, onQuotes, caller_provided_param);
     CATCH_NO_RET
+}
+
+static std::condition_variable cv;
+static quotes* all_quotes;
+quotes* get_quotes(int num, const char **symbols_head)
+{
+    std::mutex m;
+    {
+        std::lock_guard<std::mutex> lk(m);
+        try{
+            get_quotes_async(num, symbols_head,[](quotes*q, void*){
+                all_quotes = q; 
+                cv.notify_one();
+            }, nullptr);
+        }
+        catch(std::runtime_error& e)
+        {
+            LOG(ERROR)<< e.what() <<"\n";
+            all_quotes = nullptr;
+            cv.notify_one();
+        }
+    }
+    {
+        std::unique_lock<std::mutex> lk(m);
+        cv.wait(lk);
+    }
+    return all_quotes;
 }
 
 void free_quotes(quotes* q)

@@ -72,24 +72,15 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
 
 static quotes* all_quotes = nullptr;
 static std::unordered_map<std::string, const Quote*> quotes_by_symbol;
-static std::condition_variable cv2;
 static void get_all_quotes()
 {
-    std::mutex m;
     if(all_quotes == nullptr){
-        std::lock_guard<std::mutex> lk(m);
-        get_quotes(0, nullptr, [](quotes*q, void* p){
-            all_quotes = q;
-            Quotes *Q = static_cast<Quotes*>(q);
-            for(auto const& qq: *Q){
-                quotes_by_symbol[std::string(qq.symbol)] = &qq;
-            }
-            cv2.notify_one();
-        }, nullptr);
-    }
-    {
-        std::unique_lock<std::mutex> lk(m);
-        cv2.wait(lk);
+        //todo: the async version is conflicting with get stock portfolio ...
+        all_quotes = get_quotes(0, nullptr);
+        auto* q = static_cast<Quotes*>(all_quotes);
+        for(auto const& quote: *q){
+            quotes_by_symbol[quote.symbol] = &quote;
+        }
     }
 }
 
