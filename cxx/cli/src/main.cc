@@ -118,6 +118,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
     }
     ++row;
     table.add_row({"SUM", "", "", "", "", "", format_with_commas(market_value_sum_jpy), "", format_with_commas(profit_sum_jpy), "", "", ""});
+    if(profit_sum_jpy<0) table[row][8].format().font_color(Color::red);
     table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
     free_stock_portfolio(p);
     for(auto i = 2 ; i <= 11 ;++i) table.column(i).format().font_align(FontAlign::right);
