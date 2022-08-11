@@ -189,7 +189,7 @@ Quote::~Quote()
 
 IStorage *storage;
 
-bool urph_fin_core_init(OnInitDone onInitDone)
+bool urph_fin_core_init(OnDone onInitDone)
 {
     std::vector<AixLog::log_sink_ptr> sinks;
     
@@ -400,4 +400,12 @@ void free_quotes(quotes* q)
 {
     auto quotes = static_cast<Quotes*>(q);
     delete quotes;
+}
+
+void add_stock_tx (const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date, OnDone onDone, void*caller_provided_param)
+{
+    assert(storage != nullptr);
+    TRY
+    storage->add_tx(broker, symbol,shares, price, fee, side, date, onDone, caller_provided_param);
+    CATCH_NO_RET
 }

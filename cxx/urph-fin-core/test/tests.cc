@@ -77,6 +77,8 @@ public:
   StringsBuilder get_known_stocks() { return StringsBuilder(0); }
   void get_non_fund_symbols(std::function<void(Strings*)> onResult){}
   void get_latest_quotes(LatestQuotesBuilder* builder, int num, const char **symbols_head){}
+  void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
+              OnDone onDone,void* caller_provided_param){}
   void get_stock_portfolio(StockPortfolioBuilder* builder, const char* broker, const char* symbol){
     // mimic the behavior of the real storage
     // see firestore::get_stock_portfolio

@@ -230,13 +230,15 @@ public:
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual strings* get_known_stocks() = 0;
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
+    virtual void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
+                OnDone onDone,void* caller_provided_param) = 0;
 };
 
 template<typename DAO>
 class Storage: public IStorage{
     std::unique_ptr<DAO> dao;
 public:
-    Storage(OnInitDone onInitDone){
+    Storage(OnDone onInitDone){
         dao = std::make_unique<DAO>(onInitDone);
         LOG(DEBUG) << "Storage instance created\n";
     };
@@ -328,8 +330,12 @@ public:
             dao->get_latest_quotes(builder, num, symbols_head);
         }
     }
+    void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
+                OnDone onDone,void* caller_provided_param){
+        dao->add_tx(broker, symbol, shares, price, fee, side, date, onDone, caller_provided_param);
+    }
 };
 
-IStorage * create_firestore_instance(OnInitDone onInitDone);
+IStorage * create_firestore_instance(OnDone onInitDone);
 
 #endif

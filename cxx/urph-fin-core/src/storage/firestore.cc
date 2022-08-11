@@ -20,6 +20,7 @@
 #include <functional>
 #include <vector>
 #include <algorithm>
+#include <ctime>
 
 #include "../utils.hxx"
 
@@ -37,6 +38,7 @@ using ::firebase::AppOptions;
 using ::firebase::Future;
 using ::firebase::FutureBase;
 using ::firebase::Variant;
+using ::firebase::Timestamp;
 using ::firebase::auth::AdditionalUserInfo;
 using ::firebase::auth::Auth;
 using ::firebase::auth::User;
@@ -99,7 +101,7 @@ private:
     static const int FILTER_WHERE_IN_LIMIT = 10; // Firestore API constrain
 public:
     using BrokerType = DocumentSnapshot;
-    FirestoreDao(OnInitDone onInitDone){
+    FirestoreDao(OnDone onInitDone){
         _firebaseApp = 
 #if defined(__ANDROID__)
             App::Create(GetJniEnv(), GetActivity())
@@ -151,7 +153,7 @@ public:
             auto err_code = u.error();
             if(err_code == 0){
                 LOG(INFO) << "Auth completed\n";
-                (*(OnInitDone)onInitDone)();
+                (*(OnDone)onInitDone)(nullptr);
             }
             else{
                 std::ostringstream ss;
@@ -368,10 +370,32 @@ public:
         });
     }
 
-    void add_tx(const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date,
-                std::function<void()> onDone)
+    void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
+                OnDone onDone,void* caller_provided_param)
     {
-
+        const auto& stock = _firestore->Collection(COLLECTION_INSTRUMENTS).Document(std::string(symbol));
+        const auto& tx = stock.Collection(FirestoreDao::COLLECTION_TX);
+        const auto tm = gmtime(&date);
+        char yyyymmdd[10];
+        strftime(yyyymmdd,sizeof(yyyymmdd)/sizeof(char), "%Y%m%d", tm);    
+        tx.Document(std::string(yyyymmdd)).Set(
+            {
+                {"instrument_id", FieldValue::String(symbol)},
+                {"broker", FieldValue::String(broker)},
+                {"type", FieldValue::String(side)},
+                {"price", FieldValue::Double(price)},
+                {"shares", FieldValue::Double(shares)},
+                {"fee", FieldValue::Double(fee)},
+                {"date", FieldValue::Timestamp(Timestamp::FromTimeT(date))},
+            }
+        ).OnCompletion([onDone, caller_provided_param](const Future<void>& future) {
+            if (future.error() == Error::kErrorOk) {
+                onDone(caller_provided_param);
+            }   
+            else{
+                throw std::runtime_error("Failed to add tx");
+            } 
+        });
     }
 private:
     template<typename T>
@@ -474,4 +498,4 @@ const char FirestoreDao::COLLECTION_INSTRUMENTS[] = "Instruments";
 const char FirestoreDao::COLLECTION_TX[] = "tx";
 const char FirestoreDao::COLLECTION_QUOTES[] = "quotes";
 
-IStorage * create_firestore_instance(OnInitDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }
+IStorage * create_firestore_instance(OnDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }

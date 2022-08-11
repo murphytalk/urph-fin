@@ -9,9 +9,9 @@
 extern "C"
 {
 
-typedef void (*OnInitDone)();
+typedef void (*OnDone)(void*param);
 
-bool urph_fin_core_init(OnInitDone);
+bool urph_fin_core_init(OnDone);
 void urph_fin_core_close();
 
 // Funds
@@ -156,7 +156,7 @@ quotes* get_quotes(int num, const char **symbols_head);
 void free_quotes(quotes* q);
 
 
-void add_stock_tx (const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date);
+void add_stock_tx(const char* broker, const char* symbol, double shares, double price, double fee,const char* side, timestamp date, OnDone, void*);
 
 }
 #endif // URPH_FIN_CORE_H_

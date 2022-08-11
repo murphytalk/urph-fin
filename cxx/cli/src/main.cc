@@ -288,20 +288,13 @@ static void main_menu()
         );
         stockMenu->Insert(
             "add",
-            [](ostream& out, string broker, string symbol, double shares, double price, string side, string yyyy_mm_dd){
+            [](ostream& out, string broker, string symbol, double shares, double price, double fee,string side, string yyyy_mm_dd){
                 using namespace boost::gregorian;
                 using namespace boost::posix_time;
                 using namespace boost;
 
-                unsigned char the_side = 0;
                 to_upper(side);
-                if(side == "BUY")
-                    the_side = BUY;
-                else if(side == "SELL")
-                    the_side = SELL;
-                else if(side == "SPLIT")
-                    the_side = SPLIT;
-                else{
+                if(side != "BUY" && side != "SELL" && side != "SPLIT"){
                     out << "Unknown side " << side << "\n";
                     return;
                 }
@@ -311,9 +304,12 @@ static void main_menu()
 
                 out << "Adding broker=" << broker << " symbol=" << symbol
                     << " shares=" << shares << " price=" << price << " side=" << side << " date=" << d << "\n";
-                add_stock_tx(broker.c_str(), symbol.c_str(), shares, price, the_side, t);
+                add_stock_tx(broker.c_str(), symbol.c_str(), shares, price, fee, side.c_str(), t, [](void *param){ 
+                    ostream* out = reinterpret_cast<ostream*>(param);
+                    *out << "Added\n";
+                }, &out);
             },
-            "Add new transaction : broker symbol shares price side date(yyyy-mm-dd)"
+            "Add new transaction : broker symbol shares price fee side date(yyyy-mm-dd)"
         );
  
 
@@ -352,7 +348,7 @@ static std::condition_variable cv;
 
 int main(int argc, char *argv[])
 {
-    if(!urph_fin_core_init([](){
+    if(!urph_fin_core_init([](void*){
         {
             std::lock_guard<std::mutex> lk(m);
             init_done = true;
