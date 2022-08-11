@@ -151,14 +151,13 @@ struct quotes
     quote* first;
 };
 typedef void (*OnQuotes)(quotes*, void* param);
-// num == 0 or symbols_head == nullptr => all stock & ETF & FX
 void get_quotes_async(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param);
 quotes* get_quotes(int num, const char **symbols_head);
 void free_quotes(quotes* q);
 
 
 void add_stock_tx (const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date);
-void add_stock_tx2(const char* broker, const char* symbol, double shares, double price, const char* side, const char* date);
+void add_stock_tx_human_readable(const char* broker, const char* symbol, double shares, double price, const char* side, const char* date);
 
 }
 #endif // URPH_FIN_CORE_H_

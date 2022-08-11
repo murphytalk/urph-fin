@@ -206,7 +206,7 @@ static void main_menu()
                 }, &out);
 
             },
-            "List mutual funds portfolio by broker"
+            "List mutual funds portfolio by broker, all use all for all funds"
         );
 
 
@@ -252,29 +252,37 @@ static void main_menu()
         stockMenu->Insert(
             "tx",
             [](ostream& out, string symbol){
-                get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
+                get_stock_portfolio(nullptr, symbol == "all" ? nullptr : symbol.c_str(),[](stock_portfolio*p, void* param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     Table table;
-                    table.add_row({"Date", "Broker", "Type", "Price", "Shares", "Fee"});
+                    table.add_row({"Symbol","Date", "Broker", "Type", "Price", "Shares", "Fee"});
                     auto *port = static_cast<StockPortfolio*>(p);
-                    auto *tx = static_cast<StockTxList*>(port->first_stock_with_tx->tx_list);
-                    for(StockTx& tx: *tx){
+                    std::vector<std::pair<const char*,StockTx*>> all_tx;
+                    for(StockWithTx& stx: *port){
+                        auto *tx_list = static_cast<StockTxList*>(stx.tx_list);
+                        for(StockTx& tx: *tx_list){
+                            all_tx.push_back(std::make_pair(stx.instrument->symbol,&tx));
+                       }
+                    }
+                    std::sort(all_tx.begin(), all_tx.end(),[](const auto& c1, const auto& c2){ return c1.second->date > c2.second->date; });
+                    for(const auto&c: all_tx){
                         table.add_row({
-                            format_timestamp(tx.date),
-                            tx.broker, 
-                            tx.Side(), 
-                            format_with_commas(tx.price), 
-                            format_with_commas(tx.shares), 
-                            format_with_commas(tx.fee)
+                            c.first,
+                            format_timestamp(c.second->date),
+                            c.second->broker,
+                            c.second->Side(),
+                            format_with_commas(c.second->price),
+                            format_with_commas(c.second->shares),
+                            format_with_commas(c.second->fee)
                         });
                     }
                     free_stock_portfolio(p);
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-                    for(auto i = 3 ; i <= 5 ;++i) table.column(i).format().font_align(FontAlign::right);
+                    for(auto i = 4 ; i <= 6 ;++i) table.column(i).format().font_align(FontAlign::right);
                     *out << "\n" << table << endl;
                 }, &out);
             },
-            "List specified stock's transactions"
+            "List specified stock's transactions, or use all for all stocks"
         );
 
         rootMenu->Insert(std::move(stockMenu));

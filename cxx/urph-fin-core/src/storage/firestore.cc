@@ -248,29 +248,29 @@ public:
             FirestoreDao::sub_collection(builder, future, FirestoreDao::COLLECTION_TX,
                 [](const Query& q){ return q.OrderBy("date", Query::Direction::kDescending).Limit(1); },
                 [builder](const std::vector<DocumentSnapshot>& docs){
-                                    const auto& tx_ref = docs.front();
-                                    const auto& broker = tx_ref.Get("broker").string_value();
-                                    const auto& name = tx_ref.Get("instrument_name").string_value();
-                                    const auto& id   = tx_ref.Get("instrument_id").string_value();
-                                    const auto amt = tx_ref.Get("amount").integer_value();
-                                    double capital = FirestoreDao::get_num_as_double(tx_ref.Get("capital"));
-                                    double market_value = FirestoreDao::get_num_as_double(tx_ref.Get("market_value"));
-                                    double price = FirestoreDao::get_num_as_double(tx_ref.Get("price"));
-                                    double profit = market_value - capital;
-                                    double roi = profit / capital;
-                                    timestamp date = tx_ref.Get("date").timestamp_value().seconds();
-                                    LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
-                                    builder->add_fund(
-                                        broker, name, id,
-                                        (int)amt,
-                                        capital,
-                                        market_value,
-                                        price,
-                                        profit,
-                                        roi,
-                                        date
-                                    );
-                                    LOG(DEBUG) << "No." << builder->alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                    const auto& tx_ref = docs.front();
+                    const auto& broker = tx_ref.Get("broker").string_value();
+                    const auto& name = tx_ref.Get("instrument_name").string_value();
+                    const auto& id   = tx_ref.Get("instrument_id").string_value();
+                    const auto amt = tx_ref.Get("amount").integer_value();
+                    double capital = FirestoreDao::get_num_as_double(tx_ref.Get("capital"));
+                    double market_value = FirestoreDao::get_num_as_double(tx_ref.Get("market_value"));
+                    double price = FirestoreDao::get_num_as_double(tx_ref.Get("price"));
+                    double profit = market_value - capital;
+                    double roi = profit / capital;
+                    timestamp date = tx_ref.Get("date").timestamp_value().seconds();
+                    LOG(DEBUG) << "got tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
+                    builder->add_fund(
+                        broker, name, id,
+                        (int)amt,
+                        capital,
+                        market_value,
+                        price,
+                        profit,
+                        roi,
+                        date
+                    );
+                    LOG(DEBUG) << "No." << builder->alloc->allocated_num() << " created: tx of broker " << broker << ".fund id="<<id<<",name="<<name << "\n";
                 });
         });
     }
