@@ -157,7 +157,6 @@ void free_quotes(quotes* q);
 
 
 void add_stock_tx (const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date);
-void add_stock_tx_human_readable(const char* broker, const char* symbol, double shares, double price, const char* side, const char* date);
 
 }
 #endif // URPH_FIN_CORE_H_
