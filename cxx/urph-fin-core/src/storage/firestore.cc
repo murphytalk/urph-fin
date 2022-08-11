@@ -277,7 +277,7 @@ public:
 
     void get_stock_portfolio(StockPortfolioBuilder* builder, const char* broker, const char* symbol)
     {
-        get_stocks(broker, symbol).OnCompletion([builder](const Future<QuerySnapshot>& future){
+        get_stocks(symbol).OnCompletion([builder](const Future<QuerySnapshot>& future){
             if(future.error() == Error::kErrorOk){
                 const auto& stocks = future.result()->documents();
                 builder->prepare_stock_alloc(stocks.size());
@@ -317,9 +317,9 @@ public:
         });
     }
 
-    StringsBuilder get_known_stocks(const char* broker)
+    StringsBuilder get_known_stocks()
     {
-        const auto& f = get_stocks(broker, nullptr); 
+        const auto& f = get_stocks(nullptr); 
         if(Await(f, "get known stocks")){
             const auto& docs = f.result()->documents();
             StringsBuilder builder(docs.size());
@@ -366,6 +366,12 @@ public:
                     builder->add_quote(symbol, date, p);
                 });
         });
+    }
+
+    void add_tx(const char* broker, const char* symbol, double shares, double price, unsigned char side, timestamp date,
+                std::function<void()> onDone)
+    {
+
     }
 private:
     template<typename T>
@@ -452,14 +458,14 @@ private:
     template<typename T> T* for_each_broker(std::function<T*(const std::vector<DocumentSnapshot>&)> on_all_brokers){
         return for_each_doc(COLLECTION_BROKERS, on_all_brokers);
     }
-    const Future<QuerySnapshot> get_stocks(const char* broker, const char* symbol)
+
+    const Future<QuerySnapshot> get_stocks(const char* symbol)
     {
         const auto& q1 = _firestore->Collection(COLLECTION_INSTRUMENTS)
             .WhereIn("type", {FieldValue::String("Stock"), FieldValue::String("ETF")});
         const auto& q2 = symbol == nullptr ? q1 : q1.WhereEqualTo("name", FieldValue::String(symbol));
-        const auto& q3 = broker == nullptr ? q2 : q2.WhereEqualTo("broker", FieldValue::String(broker));
-        LOG(DEBUG) << "Querying stocks: broker=" << NULL_STR(broker) << ",symbol=" << NULL_STR(symbol) << "\n";
-        return q3.Get();
+        LOG(DEBUG) << "Querying stocks symbol=" << NULL_STR(symbol) << "\n";
+        return q2.Get();
     }
 };
 

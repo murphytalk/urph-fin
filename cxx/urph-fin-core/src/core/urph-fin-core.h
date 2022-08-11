@@ -83,7 +83,7 @@ struct fund_sum
 fund_sum calc_fund_sum(fund_portfolio* portfolio);
 
 // Stocks & ETF
-strings* get_known_stocks(const char* broker);
+strings* get_known_stocks();
 
 struct stock
 {

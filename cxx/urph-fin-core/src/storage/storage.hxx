@@ -228,7 +228,7 @@ public:
     virtual strings* get_all_broker_names(size_t& size) = 0;
     virtual void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
-    virtual strings* get_known_stocks(const char* broker) = 0;
+    virtual strings* get_known_stocks() = 0;
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
 };
 
@@ -305,8 +305,8 @@ public:
             });
         dao->get_stock_portfolio(builder, broker, symbol);
     }
-    strings* get_known_stocks(const char* broker) { 
-        const auto& builder = dao->get_known_stocks(broker);
+    strings* get_known_stocks() { 
+        const auto& builder = dao->get_known_stocks();
         return builder.strings; 
     }
     void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param){

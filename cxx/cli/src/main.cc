@@ -216,7 +216,7 @@ static void main_menu()
         stockMenu->Insert(
             "known",
             [](ostream& out){
-                auto stocks = get_known_stocks(nullptr);
+                auto stocks = get_known_stocks();
                 Table table;
                 table.add_row({"Symbol"});
                 table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);

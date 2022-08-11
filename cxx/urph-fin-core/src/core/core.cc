@@ -333,11 +333,11 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
     return r;
 }
 
-strings* get_known_stocks(const char* broker)
+strings* get_known_stocks()
 {
     assert(storage != nullptr);
     TRY
-    return storage->get_known_stocks(broker);
+    return storage->get_known_stocks();
     CATCH(nullptr)
 }
 
