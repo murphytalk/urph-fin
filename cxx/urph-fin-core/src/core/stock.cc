@@ -128,6 +128,7 @@ stock_balance StockTxList::calc()
         if(tx.side == SPLIT){
             // 1 to N share split, here price is the N
             balance.shares *= tx.price;
+            balance.shares = floor(balance.shares);
             // apply to all unclosed positions
             for(auto& c: unclosed_positions){
                 c.split(tx.price);
