@@ -83,9 +83,10 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
     double market_value_sum_jpy, profit_sum_jpy = 0.0;
     int row = 0;
     for(auto const& stockWithTx: *port){
-        ++row;
         auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
         auto balance = tx_list->calc();
+        if(balance.shares == 0) continue;
+        ++row;
         double fx_rate = 1.0;
         if(strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy)/sizeof(char)) != 0){
             fx_rate = get_rate(stockWithTx.instrument->currency + std::string(jpy));
