@@ -279,7 +279,7 @@ public:
 
     void get_stock_portfolio(StockPortfolioBuilder* builder, const char* broker, const char* symbol)
     {
-        get_stocks(symbol).OnCompletion([builder](const Future<QuerySnapshot>& future){
+        get_stocks(symbol).OnCompletion([builder, broker](const Future<QuerySnapshot>& future){
             if(future.error() == Error::kErrorOk){
                 const auto& stocks = future.result()->documents();
                 builder->prepare_stock_alloc(stocks.size());
@@ -287,7 +287,9 @@ public:
                     const auto& symbol = stock.id();
                     const auto& ccy = stock.Get("ccy").string_value();
                     builder->add_stock(symbol, ccy);
-                    const auto& qs = stock.reference().Collection(FirestoreDao::COLLECTION_TX).Get();
+                    const Query& q1 = stock.reference().Collection(FirestoreDao::COLLECTION_TX);
+                    const auto& q2 = broker == nullptr ? q1 : q1.WhereEqualTo("broker", FieldValue::String(broker));
+                    const auto& qs = q2.Get();
                     qs.OnCompletion([builder, &symbol](const Future<QuerySnapshot>& future){
                         if(future.error() == Error::kErrorOk){
                             const auto& txx = future.result()->documents();
@@ -299,8 +301,8 @@ public:
                                 const double fee = FirestoreDao::get_num_as_double(tx.Get("fee")); 
                                 const double shares = FirestoreDao::get_num_as_double(tx.Get("shares")); 
                                 const auto& type = tx.Get("type").string_value();
-                                const auto& broker = tx.Get("broker").string_value();
-                                builder->addTx(broker, symbol, type, price, shares, fee, date);
+                                const auto& my_broker = tx.Get("broker").string_value();
+                                builder->addTx(my_broker, symbol, type, price, shares, fee, date);
                             }
                         }
                         else{
