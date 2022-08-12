@@ -169,7 +169,7 @@ static void main_menu()
         auto rootMenu = make_unique< cli::Menu >( "home" );
 
         rootMenu->Insert(
-            "brokers",
+            "bk",
             [](ostream& out){
                 Table table;
                 table.add_row({"Broker", "Currency", "Balance"});
