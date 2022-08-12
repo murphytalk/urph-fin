@@ -284,30 +284,30 @@ public:
                 const auto& stocks = future.result()->documents();
                 builder->prepare_stock_alloc(stocks.size());
                 for(const auto& stock: stocks){
-                    const auto& symbol = stock.id();
+                    const auto& my_symbol = stock.id();
                     const auto& ccy = stock.Get("ccy").string_value();
-                    builder->add_stock(symbol, ccy);
+                    builder->add_stock(my_symbol, ccy);
                     const Query& q1 = stock.reference().Collection(FirestoreDao::COLLECTION_TX);
                     const auto& q2 = broker == nullptr ? q1 : q1.WhereEqualTo("broker", FieldValue::String(broker));
                     const auto& qs = q2.Get();
-                    qs.OnCompletion([builder, &symbol](const Future<QuerySnapshot>& future){
+                    qs.OnCompletion([builder, &my_symbol](const Future<QuerySnapshot>& future){
                         if(future.error() == Error::kErrorOk){
                             const auto& txx = future.result()->documents();
-                            builder->prepare_tx_alloc(symbol, txx.size());
+                            builder->prepare_tx_alloc(my_symbol, txx.size());
                             for(const auto& tx: txx){
-                                builder->incr_counter(symbol);
+                                builder->incr_counter(my_symbol);
                                 const timestamp date = tx.Get("date").timestamp_value().seconds();
                                 const double price = FirestoreDao::get_num_as_double(tx.Get("price"));
                                 const double fee = FirestoreDao::get_num_as_double(tx.Get("fee")); 
                                 const double shares = FirestoreDao::get_num_as_double(tx.Get("shares")); 
                                 const auto& type = tx.Get("type").string_value();
                                 const auto& my_broker = tx.Get("broker").string_value();
-                                builder->addTx(my_broker, symbol, type, price, shares, fee, date);
+                                builder->addTx(my_broker, my_symbol, type, price, shares, fee, date);
                             }
                         }
                         else{
-                            LOG(WARNING) << "Cannot get tx: symbol = [" << symbol << "]\n";
-                            builder->rm_stock(symbol);
+                            LOG(WARNING) << "Cannot get tx: symbol = [" << my_symbol << "]\n";
+                            builder->rm_stock(my_symbol);
                         }
                     });
                 }
