@@ -6,7 +6,7 @@
 #include <vector>
 #include <iterator> 
 
-// C++ extensions to make life (much more) easier for C++ clients
+// C++ extensions to make life (much more) easier
 
 struct Config{
     std::string email;
@@ -14,8 +14,6 @@ struct Config{
 };
 
 Config load_cfg();
-
-// dont forget to free
 char* copy_str(const std::string& str);
 
 template<typename T > struct PlacementNew{
@@ -165,6 +163,45 @@ public:
     Iterator<Quote> end()   { return Iterator(head(default_member_tag()) + num); }
 };
 
+class OverviewItem : public overview_item{
+public:
+    OverviewItem(const std::string& name, double value, double value_in_main_ccy);
+    ~OverviewItem();
+};
+
+class OverviewItemContainer: public overview_item_container{
+public:
+    OverviewItemContainer(const std::string& name, const std::string& item_name,double sum_in_main_ccy, int num, overview_item* head);
+    ~OverviewItemContainer();
+    inline OverviewItem * head(default_member_tag) { return static_cast<OverviewItem*>(items); }
+    inline int size(default_member_tag) { return num; }
+
+    Iterator<OverviewItem> begin() { return Iterator( head(default_member_tag()) ); }
+    Iterator<OverviewItem> end() { return Iterator( head(default_member_tag()) + num ); }
+};
+
+class OverviewItemContainerContainer: public overview_item_container_container{
+public:
+    OverviewItemContainerContainer(const std::string& name, const std::string& item_name, double sum_in_main_ccy, int num, overview_item_container* head);
+    ~OverviewItemContainerContainer();
+    inline OverviewItemContainer* head(default_member_tag) { return static_cast<OverviewItemContainer*>(containers); }
+    inline int size(default_member_tag) { return num; }
+
+    Iterator<OverviewItemContainer> begin() { return Iterator( head(default_member_tag()) ); }
+    Iterator<OverviewItemContainer> end() { return Iterator( head(default_member_tag()) + num ); }
+};
+
+class Overview: public overview{
+public:
+    Overview(const std::string& item_name, int num, overview_item_container_container* head);
+    ~Overview();
+    inline OverviewItemContainerContainer * head(default_member_tag) { return static_cast<OverviewItemContainerContainer*>(first); }
+    inline int size(default_member_tag) { return num; }
+
+    Iterator<OverviewItemContainerContainer> begin() { return Iterator( head(default_member_tag()) ); }
+    Iterator<OverviewItemContainerContainer> end() { return Iterator( head(default_member_tag()) + num ); }
+};
+
 
 // the ground rule is that none of the extended C++ classes should add member variables
 // so the size of the class remain the same as the original struct
@@ -175,5 +212,9 @@ static_assert(sizeof(Fund)  == sizeof(fund));
 static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
 static_assert(sizeof(Quote)  == sizeof(quote));
 static_assert(sizeof(Quotes)  == sizeof(quotes));
+static_assert(sizeof(OverviewItem)  == sizeof(overview_item));
+static_assert(sizeof(OverviewItemContainer)  == sizeof(overview_item_container));
+static_assert(sizeof(OverviewItemContainerContainer)  == sizeof(overview_item_container_container));
+static_assert(sizeof(Overview)  == sizeof(overview));
 
 #endif

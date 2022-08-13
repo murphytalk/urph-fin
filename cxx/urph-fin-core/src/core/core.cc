@@ -187,6 +187,66 @@ Quote::~Quote()
     delete []symbol;
 }
 
+OverviewItem::OverviewItem(const std::string& n, double v, double v2)
+{
+    name = copy_str(n);
+    value = v;
+    value_in_main_ccy = v2;
+}
+
+OverviewItem::~OverviewItem()
+{
+    delete []name;
+}
+
+
+OverviewItemContainer::OverviewItemContainer(const std::string& n, const std::string& item_name,double sum, int num, overview_item* head)
+{
+    name = copy_str(n);
+    this->item_name = copy_str(item_name);
+    sum_in_main_ccy = sum;
+    this->num = num;
+    items = head;
+}
+OverviewItemContainer::~OverviewItemContainer()
+{
+    delete []name;
+    delete []item_name;
+    free_placement_allocated_structs<OverviewItemContainer, OverviewItem>(this);
+    delete []items;
+}
+
+
+OverviewItemContainerContainer::OverviewItemContainerContainer(const std::string& name, const std::string& item_name, double sum_in_main_ccy, int num, overview_item_container* head)
+{
+    this->name = copy_str(name);
+    this->item_name = copy_str(item_name);
+    this->num = num;
+    this->sum_in_main_ccy = sum_in_main_ccy;
+    this->containers = head;
+}
+OverviewItemContainerContainer::~OverviewItemContainerContainer()
+{
+    delete []name;
+    delete []item_name;
+    free_placement_allocated_structs<OverviewItemContainerContainer, OverviewItemContainer>(this);
+    delete []containers;
+}
+
+
+Overview::Overview(const std::string& item_name, int num, overview_item_container_container* head)
+{
+    this->item_name = copy_str(item_name);
+    this->num = num;
+    this->first = head;
+}
+Overview::~Overview()
+{
+    delete []item_name;
+    free_placement_allocated_structs<Overview, OverviewItemContainerContainer>(this);
+    delete []first;
+}
+
 IStorage *storage;
 
 bool urph_fin_core_init(OnDone onInitDone)
@@ -402,10 +462,15 @@ void free_quotes(quotes* q)
     delete quotes;
 }
 
-void add_stock_tx (const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date, OnDone onDone, void*caller_provided_param)
+void add_stock_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date, OnDone onDone, void*caller_provided_param)
 {
     assert(storage != nullptr);
     TRY
     storage->add_tx(broker, symbol,shares, price, fee, side, date, onDone, caller_provided_param);
     CATCH_NO_RET
 }
+
+//// Overview calculation Start
+
+
+//// Overview calculation End

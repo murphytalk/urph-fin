@@ -94,13 +94,14 @@ struct stock
 const unsigned char BUY   = 0;
 const unsigned char SELL  = 1;
 const unsigned char SPLIT = 2;
+typedef unsigned char SIDE;
 struct stock_tx
 {
     const char* broker;
     double fee;
     double shares;
     double price;
-    unsigned char side; 
+    SIDE side; 
     timestamp date; 
 };
 
@@ -157,6 +158,95 @@ void free_quotes(quotes* q);
 
 
 void add_stock_tx(const char* broker, const char* symbol, double shares, double price, double fee,const char* side, timestamp date, OnDone, void*);
+
+/*
+  - item_name = Asset  
+    - overview_item_container_container
+      name = Stock
+      item_name = Broker
+      - overview_item_container
+        name = StockBroker1
+        item_name = Currency 
+        -overview_item
+         name  = JPY
+         value = 1,000
+         value_in_main_ccy = 1,000
+        -overview_item
+         name  = USD
+         value = 1,000
+         value_in_main_ccy = 100,000
+      - overview_item_container
+        name = StockBroker2
+        item_name = Currency 
+        -overview_item
+         name  = JPY
+         value = 1,000
+         value_in_main_ccy = 1,000
+        -overview_item
+         name  = USD
+         value = 1,000
+         value_in_main_ccy = 100,000
+    - overview_item_container_container
+      name = Fund
+      item_name = Broker
+      - overview_item_container
+        name = FundBroker1
+        item_name = Currency 
+        -overview_item
+         name  = JPY
+         value = 1,000
+         value_in_main_ccy = 1,000
+        -overview_item
+         name  = USD
+         value = 1,000
+         value_in_main_ccy = 100,000
+      - overview_item_container
+        name = FundBroker2
+        item_name = Currency 
+        -overview_item
+         name  = JPY
+         value = 1,000
+         value_in_main_ccy = 1,000
+        -overview_item
+         name  = USD
+         value = 1,000
+         value_in_main_ccy = 100,000
+*/
+struct overview_item{
+    char* name;
+    double value;
+    double value_in_main_ccy;
+};
+
+struct overview_item_container{
+    char* name;
+    char* item_name;
+    double sum_in_main_ccy;
+    int num;
+    overview_item *items;
+};
+
+struct overview_item_container_container{
+    char* name;
+    char* item_name;
+    double sum_in_main_ccy;
+    int num;
+    overview_item_container* containers;
+};
+
+struct overview{
+    char* item_name;
+    double sum_in_main_ccy;
+    int num;
+    overview_item_container_container *first;
+};
+
+const unsigned char GROUP_BY_ASSET  = 0;
+const unsigned char GROUP_BY_BROKER = 1;
+const unsigned char GROUP_BY_CCY    = 2;
+typedef unsigned char GROUP;
+overview* get_overview(bool force_to_reload_all_assets, GROUP level1_group, GROUP level2_group);
+void free_overview(overview*);
 
 }
 #endif // URPH_FIN_CORE_H_
