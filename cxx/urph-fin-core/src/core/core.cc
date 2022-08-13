@@ -537,4 +537,25 @@ void free_assets(asset_handle handle)
     }
 }
 
+overview* get_overview(AllAssets* assets, GROUP level1_group, GROUP level2_group)
+{
+    return nullptr;
+}
+
+overview* get_overview(asset_handle asset_handle, GROUP level1_group, GROUP level2_group)
+{
+    auto assets = all_assets_by_handle.find(asset_handle);
+    if(assets != all_assets_by_handle.end()){
+        return get_overview(assets->second, level1_group, level2_group);
+    }
+    else{
+        LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";
+        return nullptr;
+    }
+}
+
+void free_overview(overview* o)
+{
+    delete static_cast<Overview*>(o);
+}
 //// Overview calculation End
