@@ -488,20 +488,31 @@ class AllAssets
 {
 public:
     AllAssets(){
+        brokers = static_cast<AllBrokers*>(get_brokers());
         q = get_all_quotes(quotes_by_symbol);
         get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
             AllAssets *me = reinterpret_cast<AllAssets*>(param);
             me->funds = static_cast<FundPortfolio*>(fp);
+
+            get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+                AllAssets *me = reinterpret_cast<AllAssets*>(param);
+                me->stocks = static_cast<StockPortfolio*>(p);
+            },param);
+
         }, this);
     }
     ~AllAssets(){
         free_quotes(q);
+        delete brokers;
         delete funds;
+        delete stocks;
     }
 
     quotes* q;
     std::unordered_map<std::string, const Quote*> quotes_by_symbol;
+    AllBrokers *brokers;
     FundPortfolio *funds;
+    StockPortfolio* stocks;
 
     AllAssets(const AllAssets&) = delete;
     AllAssets(AllAssets&) = delete;
@@ -509,14 +520,21 @@ public:
     AllAssets(AllAssets&&) = delete;
 };
 
-static AllAssets* all_assets = nullptr;
+static std::map<asset_handle, AllAssets*> all_assets_by_handle;
 static asset_handle next_asset_handle = 0;
-asset_handle load_all_assets()
+asset_handle load_assets()
 {
-    delete all_assets;
-    all_assets = new AllAssets();
     asset_handle h = ++next_asset_handle;
+    all_assets_by_handle[h] = new AllAssets();
     return h;
+}
+void free_assets(asset_handle handle)
+{
+    auto assets = all_assets_by_handle.find(handle);
+    if(assets != all_assets_by_handle.end()){
+        delete assets->second;
+        all_assets_by_handle.erase(assets);
+    }
 }
 
 //// Overview calculation End

@@ -242,8 +242,8 @@ struct overview{
 };
 
 typedef int asset_handle;
-asset_handle load_all_assets();
-void free_all_assets(asset_handle handle);
+asset_handle load_assets();
+void free_assets(asset_handle handle);
 /*
 const unsigned char GROUP_BY_ASSET  = 0;
 const unsigned char GROUP_BY_BROKER = 1;
