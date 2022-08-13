@@ -163,7 +163,9 @@ public:
     Iterator<Quote> begin() { return Iterator(head(default_member_tag())); }
     Iterator<Quote> end()   { return Iterator(head(default_member_tag()) + num); }
 };
-quotes*  get_all_quotes(std::unordered_map<std::string, const Quote*>& quotes_by_symbol);
+
+typedef std::unordered_map<std::string, const Quote*> QuoteBySymbol;
+quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol);
 
 class OverviewItem : public overview_item{
 public:

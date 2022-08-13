@@ -264,7 +264,7 @@ static void main_menu()
             "List all known stocks"
         );
         stockMenu->Insert(
-            "list",
+            "ls",
             [](ostream& out){
                 get_quotes();
                 get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){

@@ -10,3 +10,6 @@
 [submodule "cxx/3rd-party/tabulate"]
 	path = cxx/3rd-party/tabulate
 	url = https://github.com/p-ranav/tabulate.git
+[submodule "cxx/3rd-party/cppitertools"]
+	path = cxx/3rd-party/cppitertools
+	url = https://github.com/ryanhaining/cppitertools.git

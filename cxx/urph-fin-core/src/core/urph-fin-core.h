@@ -249,7 +249,7 @@ const unsigned char GROUP_BY_ASSET  = 0;
 const unsigned char GROUP_BY_BROKER = 1;
 const unsigned char GROUP_BY_CCY    = 2;
 typedef unsigned char GROUP;
-overview* get_overview(asset_handle asset, GROUP level1_group, GROUP level2_group);
+overview* get_overview(asset_handle asset, const char* main_ccy, GROUP level1_group, GROUP level2_group);
 void free_overview(overview*);
 
 }

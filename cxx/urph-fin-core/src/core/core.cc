@@ -457,7 +457,7 @@ quotes* get_quotes(int num, const char **symbols_head)
     }
     return all_quotes;
 }
-quotes* get_all_quotes(std::unordered_map<std::string, const Quote*>& quotes_by_symbol)
+quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol)
 {
     //todo: the async version is conflicting with get stock portfolio ...
     auto* all_quotes = get_quotes(0, nullptr);
@@ -484,35 +484,135 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
 }
 
 //// Overview calculation Start
+class AssetItem
+{
+public:
+    AssetItem(const char* asset_type, const char* b, const char* ccy, double v, double p)
+        :broker(std::string(b)),currency(std::string(ccy))  
+    {
+        this->asset_type = asset_type;
+        this->value = v;
+        this->profit = p;
+    }
+    AssetItem(AssetItem&& other)
+    {
+        this->asset_type = other.asset_type;
+        this->broker = std::move(other.broker);
+        this->currency = std::move(other.currency);
+        this->value = other.value;
+        this->profit = other.profit;
+    }
+
+    const char* asset_type;
+    std::string broker;
+    std::string currency;
+    double value;
+    double profit;
+};
+
+const char ASSET_TYPE_STOCK [] = "Stock&ETF";
+const char ASSET_TYPE_FUNDS [] = "Funds";
+const char ASSET_TYPE_CASH  [] = "Cash";
+
 class AllAssets
 {
 public:
     AllAssets(){
-        brokers = static_cast<AllBrokers*>(get_brokers());
         q = get_all_quotes(quotes_by_symbol);
-        get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
-            AllAssets *me = reinterpret_cast<AllAssets*>(param);
-            me->funds = static_cast<FundPortfolio*>(fp);
 
-            get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+        load_cash();
+
+        std::mutex m;
+        {
+            std::lock_guard<std::mutex> lk(m);
+            get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
                 AllAssets *me = reinterpret_cast<AllAssets*>(param);
-                me->stocks = static_cast<StockPortfolio*>(p);
-            },param);
+                auto* funds = static_cast<FundPortfolio*>(fp);
+                me->load_funds(funds);
+                delete funds;
 
-        }, this);
+                get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+                    AllAssets *me = reinterpret_cast<AllAssets*>(param);
+                    auto* stocks = static_cast<StockPortfolio*>(p);
+                    me->load_stocks(stocks);
+                    delete stocks;
+                    me->cv.notify_one(); 
+                },param);
+
+            }, this);
+        }
+
+        {
+            std::unique_lock<std::mutex> lk(m);
+            cv.wait(lk);
+        }
     }
+
     ~AllAssets(){
         free_quotes(q);
-        delete brokers;
-        delete funds;
-        delete stocks;
     }
 
+    double to_main_ccy(double value, const char* ccy, const char* main_ccy)
+    {
+        if(strcmp(ccy, main_ccy) == 0){
+            return value;
+        }
+
+        auto fx = quotes_by_symbol.find(std::string(ccy) + main_ccy);
+        if(fx != quotes_by_symbol.end()){
+            return value * fx->second->rate;
+        }
+        else{
+            // try the other convention 
+            auto fx2 = quotes_by_symbol.find(std::string(main_ccy) + ccy);
+            if(fx == quotes_by_symbol.end()) return std::nan("");
+            return value / fx2->second->rate;
+        }
+    }
+private:
+    void load_funds(FundPortfolio* fp)
+    {
+        for(const Fund& fund: *fp){
+            items.push_back(AssetItem(ASSET_TYPE_FUNDS, fund.broker, "JPY", fund.market_value, fund.profit));
+        }
+    }
+
+    void load_stocks(StockPortfolio* sp)
+    {
+        for(auto const& stockWithTx: *sp){
+            auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+
+            // group tx by broker
+
+
+            auto balance = tx_list->calc();
+            if(balance.shares == 0) continue;
+            //items.push_back(AssetItem(ASSET_TYPE_STOCK, .broker, "JPY", fund.market_value, fund.profit));
+        }
+    }
+
+    void load_cash()
+    {
+        AllBrokers *brokers = static_cast<AllBrokers*>(get_brokers());
+        for(Broker& broker: *brokers){
+            if(broker.size(default_member_tag()) == 0){
+                // no cash
+                continue;
+            }
+            for(const CashBalance& balance: broker){
+                items.push_back(AssetItem(ASSET_TYPE_CASH, broker.name, balance.ccy, balance.balance, 0));
+            }
+        }
+        free_brokers(brokers);
+    }    
+
+    std::condition_variable cv;
     quotes* q;
-    std::unordered_map<std::string, const Quote*> quotes_by_symbol;
-    AllBrokers *brokers;
+    QuoteBySymbol quotes_by_symbol;
     FundPortfolio *funds;
     StockPortfolio* stocks;
+
+    std::vector<AssetItem> items;
 
     AllAssets(const AllAssets&) = delete;
     AllAssets(AllAssets&) = delete;
@@ -537,16 +637,16 @@ void free_assets(asset_handle handle)
     }
 }
 
-overview* get_overview(AllAssets* assets, GROUP level1_group, GROUP level2_group)
+overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group)
 {
     return nullptr;
 }
 
-overview* get_overview(asset_handle asset_handle, GROUP level1_group, GROUP level2_group)
+overview* get_overview(asset_handle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group)
 {
     auto assets = all_assets_by_handle.find(asset_handle);
     if(assets != all_assets_by_handle.end()){
-        return get_overview(assets->second, level1_group, level2_group);
+        return get_overview(assets->second, main_ccy, level1_group, level2_group);
     }
     else{
         LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";

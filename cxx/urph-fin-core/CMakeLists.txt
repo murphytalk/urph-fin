@@ -21,7 +21,10 @@ endif()
 target_link_libraries(${lib_target} ${firebase_libs} yaml-cpp ${extra_libs})
 
 # populate include to project that uses this target
-target_include_directories (${lib_target} PUBLIC src)
+target_include_directories (${lib_target} 
+  PUBLIC src
+  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/cppitertools
+)
 
 include(FetchContent)
 FetchContent_Declare(
