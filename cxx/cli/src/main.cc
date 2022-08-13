@@ -7,7 +7,6 @@
 #include <condition_variable>
 #include <cmath>
 #include <ctime>
-#include <unordered_map>
 
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -49,20 +48,14 @@ template<typename T> static std::string percentage(T value)
     return ss.str();
 }
 
-static quotes* all_quotes = nullptr;
 static std::unordered_map<std::string, const Quote*> quotes_by_symbol;
-static void get_all_quotes()
+static quotes* all_quotes = nullptr;
+static inline void get_quotes()
 {
     if(all_quotes == nullptr){
-        //todo: the async version is conflicting with get stock portfolio ...
-        all_quotes = get_quotes(0, nullptr);
-        auto* q = static_cast<Quotes*>(all_quotes);
-        for(auto const& quote: *q){
-            quotes_by_symbol[quote.symbol] = &quote;
-        }
+        all_quotes = get_all_quotes(quotes_by_symbol);
     }
 }
-
 
 static const char jpy[] = "JPY";
 static inline double to_jpy(double fx_rate, double value)
@@ -273,7 +266,7 @@ static void main_menu()
         stockMenu->Insert(
             "list",
             [](ostream& out){
-                get_all_quotes();
+                get_quotes();
                 get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     print_stock_list(*out, p);
@@ -284,7 +277,7 @@ static void main_menu()
         stockMenu->Insert(
             "sym",
             [](ostream& out, string symbol){
-                get_all_quotes();
+                get_quotes();
                 get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     print_stock_list(*out, p);

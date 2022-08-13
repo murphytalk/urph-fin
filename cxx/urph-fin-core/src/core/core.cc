@@ -13,6 +13,7 @@
 #include <numeric>
 #include <mutex>
 #include <condition_variable>
+#include <unordered_map>
 
 #include "storage/storage.hxx"
 #include "urph-fin-core.hxx"
@@ -430,17 +431,18 @@ void get_quotes_async(int num, const char **symbols_head, OnQuotes onQuotes, voi
 }
 
 static std::condition_variable cv;
-static quotes* all_quotes;
 quotes* get_quotes(int num, const char **symbols_head)
 {
+    quotes* all_quotes;
     std::mutex m;
     {
         std::lock_guard<std::mutex> lk(m);
         try{
-            get_quotes_async(num, symbols_head,[](quotes*q, void*){
-                all_quotes = q; 
+            get_quotes_async(num, symbols_head,[](quotes*q, void* arg){
+                quotes** all_quotes_ptr = reinterpret_cast<quotes**>(arg);
+                *all_quotes_ptr = q; 
                 cv.notify_one();
-            }, nullptr);
+            }, &all_quotes);
         }
         catch(std::runtime_error& e)
         {
@@ -455,6 +457,17 @@ quotes* get_quotes(int num, const char **symbols_head)
     }
     return all_quotes;
 }
+quotes* get_all_quotes(std::unordered_map<std::string, const Quote*>& quotes_by_symbol)
+{
+    //todo: the async version is conflicting with get stock portfolio ...
+    auto* all_quotes = get_quotes(0, nullptr);
+    auto* q = static_cast<Quotes*>(all_quotes);
+    for(auto const& quote: *q){
+        quotes_by_symbol[quote.symbol] = &quote;
+    }
+    return all_quotes;
+}
+
 
 void free_quotes(quotes* q)
 {
@@ -471,6 +484,39 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
 }
 
 //// Overview calculation Start
+class AllAssets
+{
+public:
+    AllAssets(){
+        q = get_all_quotes(quotes_by_symbol);
+        get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
+            AllAssets *me = reinterpret_cast<AllAssets*>(param);
+            me->funds = static_cast<FundPortfolio*>(fp);
+        }, this);
+    }
+    ~AllAssets(){
+        free_quotes(q);
+        delete funds;
+    }
 
+    quotes* q;
+    std::unordered_map<std::string, const Quote*> quotes_by_symbol;
+    FundPortfolio *funds;
+
+    AllAssets(const AllAssets&) = delete;
+    AllAssets(AllAssets&) = delete;
+    AllAssets(const AllAssets&&) = delete;
+    AllAssets(AllAssets&&) = delete;
+};
+
+static AllAssets* all_assets = nullptr;
+static asset_handle next_asset_handle = 0;
+asset_handle load_all_assets()
+{
+    delete all_assets;
+    all_assets = new AllAssets();
+    asset_handle h = ++next_asset_handle;
+    return h;
+}
 
 //// Overview calculation End

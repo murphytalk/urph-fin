@@ -241,12 +241,16 @@ struct overview{
     overview_item_container_container *first;
 };
 
+typedef int asset_handle;
+asset_handle load_all_assets();
+void free_all_assets(asset_handle handle);
+/*
 const unsigned char GROUP_BY_ASSET  = 0;
 const unsigned char GROUP_BY_BROKER = 1;
 const unsigned char GROUP_BY_CCY    = 2;
 typedef unsigned char GROUP;
-overview* get_overview(bool force_to_reload_all_assets, GROUP level1_group, GROUP level2_group);
+overview* get_overview(asset_handle asset, GROUP level1_group, GROUP level2_group);
 void free_overview(overview*);
-
+*/
 }
 #endif // URPH_FIN_CORE_H_

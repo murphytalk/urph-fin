@@ -4,6 +4,7 @@
 #include "urph-fin-core.h"
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <iterator> 
 
 // C++ extensions to make life (much more) easier
@@ -162,6 +163,7 @@ public:
     Iterator<Quote> begin() { return Iterator(head(default_member_tag())); }
     Iterator<Quote> end()   { return Iterator(head(default_member_tag()) + num); }
 };
+quotes*  get_all_quotes(std::unordered_map<std::string, const Quote*>& quotes_by_symbol);
 
 class OverviewItem : public overview_item{
 public:
