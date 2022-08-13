@@ -69,19 +69,21 @@ static inline double to_jpy(double fx_rate, double value)
 {
     return std::isnan(fx_rate) || std::isnan(value) ? std::nan("") : fx_rate * value;
 }
-static double get_rate(const std::string& symbol)
+static std::pair<double,timestamp> get_rate(const std::string& symbol)
 {
     auto it = quotes_by_symbol.find(symbol);
-    return it == quotes_by_symbol.end() ? std::nan("") : it->second->rate;
+    return it == quotes_by_symbol.end() ? std::make_pair(std::nan(""),0L) : std::make_pair(it->second->rate, it->second->date);
 }
 
 static void print_stock_list(ostream& out, stock_portfolio*p)
 {
     Table table;
-    table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee"});
+    table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee", "Date"});
     auto *port = static_cast<StockPortfolio*>(p);
     double market_value_sum_jpy, profit_sum_jpy = 0.0;
     int row = 0;
+
+    timestamp fx_date = 0L;
     for(auto const& stockWithTx: *port){
         auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
         auto balance = tx_list->calc();
@@ -89,10 +91,14 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
         ++row;
         double fx_rate = 1.0;
         if(strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy)/sizeof(char)) != 0){
-            fx_rate = get_rate(stockWithTx.instrument->currency + std::string(jpy));
+            const auto& r = get_rate(stockWithTx.instrument->currency + std::string(jpy));
+            fx_rate = r.first;
+            fx_date = r.second;
         }
         double market_value, profit,profit_jpy = std::nan("");
-        double price = get_rate(stockWithTx.instrument->symbol);
+        const auto& r = get_rate(stockWithTx.instrument->symbol);
+        double price = r.first;
+        timestamp quote_date = r.second;
         if(!std::isnan(price) && !std::isnan(fx_rate)){
             market_value =  price * balance.shares;
             profit = (price - balance.vwap) * balance.shares;
@@ -112,7 +118,8 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
             format_with_commas(profit_jpy),
             format_with_commas(balance.liquidated),
             format_with_commas(to_jpy(fx_rate, balance.liquidated)),
-            format_with_commas(balance.fee)
+            format_with_commas(balance.fee),
+            format_timestamp(quote_date)
         });
         if(!std::isnan(profit) && profit < 0){
             table[row][7].format().font_color(Color::red);
@@ -120,7 +127,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
         }
     }
     ++row;
-    table.add_row({"SUM", "", "", "", "", "", format_with_commas(market_value_sum_jpy), "", format_with_commas(profit_sum_jpy), "", "", ""});
+    table.add_row({"SUM", "", "", "", "", "", format_with_commas(market_value_sum_jpy), "", format_with_commas(profit_sum_jpy), "", "", "FX Date", format_timestamp(fx_date)});
     if(profit_sum_jpy<0) table[row][8].format().font_color(Color::red);
     table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
     free_stock_portfolio(p);
@@ -210,14 +217,14 @@ static void main_menu()
                 get_active_funds( broker_name == "all" ? nullptr : broker_name.c_str(),[](fund_portfolio* fp, void *param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     Table table;
-                    table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit", "ROI"});
+                    table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit", "ROI", "Date"});
                     auto fund_portfolio = static_cast<FundPortfolio*>(fp);
                     int row = 0;
                     for(const Fund& fund: *fund_portfolio){
                         ++row;
                         table.add_row({fund.broker, fund.name, 
                             format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value), 
-                            format_with_commas(fund.profit), percentage(fund.ROI)});
+                            format_with_commas(fund.profit), percentage(fund.ROI), format_timestamp(fund.date)});
                         if(fund.profit < 0){
                             table[row][6].format().font_color(Color::red);
                             table[row][7].format().font_color(Color::red);
@@ -226,7 +233,7 @@ static void main_menu()
 
                     ++row;
                     auto sum = calc_fund_sum(fund_portfolio);
-                    table.add_row({"SUM", "", "", "", format_with_commas(sum.capital), format_with_commas(sum.market_value), format_with_commas(sum.profit), percentage(sum.ROI)});
+                    table.add_row({"SUM", "", "", "", format_with_commas(sum.capital), format_with_commas(sum.market_value), format_with_commas(sum.profit), percentage(sum.ROI),""});
                     table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
                     if(sum.profit < 0){
                         table[row][6].format().font_color(Color::red);
