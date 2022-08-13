@@ -1,10 +1,6 @@
  #include "stock.hxx"
  #include <exception>
- #include <deque>
- #include <numeric>
- #include <execution>
  #include <cstring>
- #include <cmath>
 
 #include "../utils.hxx"
 
@@ -105,79 +101,8 @@ StockPortfolio::~StockPortfolio()
     delete []first_stock;
 }
 
-class UnclosedPosition{
-public:
-    double price;
-    double shares;
-    double fee;
 
-    void split(double factor){
-        price  /=  factor;
-        shares *=  factor;
-    }
-};
-
-static const double NaN = std::nan("");
 stock_balance StockTxList::calc()
 {
-    auto unclosed_positions = std::deque<UnclosedPosition>();
-    stock_balance balance = {0.0, 0.0, 0.0, 0.0};
-
-    for(const auto& tx: *this){
-        balance.fee += tx.fee;
-        if(tx.side == SPLIT){
-            // 1 to N share split, here price is the N
-            balance.shares *= tx.price;
-            balance.shares = floor(balance.shares);
-            // apply to all unclosed positions
-            for(auto& c: unclosed_positions){
-                c.split(tx.price);
-            }
-        }
-        else{
-            auto s = tx.side  == BUY ? tx.shares : (tx.shares > 0 ? -1 : 1) * tx.shares;
-            balance.shares += s;
-            balance.liquidated -= tx.price * s;
-
-            if(s>0){
-                // buy
-                unclosed_positions.push_back({tx.price, tx.shares, tx.fee});
-            }
-            else{
-                // sell
-                auto first_unclosed_pos = unclosed_positions.front().shares;
-                for(auto shares = tx.shares; shares > 0;){
-                    if(unclosed_positions.empty()){
-                        LOG(ERROR) << "Not enough unclosed position: still have " << shares << " shares to sell";
-                        return {NaN, NaN, NaN, NaN};
-                    }
-                    else if (first_unclosed_pos > shares){
-                        unclosed_positions.begin()->shares = first_unclosed_pos - shares;
-                        shares = 0;
-                    }
-                    else if (first_unclosed_pos == shares){
-                        unclosed_positions.pop_front();
-                        shares = 0;
-                    }
-                    else{
-                        shares -= first_unclosed_pos;
-                        unclosed_positions.pop_front();
-                        first_unclosed_pos = unclosed_positions.front().shares;
-                    }
-                }
-            }
-        }
-    }
-    auto r = std::accumulate(unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
-        [](UnclosedPosition& a, UnclosedPosition& x){
-            a.fee += x.fee;
-            // price here is used to save market value
-            a.price += x.price * x.shares;
-            a.shares += x.shares;
-            return a;
-        }
-    );
-    balance.vwap = r.shares == 0 ? 0 : r.price  / r.shares;
-    
-    return balance;
+    return StockTxList::calc(this->ptr_begin(), this->ptr_end());
 }

@@ -14,19 +14,22 @@
 #include <mutex>
 #include <condition_variable>
 #include <unordered_map>
+#include <algorithm>
 
 #include "storage/storage.hxx"
 #include "urph-fin-core.hxx"
+#include "stock.hxx"
 
 // 3rd party
 #include "aixlog.hpp"
 #include "yaml-cpp/yaml.h"
+#include "groupby.hpp"
 
 static std::string get_home_dir()
 {
     const char *homedir;
 #ifdef _WIN32
-    //HOMEPATH or userprofile
+    //HOMEPATH or user profile
 #else
     if ((homedir = getenv("HOME")) == NULL) {
         homedir = getpwuid(getuid())->pw_dir;
@@ -582,8 +585,15 @@ private:
         for(auto const& stockWithTx: *sp){
             auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
 
-            // group tx by broker
+            std::vector<StockTx*> sorted_tx;
+            std::transform(tx_list->ptr_begin(), tx_list->ptr_end(), sorted_tx.begin(), [](StockTx* tx){return tx;});
+            std::sort(sorted_tx.begin(), sorted_tx.end(), [](const StockTx* tx1, const StockTx* tx2){return strcmp(tx1->broker, tx2->broker);});
 
+            // group tx by broker
+            for(auto&& by_broker: iter::groupby(sorted_tx, [](const StockTx* tx){ return std::string(tx->broker); })){
+                const auto& broker = by_broker.first;
+                StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
+            }
 
             auto balance = tx_list->calc();
             if(balance.shares == 0) continue;

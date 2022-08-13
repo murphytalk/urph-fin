@@ -69,6 +69,26 @@ private:
     pointer _ptr;
 };
 
+
+template<typename T> struct PtrIterator
+{
+    PtrIterator(T ptr) : _ptr(ptr) {}
+
+    T  operator*() const { return _ptr; }
+    T* operator->() { return &_ptr; }
+
+    // Prefix increment
+    PtrIterator& operator++() { _ptr++; return *this; }  
+
+    // Postfix increment
+    PtrIterator operator++(int) { PtrIterator tmp = *this; ++(*this); return tmp; }
+
+    friend bool operator== (const PtrIterator& a, const PtrIterator& b) { return a._ptr == b._ptr; };
+    friend bool operator!= (const PtrIterator& a, const PtrIterator& b) { return a._ptr != b._ptr; };     
+private:
+    T _ptr;
+};
+
 // tag dispatching - to help free_multiple_structs() select the right head/size
 struct default_member_tag {};
 

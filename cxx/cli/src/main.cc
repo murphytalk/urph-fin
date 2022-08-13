@@ -1,3 +1,5 @@
+#define URPH_FIN_CLI
+
 #include <iostream>
 #include <memory>
 #include <string>
