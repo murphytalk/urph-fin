@@ -195,6 +195,29 @@ public:
     inline void failed(){
         delete this;
     }
+
+    static stock_with_tx* create_stock_with_tx(StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx)
+    {
+        int stock_num = stock_alloc->allocated_num();
+        stock_with_tx* head = new stock_with_tx[stock_num];
+        memset(head, 0, sizeof(stock_with_tx) * stock_num);
+        stock_with_tx* current = head;
+        for(auto* b = stock_alloc->head; b != stock_alloc->end(); ++b){
+            auto tx_iter = tx.find(b->symbol);      
+            int tx_num;
+            stock_tx* first;
+            if(tx_iter == tx.end()){
+                tx_num = 0;
+                first = nullptr;
+            }
+            else{
+                tx_num = tx_iter->second->allocated_num();
+                first = tx_iter->second->head;
+            }    
+            new (current++) StockWithTx(b, new StockTxList(tx_num, first));
+        }
+        return head;
+    } 
 private:
     int unfinished_brokers = std::numeric_limits<int>::max();
     TxAllocPointerBySymbol tx;
@@ -286,24 +309,8 @@ public:
         auto *builder = 
             StockPortfolioBuilder::create([onAllStockTx, caller_provided_param](StockPortfolioBuilder::StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx){
                 const auto stock_num = stock_alloc->allocated_num();
-                stock_with_tx* head = new stock_with_tx[stock_num];
-                memset(head, 0, sizeof(stock_with_tx) * stock_num);
-                stock_with_tx* current = head;
-                for(auto* b = stock_alloc->head; b != stock_alloc->end(); ++b){
-                    auto tx_iter = tx.find(b->symbol);      
-                    int tx_num;
-                    stock_tx* first;
-                    if(tx_iter == tx.end()){
-                        tx_num = 0;
-                        first = nullptr;
-                    }
-                    else{
-                        tx_num = tx_iter->second->allocated_num();
-                        first = tx_iter->second->head;
-                    }    
-                    new (current++) StockWithTx(b, new StockTxList(tx_num, first));
-                }
-                onAllStockTx(new StockPortfolio(stock_num, stock_alloc->head, head), caller_provided_param);
+                auto *stock_with_tx_head = StockPortfolioBuilder::create_stock_with_tx(stock_alloc, tx);
+                onAllStockTx(new StockPortfolio(stock_num, stock_alloc->head, stock_with_tx_head), caller_provided_param);
             });
         dao->get_stock_portfolio(builder, broker, symbol);
     }

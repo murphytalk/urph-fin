@@ -97,7 +97,9 @@
         "stop_token": "cpp",
         "cinttypes": "cpp",
         "__memory": "cpp",
-        "execution": "cpp"
+        "execution": "cpp",
+        "cfenv": "cpp",
+        "valarray": "cpp"
     },
     "cSpell.words": [
         "Firestore",

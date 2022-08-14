@@ -50,6 +50,8 @@ public:
     ~AllAssets();
 
     double to_main_ccy(double value, const char* ccy, const char* main_ccy);
+
+    std::vector<AssetItem> items;
 private:
     double get_price(const char* symbol);
     void load_funds(FundPortfolio* fp);
@@ -58,8 +60,6 @@ private:
     std::condition_variable cv;
     quotes* q;
     QuoteBySymbol quotes_by_symbol;
-
-    std::vector<AssetItem> items;
 
     AllAssets(const AllAssets&) = delete;
     AllAssets(AllAssets&) = delete;
