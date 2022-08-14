@@ -474,7 +474,7 @@ TEST(TestOverview, load_assets)
     delete assets;
 }
 
-extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group);
+extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 TEST(TestOverview, overview_group_by_asset_broker)
 {
     QuoteBySymbol quotes_by_symbol;
@@ -485,7 +485,7 @@ TEST(TestOverview, overview_group_by_asset_broker)
 
     auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
 
-    auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER));
+    auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY));
 
     delete brokers;
     delete funds;

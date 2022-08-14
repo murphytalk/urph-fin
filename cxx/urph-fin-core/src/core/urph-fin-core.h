@@ -216,12 +216,15 @@ struct overview_item{
     char* name;
     double value;
     double value_in_main_ccy;
+    double profit;
+    double profit_in_main_ccy;
 };
 
 struct overview_item_container{
     char* name;
     char* item_name;
-    double sum_in_main_ccy;
+    double value_sum_in_main_ccy;
+    double profit_sum_in_main_ccy;
     int num;
     overview_item *items;
 };
@@ -229,7 +232,8 @@ struct overview_item_container{
 struct overview_item_container_container{
     char* name;
     char* item_name;
-    double sum_in_main_ccy;
+    double value_sum_in_main_ccy;
+    double profit_sum_in_main_ccy;
     int num;
     overview_item_container* containers;
 };
@@ -237,6 +241,7 @@ struct overview_item_container_container{
 struct overview{
     char* item_name;
     double sum_in_main_ccy;
+    double profit_sum_in_main_ccy;
     int num;
     overview_item_container_container *first;
 };
@@ -249,7 +254,7 @@ const unsigned char GROUP_BY_ASSET  = 0;
 const unsigned char GROUP_BY_BROKER = 1;
 const unsigned char GROUP_BY_CCY    = 2;
 typedef unsigned char GROUP;
-overview* get_overview(asset_handle asset, const char* main_ccy, GROUP level1_group, GROUP level2_group);
+overview* get_overview(asset_handle asset, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 void free_overview(overview*);
 
 }

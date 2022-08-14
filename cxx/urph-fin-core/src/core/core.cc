@@ -190,11 +190,13 @@ Quote::~Quote()
     delete []symbol;
 }
 
-OverviewItem::OverviewItem(const std::string& n, double v, double v2)
+OverviewItem::OverviewItem(const std::string& n, double v, double v2, double p, double p2)
 {
     name = copy_str(n);
     value = v;
     value_in_main_ccy = v2;
+    profit = p;
+    profit_in_main_ccy = p2;
 }
 
 OverviewItem::~OverviewItem()
@@ -203,11 +205,12 @@ OverviewItem::~OverviewItem()
 }
 
 
-OverviewItemContainer::OverviewItemContainer(const std::string& n, const std::string& item_name,double sum, int num, overview_item* head)
+OverviewItemContainer::OverviewItemContainer(const std::string& n, const std::string& item_name,double sum, double sum_profit,int num, overview_item* head)
 {
     name = copy_str(n);
     this->item_name = copy_str(item_name);
-    sum_in_main_ccy = sum;
+    value_sum_in_main_ccy = sum;
+    profit_sum_in_main_ccy = sum_profit;
     this->num = num;
     items = head;
 }
@@ -220,12 +223,13 @@ OverviewItemContainer::~OverviewItemContainer()
 }
 
 
-OverviewItemContainerContainer::OverviewItemContainerContainer(const std::string& name, const std::string& item_name, double sum_in_main_ccy, int num, overview_item_container* head)
+OverviewItemContainerContainer::OverviewItemContainerContainer(const std::string& name, const std::string& item_name, double sum, double sum_profit, int num, overview_item_container* head)
 {
     this->name = copy_str(name);
     this->item_name = copy_str(item_name);
     this->num = num;
-    this->sum_in_main_ccy = sum_in_main_ccy;
+    value_sum_in_main_ccy = sum;
+    profit_sum_in_main_ccy = sum_profit;
     this->containers = head;
 }
 OverviewItemContainerContainer::~OverviewItemContainerContainer()
@@ -237,9 +241,11 @@ OverviewItemContainerContainer::~OverviewItemContainerContainer()
 }
 
 
-Overview::Overview(const std::string& item_name, int num, overview_item_container_container* head)
+Overview::Overview(const std::string& item_name, double value_sum_in_main_ccy, double profit_sum_in_main_ccy,int num, overview_item_container_container* head)
 {
     this->item_name = copy_str(item_name);
+    this->sum_in_main_ccy = sum_in_main_ccy;
+    this->profit_sum_in_main_ccy = profit_sum_in_main_ccy;
     this->num = num;
     this->first = head;
 }
@@ -658,56 +664,74 @@ struct LvlGroup
         switch (byGroup)
         {
         case GROUP_BY_ASSET:
-            key = [](AssetItem& a){ return std::string(a.asset_type);};
+            key = [](const AssetItem& a){ return std::string(a.asset_type);};
             group_name = GROUP_ASSET;
             break;
         case GROUP_BY_BROKER:
-            key = [](AssetItem& a){ return a.broker;};
+            key = [](const AssetItem& a){ return a.broker;};
             group_name = GROUP_BROKER;
             break;
         case GROUP_BY_CCY:
-            key = [](AssetItem& a){ return a.currency;};
+            key = [](const AssetItem& a){ return a.currency;};
             group_name = GROUP_CCY;
             break;
         default:
             group_name = nullptr;
-            key = [](AssetItem& a){ return std::string();};
+            key = nullptr;
             break;
         }
     }
-    char* group_name;
-    std::function<bool(const AssetItem&, const AssetItem&)> cmp;
-    std::function<std::string(AssetItem&)> key;
-    std::function<std::string(const AssetItem&)> nm;
-    inline std::string operator() (AssetItem& a) const { return key(a); }
+    std::string group_name;
+    std::function<std::string(const AssetItem&)> key;
+    inline std::string operator() (const AssetItem& a) const { return key(a); }
 };
 
-overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group/*, GROUP level3_group*/)
+overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group)
 {
     auto lvl1 = LvlGroup(level1_group);
     auto lvl2 = LvlGroup(level2_group);
-    //auto lvl3 = LvlGroup(level3_group);
-    for(auto&& l1: group_by(assets->items.begin(),assets->items.end(),lvl1)){
-        const auto& lvl1_item_name = l1.first;
-        auto& lvl2_grp = l1.second;
-        //overview_item* item_head = new overview_item[lvl2_grp.size()];
-        for(auto&& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
-            //new (alloc.current++) OverviewItem(lvl2.key())
-            const auto& l2_item_name = l2.first;
-            //PlacementNew<overview_item> alloc(l2.second.size());
-            for(auto&& l3: l2.second){
+    auto lvl3 = LvlGroup(level3_group);
 
+
+    double lvl1_sum, lvl1_sum_profit = 0.0;
+    const auto& lvl1_grp = group_by(assets->items.begin(),assets->items.end(), lvl1);
+    PlacementNew<overview_item_container_container> container_container_alloc(lvl1_grp.size());
+    for(auto& l1: lvl1_grp){
+        const auto& l1_name = l1.first;
+        auto& lvl2_grp = l1.second;
+
+        PlacementNew<overview_item_container> container_alloc(lvl2_grp.size());
+
+        double lvl2_sum, lvl2_sum_profit = 0.0;
+        for(auto& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
+            const auto& l2_name = l2.first;
+            PlacementNew<overview_item> item_alloc(l2.second.size());
+            double sum, sum_profit = 0.0;
+            for(auto&& l3: l2.second){
+                double main_ccy_value  = assets->to_main_ccy(l3.value, l3.currency.c_str(), main_ccy);
+                double main_ccy_profit = assets->to_main_ccy(l3.profit,l3.currency.c_str(), main_ccy);
+                new (item_alloc.current++) OverviewItem(lvl3.key(l3), l3.value, main_ccy_value,l3.profit, main_ccy_profit);
+                sum += main_ccy_value;
+                sum_profit += main_ccy_profit;
             }
+            new (container_alloc.current++) OverviewItemContainer(l2_name, lvl3.group_name, sum, sum_profit, item_alloc.allocated_num(), item_alloc.head);
+            lvl2_sum += sum;
+            lvl2_sum_profit + sum_profit;
         }
+
+        new (container_container_alloc.current++) OverviewItemContainerContainer(l1_name, lvl2.group_name, lvl2_sum, lvl2_sum_profit, container_alloc.allocated_num(), container_alloc.head);
+        lvl1_sum += lvl2_sum;
+        lvl1_sum_profit += lvl2_sum_profit;
     }
-    return nullptr;
+
+    return new Overview(lvl1.group_name, lvl1_sum, lvl1_sum_profit, container_container_alloc.allocated_num(), container_container_alloc.head);
 }
 
-overview* get_overview(asset_handle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group)
+overview* get_overview(asset_handle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group)
 {
     auto assets = all_assets_by_handle.find(asset_handle);
     if(assets != all_assets_by_handle.end()){
-        return get_overview(assets->second, main_ccy, level1_group, level2_group);
+        return get_overview(assets->second, main_ccy, level1_group, level2_group, level3_group);
     }
     else{
         LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";

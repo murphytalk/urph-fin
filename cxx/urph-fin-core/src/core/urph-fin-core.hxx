@@ -194,13 +194,13 @@ quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol);
 
 class OverviewItem : public overview_item{
 public:
-    OverviewItem(const std::string& name, double value, double value_in_main_ccy);
+    OverviewItem(const std::string& name, double value, double value_in_main_ccy, double profit, double profit_in_main_ccy);
     ~OverviewItem();
 };
 
 class OverviewItemContainer: public overview_item_container{
 public:
-    OverviewItemContainer(const std::string& name, const std::string& item_name,double sum_in_main_ccy, int num, overview_item* head);
+    OverviewItemContainer(const std::string& name, const std::string& item_name,double value_sum_in_main_ccy, double profit_sum_in_main_ccy, int num, overview_item* head);
     ~OverviewItemContainer();
     inline OverviewItem * head(default_member_tag) { return static_cast<OverviewItem*>(items); }
     inline int size(default_member_tag) { return num; }
@@ -211,7 +211,7 @@ public:
 
 class OverviewItemContainerContainer: public overview_item_container_container{
 public:
-    OverviewItemContainerContainer(const std::string& name, const std::string& item_name, double sum_in_main_ccy, int num, overview_item_container* head);
+    OverviewItemContainerContainer(const std::string& name, const std::string& item_name, double value_sum_in_main_ccy, double profit_sum_in_main_ccy,int num, overview_item_container* head);
     ~OverviewItemContainerContainer();
     inline OverviewItemContainer* head(default_member_tag) { return static_cast<OverviewItemContainer*>(containers); }
     inline int size(default_member_tag) { return num; }
@@ -222,7 +222,7 @@ public:
 
 class Overview: public overview{
 public:
-    Overview(const std::string& item_name, int num, overview_item_container_container* head);
+    Overview(const std::string& item_name, double value_sum_in_main_ccy, double profit_sum_in_main_ccy,int num, overview_item_container_container* head);
     ~Overview();
     inline OverviewItemContainerContainer * head(default_member_tag) { return static_cast<OverviewItemContainerContainer*>(first); }
     inline int size(default_member_tag) { return num; }
