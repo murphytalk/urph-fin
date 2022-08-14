@@ -577,17 +577,21 @@ void AllAssets::load_stocks(StockPortfolio* sp)
 {
     const double nan = std::nan("");
 
+    AssetItems grouped_by_sym_and_broker;
     for(auto const& stockWithTx: *sp){
         auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
 
         std::vector<StockTx*> sorted_tx;
-        std::transform(tx_list->ptr_begin(), tx_list->ptr_end(), sorted_tx.begin(), [](StockTx* tx){return tx;});
-        std::sort(sorted_tx.begin(), sorted_tx.end(), [](const StockTx* tx1, const StockTx* tx2){return strcmp(tx1->broker, tx2->broker);});
+        //std::copy(tx_list->ptr_begin(), tx_list->ptr_end(), sorted_tx.begin(), std::back_inserter(sorted_tx));
+        for(auto p = tx_list->ptr_begin(); p != tx_list->ptr_end(); ++p){
+            sorted_tx.push_back(*p);
+        }
+        std::sort(sorted_tx.begin(), sorted_tx.end(), [](const StockTx* tx1, const StockTx* tx2){return strcmp(tx1->broker, tx2->broker) < 0;});
 
         // group tx by broker
         for(auto&& by_broker: iter::groupby(sorted_tx, [](const StockTx* tx){ return std::string(tx->broker); })){
             auto& broker = by_broker.first;
-            auto balance = StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
+            const auto& balance = StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
             if(balance.shares == 0) continue;
             double value, profit =  nan;
             double price = get_price(stockWithTx.instrument->symbol);
@@ -595,8 +599,20 @@ void AllAssets::load_stocks(StockPortfolio* sp)
                 value = price * balance.shares;
                 profit = (price - balance.vwap) * balance.shares;
             }
-            items.push_back(AssetItem(ASSET_TYPE_STOCK, broker, stockWithTx.instrument->currency, value, profit));
+            grouped_by_sym_and_broker.push_back(AssetItem(ASSET_TYPE_STOCK, broker, stockWithTx.instrument->currency, value, profit));
         }
+    }
+    // merge items with same broker and ccy
+    std::sort(grouped_by_sym_and_broker.begin(), grouped_by_sym_and_broker.end(), [](const AssetItem& i1, const AssetItem& i2){return (i1.broker + i1.currency) < (i2.broker + i2.currency);});
+    for(auto&& by_broker_ccy: iter::groupby(grouped_by_sym_and_broker, [](const AssetItem& i){ return i.broker + i.currency; })){
+        auto first = by_broker_ccy.second.begin();
+        items.push_back(std::accumulate(by_broker_ccy.second.begin(), by_broker_ccy.second.end(), AssetItem(first->asset_type, first->broker.c_str(), first->currency.c_str(),0.0,0.0),
+            [](AssetItem& a, AssetItem& x){
+                a.profit += x.profit;
+                a.value  += x.value;
+                return a;
+            }
+        ));
     }
 }
 
