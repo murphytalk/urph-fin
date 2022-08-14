@@ -33,6 +33,14 @@ public:
         this->value = other.value;
         this->profit = other.profit;
     }
+    AssetItem(const AssetItem&) = default;
+
+    friend bool operator == (const AssetItem& a, const AssetItem& b) { 
+        return strcmp(a.asset_type, b.asset_type) == 0 && a.broker == b.broker && a.currency == b.currency &&
+            a.value == b.value && a.profit == b.profit;
+    };
+
+    AssetItem& operator=(const AssetItem& t) = default;
 
     const char* asset_type;
     std::string broker;
@@ -40,6 +48,7 @@ public:
     double value;
     double profit;
 };
+typedef std::vector<AssetItem> AssetItems;
 
 class AllAssets
 {
@@ -51,7 +60,7 @@ public:
 
     double to_main_ccy(double value, const char* ccy, const char* main_ccy);
 
-    std::vector<AssetItem> items;
+    AssetItems items;
 private:
     double get_price(const char* symbol);
     void load_funds(FundPortfolio* fp);
