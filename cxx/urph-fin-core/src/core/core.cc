@@ -23,7 +23,6 @@
 // 3rd party
 #include "aixlog.hpp"
 #include "yaml-cpp/yaml.h"
-#include "groupby.hpp"
 
 static std::string get_home_dir()
 {
@@ -573,6 +572,18 @@ void AllAssets::load_funds(FundPortfolio* fp)
     }
 }
 
+template<typename RandomAccessIterator,  typename FieldSelectorUnaryFn>
+auto group_by(RandomAccessIterator _first, RandomAccessIterator _last, const FieldSelectorUnaryFn& fieldChooser)
+{
+    using FieldType = decltype(fieldChooser(*_first));
+    std::map<FieldType, std::vector<typename RandomAccessIterator::value_type>> instancesByField;
+    for(RandomAccessIterator i = _first; i != _last; ++i)
+    {
+        instancesByField[fieldChooser(*i)].push_back(*i);
+    }
+    return instancesByField;
+}
+
 void AllAssets::load_stocks(StockPortfolio* sp)
 {
     const double nan = std::nan("");
@@ -580,16 +591,8 @@ void AllAssets::load_stocks(StockPortfolio* sp)
     AssetItems grouped_by_sym_and_broker;
     for(auto const& stockWithTx: *sp){
         auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
-
-        std::vector<StockTx*> sorted_tx;
-        //std::copy(tx_list->ptr_begin(), tx_list->ptr_end(), sorted_tx.begin(), std::back_inserter(sorted_tx));
-        for(auto p = tx_list->ptr_begin(); p != tx_list->ptr_end(); ++p){
-            sorted_tx.push_back(*p);
-        }
-        std::sort(sorted_tx.begin(), sorted_tx.end(), [](const StockTx* tx1, const StockTx* tx2){return strcmp(tx1->broker, tx2->broker) < 0;});
-
         // group tx by broker
-        for(auto&& by_broker: iter::groupby(sorted_tx, [](const StockTx* tx){ return std::string(tx->broker); })){
+        for(auto& by_broker: group_by(tx_list->ptr_begin(),tx_list->ptr_end(), [](const StockTx* tx){ return std::string(tx->broker); })){
             auto& broker = by_broker.first;
             const auto& balance = StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
             if(balance.shares == 0) continue;
@@ -603,10 +606,10 @@ void AllAssets::load_stocks(StockPortfolio* sp)
         }
     }
     // merge items with same broker and ccy
-    std::sort(grouped_by_sym_and_broker.begin(), grouped_by_sym_and_broker.end(), [](const AssetItem& i1, const AssetItem& i2){return (i1.broker + i1.currency) < (i2.broker + i2.currency);});
-    for(auto&& by_broker_ccy: iter::groupby(grouped_by_sym_and_broker, [](const AssetItem& i){ return i.broker + i.currency; })){
-        auto first = by_broker_ccy.second.begin();
-        items.push_back(std::accumulate(by_broker_ccy.second.begin(), by_broker_ccy.second.end(), AssetItem(first->asset_type, first->broker.c_str(), first->currency.c_str(),0.0,0.0),
+    for(auto& by_broker_ccy: group_by(grouped_by_sym_and_broker.begin(), grouped_by_sym_and_broker.end(), [](const AssetItem& i) -> std::string { return i.broker + i.currency; })){
+        auto& first = by_broker_ccy.second.front();
+        auto& list = by_broker_ccy.second;
+        items.push_back(std::accumulate(list.begin(), list.end(), AssetItem(first.asset_type, first.broker.c_str(), first.currency.c_str(),0.0,0.0),
             [](AssetItem& a, AssetItem& x){
                 a.profit += x.profit;
                 a.value  += x.value;
@@ -646,8 +649,57 @@ void free_assets(asset_handle handle)
     }
 }
 
-overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group)
+static char GROUP_ASSET [] = "Asset";
+static char GROUP_BROKER[] = "Broker";
+static char GROUP_CCY   [] = "Currency";
+struct LvlGroup
 {
+    LvlGroup(GROUP byGroup){
+        switch (byGroup)
+        {
+        case GROUP_BY_ASSET:
+            key = [](AssetItem& a){ return std::string(a.asset_type);};
+            group_name = GROUP_ASSET;
+            break;
+        case GROUP_BY_BROKER:
+            key = [](AssetItem& a){ return a.broker;};
+            group_name = GROUP_BROKER;
+            break;
+        case GROUP_BY_CCY:
+            key = [](AssetItem& a){ return a.currency;};
+            group_name = GROUP_CCY;
+            break;
+        default:
+            group_name = nullptr;
+            key = [](AssetItem& a){ return std::string();};
+            break;
+        }
+    }
+    char* group_name;
+    std::function<bool(const AssetItem&, const AssetItem&)> cmp;
+    std::function<std::string(AssetItem&)> key;
+    std::function<std::string(const AssetItem&)> nm;
+    inline std::string operator() (AssetItem& a) const { return key(a); }
+};
+
+overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group/*, GROUP level3_group*/)
+{
+    auto lvl1 = LvlGroup(level1_group);
+    auto lvl2 = LvlGroup(level2_group);
+    //auto lvl3 = LvlGroup(level3_group);
+    for(auto&& l1: group_by(assets->items.begin(),assets->items.end(),lvl1)){
+        const auto& lvl1_item_name = l1.first;
+        auto& lvl2_grp = l1.second;
+        //overview_item* item_head = new overview_item[lvl2_grp.size()];
+        for(auto&& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
+            //new (alloc.current++) OverviewItem(lvl2.key())
+            const auto& l2_item_name = l2.first;
+            //PlacementNew<overview_item> alloc(l2.second.size());
+            for(auto&& l3: l2.second){
+
+            }
+        }
+    }
     return nullptr;
 }
 

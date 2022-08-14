@@ -72,6 +72,11 @@ private:
 
 template<typename T> struct PtrIterator
 {
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type   = std::ptrdiff_t;
+    using value_type        = T;
+
+
     PtrIterator(T ptr) : _ptr(ptr) {}
 
     T  operator*() const { return _ptr; }

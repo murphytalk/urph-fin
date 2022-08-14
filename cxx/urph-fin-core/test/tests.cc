@@ -473,3 +473,23 @@ TEST(TestOverview, load_assets)
     delete q;
     delete assets;
 }
+
+extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group);
+TEST(TestOverview, overview_group_by_asset_broker)
+{
+    QuoteBySymbol quotes_by_symbol;
+    auto * q = prepare_quotes(quotes_by_symbol);
+    auto * funds = prepare_funds();
+    auto * brokers = prepare_brokers();
+    auto * stocks = prepare_stocks();
+
+    auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
+
+    auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER));
+
+    delete brokers;
+    delete funds;
+    delete stocks;
+    delete q;
+    delete assets;
+}
