@@ -17,7 +17,7 @@ public:
         this->value = v;
         this->profit = p;
     }
-    AssetItem(const char* asset_type, const std::string& broker, const char* ccy, double v, double p)
+    AssetItem(const char* asset_type, std::string& broker, const char* ccy, double v, double p)
         :currency(std::string(ccy))  
     {
         this->broker = std::move(broker);

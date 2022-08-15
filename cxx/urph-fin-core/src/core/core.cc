@@ -608,7 +608,7 @@ void AllAssets::load_stocks(StockPortfolio* sp)
                 value = price * balance.shares;
                 profit = (price - balance.vwap) * balance.shares;
             }
-            grouped_by_sym_and_broker.push_back(AssetItem(ASSET_TYPE_STOCK, broker, stockWithTx.instrument->currency, value, profit));
+            grouped_by_sym_and_broker.push_back(AssetItem(ASSET_TYPE_STOCK, const_cast<std::string&>(broker), stockWithTx.instrument->currency, value, profit));
         }
     }
     // merge items with same broker and ccy
