@@ -231,7 +231,7 @@ TEST(TestStockPortfolio, get_stock_all_portfolio2)
 static const char usd[] = "USD";
 static const char jpy[] = "JPY";
 static const std::string usd_jpy = {"USDJPY"};
-static const double usd_jpy_price = 100;
+static const double usd_jpy_rate = 100;
 static const timestamp usd_jpy_date = 100;
 
 static const double fee = 1.0;
@@ -318,7 +318,7 @@ static Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
     auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(4, [&q](LatestQuotesBuilder::Alloc *alloc){
         q = new Quotes(alloc->allocated_num(), alloc->head);
     }));
-    builder->add_quote(usd_jpy, usd_jpy_date, usd_jpy_price);
+    builder->add_quote(usd_jpy, usd_jpy_date, usd_jpy_rate);
     builder->add_quote(stock1, stock1_date, stock1_price);
     builder->add_quote(stock2, stock2_date, stock2_price);
     builder->add_quote(stock3, stock3_date, stock3_price);
@@ -422,6 +422,10 @@ static AllBrokers* prepare_brokers()
     return b;
 }
 
+static const char ASSET_TYPE_STOCK [] = "Stock&ETF";
+static const char ASSET_TYPE_FUNDS [] = "Funds";
+static const char ASSET_TYPE_CASH  [] = "Cash";
+
 TEST(TestOverview, load_assets)
 {
     QuoteBySymbol quotes_by_symbol;
@@ -431,10 +435,6 @@ TEST(TestOverview, load_assets)
     auto * stocks = prepare_stocks();
 
     auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
-
-    const char ASSET_TYPE_STOCK [] = "Stock&ETF";
-    const char ASSET_TYPE_FUNDS [] = "Funds";
-    const char ASSET_TYPE_CASH  [] = "Cash";
 
 
     AssetItems items = {
@@ -474,6 +474,28 @@ TEST(TestOverview, load_assets)
     delete assets;
 }
 
+static inline bool cstr_eq(const char*s1, const char*s2)
+{
+    return strcmp(s1, s2) == 0;
+}
+
+static inline bool cmp_overview_item(overview_item& a, overview_item& b)
+{
+    return cstr_eq(a.name, b.name) && 
+        a.profit == b.profit && a.profit_in_main_ccy == b.profit_in_main_ccy &&
+        a.value == b.value && a.value_in_main_ccy == b.value_in_main_ccy;
+}
+
+static void assert_overview_items_eq(std::vector<overview_item>& items, std::vector<overview_item>& expected)
+{
+    ASSERT_EQ(items.size(), expected.size());
+    auto i = items.begin();
+    auto k = expected.begin();
+    while(i!=items.end()){
+        ASSERT_TRUE(cmp_overview_item(*i++, *k++));
+    }
+}
+
 extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 TEST(TestOverview, overview_group_by_asset_broker)
 {
@@ -486,6 +508,86 @@ TEST(TestOverview, overview_group_by_asset_broker)
     auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
 
     auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY));
+
+    std::vector<overview_item> broker1_cash = {
+        overview_item{ const_cast<char*>(usd), broker1_usd, broker1_usd * usd_jpy_rate , 0,0 },
+        overview_item{ const_cast<char*>(jpy), broker1_jpy, broker1_jpy                , 0,0 },
+    };
+    std::vector<overview_item> broker2_cash = {
+        overview_item{ const_cast<char*>(usd), broker2_usd, broker2_usd * usd_jpy_rate , 0,0 },
+        overview_item{ const_cast<char*>(jpy), broker2_jpy, broker2_jpy                , 0,0 },
+    };
+
+    std::vector<overview_item> broker1_funds = {
+        overview_item{ const_cast<char*>(jpy), funds2_value, funds2_value, funds2_profit, funds2_profit},
+    };
+    std::vector<overview_item> broker2_funds = {
+        overview_item{ const_cast<char*>(jpy), funds1_value, funds1_value, funds1_profit, funds1_profit},
+    };
+
+    double broker1_stocks_value = 
+        stock1_price * stock1_shares + 
+        stock_both_brokers_price * stock_both_brokers_broker1_shares +
+        stock_both_brokers_price * stock_both_brokers_broker1_shares2;
+
+    double broker1_stocks_profit = 
+        (stock1_price - stock1_buy_price) * stock1_shares + 
+        (stock_both_brokers_price - stock_both_brokers_broker1_buy_price ) * stock_both_brokers_broker1_shares +
+        (stock_both_brokers_price - stock_both_brokers_broker1_buy_price2) * stock_both_brokers_broker1_shares2;
+
+    std::vector<overview_item> broker1_stock = {
+        overview_item{
+            const_cast<char*>(usd), 
+            broker1_stocks_value,  broker1_stocks_value  * usd_jpy_rate, 
+            broker1_stocks_profit, broker1_stocks_profit * usd_jpy_rate
+        } 
+    };
+
+    double broker2_usd_stocks_value = 
+        stock3_price * stock3_shares +
+        stock_both_brokers_price * stock_both_brokers_broker2_shares;
+
+    double broker2_usd_stocks_profit = 
+        (stock3_price - stock3_buy_price) * stock3_shares + 
+        (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares;
+    std::vector<overview_item> broker2_stock = {
+       // jpy
+        overview_item{
+            const_cast<char*>(jpy), 
+            stock2_price * stock2_shares,  stock2_price * stock2_shares , 
+            (stock2_price - stock2_buy_price) * stock2_shares, (stock2_price - stock2_buy_price) * stock2_shares,
+        },
+        // usd
+        overview_item{
+            const_cast<char*>(usd), 
+            broker2_usd_stocks_value,  broker2_usd_stocks_value  * usd_jpy_rate, 
+            broker2_usd_stocks_profit, broker2_usd_stocks_profit * usd_jpy_rate
+        },
+      };
+
+
+
+    for(auto& lvl1: *overview){
+        for(auto& lvl2: lvl1){
+            // don't use OverviewItem : 
+            // vector would create and destroy temp item objects, if OverviewItem is used its char* member will be freed
+            std::vector<overview_item> items;
+            std::copy(lvl2.begin(), lvl2.end(), std::back_inserter(items));
+            if(cstr_eq(lvl1.name, ASSET_TYPE_CASH)){
+                std::vector<overview_item>& expected = cstr_eq(lvl2.name, "broker1") ? broker1_cash : broker2_cash;
+                assert_overview_items_eq(items, expected);
+           }
+            else if(cstr_eq(lvl1.name, ASSET_TYPE_FUNDS)){
+                std::vector<overview_item>& expected = cstr_eq(lvl2.name, "broker1") ? broker1_funds: broker2_funds;
+                assert_overview_items_eq(items, expected);
+            }
+            else if(cstr_eq(lvl1.name, ASSET_TYPE_STOCK)){
+                std::vector<overview_item>& expected = cstr_eq(lvl2.name, "broker1") ? broker1_stock: broker2_stock;
+                assert_overview_items_eq(items, expected);
+            }
+            else ASSERT_TRUE(false);
+        }
+    }
 
     delete brokers;
     delete funds;

@@ -195,6 +195,7 @@ quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol);
 class OverviewItem : public overview_item{
 public:
     OverviewItem(const std::string& name, double value, double value_in_main_ccy, double profit, double profit_in_main_ccy);
+
     ~OverviewItem();
 };
 

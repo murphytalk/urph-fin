@@ -244,7 +244,7 @@ OverviewItemContainerContainer::~OverviewItemContainerContainer()
 Overview::Overview(const std::string& item_name, double value_sum_in_main_ccy, double profit_sum_in_main_ccy,int num, overview_item_container_container* head)
 {
     this->item_name = copy_str(item_name);
-    this->sum_in_main_ccy = sum_in_main_ccy;
+    this->sum_in_main_ccy = value_sum_in_main_ccy;
     this->profit_sum_in_main_ccy = profit_sum_in_main_ccy;
     this->num = num;
     this->first = head;
@@ -716,7 +716,7 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
             }
             new (container_alloc.current++) OverviewItemContainer(l2_name, lvl3.group_name, sum, sum_profit, item_alloc.allocated_num(), item_alloc.head);
             lvl2_sum += sum;
-            lvl2_sum_profit + sum_profit;
+            lvl2_sum_profit += sum_profit;
         }
 
         new (container_container_alloc.current++) OverviewItemContainerContainer(l1_name, lvl2.group_name, lvl2_sum, lvl2_sum_profit, container_alloc.allocated_num(), container_alloc.head);
