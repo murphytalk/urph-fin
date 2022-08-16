@@ -393,11 +393,10 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
         sum.capital += f.capital; 
         sum.market_value += f.market_value; 
         sum.profit +=  f.market_value - f.capital;
-        sum.ROI +=  sum.profit/sum.capital;
         return sum;
     });
 
-    r.ROI /= portfolio->num;
+    r.ROI = r.profit / r.capital;
 
     return r;
 }
