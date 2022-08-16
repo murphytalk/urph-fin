@@ -5,6 +5,7 @@
 #include <string>
 #include <mutex>
 #include <iomanip>
+#include <sstream> 
 #include <locale>
 #include <condition_variable>
 #include <cmath>
@@ -164,11 +165,61 @@ static void list_stock_tx(const char* broker,const char* symbol, ostream& out)
     }, &out);
 }
 
+const char* groupName [] = {
+    "Asset", "Broker", "Currency"
+};
+
+static std::string main_ccy = "JPY";
+
+static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
+{
+    Table table;
+
+    std::ostringstream mkt_value_main_ccy;
+    mkt_value_main_ccy << "Market Value (" << main_ccy << ")";
+    std::ostringstream profit_main_ccy;
+    profit_main_ccy << "Profit (" << main_ccy << ")";
+
+    table.add_row({groupName[lvl1], groupName[lvl2], groupName[lvl3], "Market Value", mkt_value_main_ccy.str(), "Profit", profit_main_ccy.str()});
+
+    auto h = load_assets();
+    auto *o = static_cast<Overview*>(get_overview(h, main_ccy.c_str(), lvl1, lvl2, lvl3));
+
+    for(auto& l1: *o){
+        table.add_row({l1.name, "", "", "", format_with_commas(l1.value_sum_in_main_ccy), "", format_with_commas(l1.profit_sum_in_main_ccy)});
+        for(auto& l2: l1){
+            table.add_row({"", l2.name,"", "", format_with_commas(l2.value_sum_in_main_ccy), "", format_with_commas(l2.profit_sum_in_main_ccy)});
+            for(auto& l3: l2){
+                table.add_row({"", "", l3.name, format_with_commas(l3.value), format_with_commas(l3.value_in_main_ccy), format_with_commas(l3.profit), format_with_commas(l3.profit_in_main_ccy)});
+            }
+        }
+    }
+
+    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+    out << "\n" << table << endl;
+    delete o;
+    free_assets(h);
+}
+
+
+
 static void main_menu()
 {
     try
     {
         auto rootMenu = make_unique< cli::Menu >( "home" );
+
+        auto overViewMenu = make_unique<cli::Menu >( "ov" );
+
+        overViewMenu->Insert(
+            "ls",
+            [](ostream& out){
+                list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
+            },                
+            "List by Asset-Broker-Currency"
+        );
+
+        rootMenu->Insert(std::move(overViewMenu));
 
         rootMenu->Insert(
             "bk",
