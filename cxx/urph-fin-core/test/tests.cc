@@ -309,8 +309,17 @@ static const double funds2_profit = funds2_value - funds2_capital;
 static const double funds2_roi = 100 * funds2_profit/funds2_capital;
 static const timestamp funds2_date = 100;
 
-static const std::string& broker1_active_fund = funds2_id;
-static const std::string& broker2_active_fund = funds1_id;
+static const std::string funds3 = {"Funds3"};
+static const std::string funds3_id = {"id3"};
+static const std::string& funds3_broker = broker1;
+static const double funds3_amt = 3;
+static const double funds3_price = 900;
+static const double funds3_value = 4000;
+static const double funds3_capital = 5000;
+static const double funds3_profit = funds3_value - funds3_capital;
+static const double funds3_roi = 100 * funds3_profit/funds3_capital;
+static const timestamp funds3_date = 100;
+
 
 static Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
 {
@@ -375,12 +384,13 @@ static StockPortfolio* prepare_stocks()
 static FundPortfolio* prepare_funds()
 {
     FundPortfolio* funds;
-    auto *builder = static_cast<FundsBuilder*>(FundsBuilder::create(2,[&funds](FundsBuilder::Alloc* fund_alloc){
+    auto *builder = static_cast<FundsBuilder*>(FundsBuilder::create(3,[&funds](FundsBuilder::Alloc* fund_alloc){
         funds = new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head);
     }));
 
     builder->add_fund(funds1_broker, funds1, funds1_id, funds1_amt, funds1_capital, funds1_value, funds1_price, funds1_profit, funds1_roi, funds1_date);
     builder->add_fund(funds2_broker, funds2, funds2_id, funds2_amt, funds2_capital, funds2_value, funds2_price, funds2_profit, funds2_roi, funds2_date);
+    builder->add_fund(funds3_broker, funds3, funds3_id, funds3_amt, funds3_capital, funds3_value, funds3_price, funds3_profit, funds3_roi, funds3_date);
     builder->succeed();
     return funds;
 }
@@ -394,16 +404,17 @@ public:
         return *brokers[broker];
     }
     BrokerBuilder get_broker_cash_balance_and_active_funds(const BrokerType& broker){
-        BrokerBuilder builder(2, 1);
+        BrokerBuilder builder(2, broker == 0 ? 2:1);
         if(broker == 0){
             //broker1       
-            builder.add_active_fund(broker1_active_fund);
+            builder.add_active_fund(funds2_id);
+            builder.add_active_fund(funds3_id);
             builder.add_cash_balance(usd, broker1_usd);
             builder.add_cash_balance(jpy, broker1_jpy);
         }
         else{
             //broker2
-            builder.add_active_fund(broker2_active_fund);
+            builder.add_active_fund(funds1_id);
             builder.add_cash_balance(usd, broker2_usd);
             builder.add_cash_balance(jpy, broker2_jpy);
         }
@@ -443,8 +454,8 @@ TEST(TestOverview, load_assets)
         AssetItem(ASSET_TYPE_CASH , broker2.c_str(), usd, broker2_usd, 0),
         AssetItem(ASSET_TYPE_CASH , broker2.c_str(), jpy, broker2_jpy, 0),
 
+        AssetItem(ASSET_TYPE_FUNDS, funds2_broker.c_str(), jpy, funds2_value + funds3_value, funds2_profit + funds3_profit),
         AssetItem(ASSET_TYPE_FUNDS, funds1_broker.c_str(), jpy, funds1_value, funds1_profit),
-        AssetItem(ASSET_TYPE_FUNDS, funds2_broker.c_str(), jpy, funds2_value, funds2_profit),
 
         AssetItem(ASSET_TYPE_STOCK, broker1.c_str(), usd, 
             // stock1 + stock4
@@ -519,7 +530,10 @@ TEST(TestOverview, overview_group_by_asset_broker)
     };
 
     std::vector<overview_item> broker1_funds = {
-        overview_item{ const_cast<char*>(jpy), funds2_value, funds2_value, funds2_profit, funds2_profit},
+        overview_item{ const_cast<char*>(jpy), 
+            funds2_value  + funds3_value , funds2_value  + funds3_value, 
+            funds2_profit + funds3_profit, funds2_profit + funds3_profit
+        },
     };
     std::vector<overview_item> broker2_funds = {
         overview_item{ const_cast<char*>(jpy), funds1_value, funds1_value, funds1_profit, funds1_profit},

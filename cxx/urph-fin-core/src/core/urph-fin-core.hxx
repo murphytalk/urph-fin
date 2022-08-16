@@ -166,6 +166,9 @@ public:
 
     Iterator<Fund> begin() { return Iterator( head(default_member_tag()) ); }
     Iterator<Fund> end() { return Iterator( head(default_member_tag()) + num ); }
+
+    PtrIterator<Fund*> ptr_begin() { return PtrIterator( head(default_member_tag()) ); }
+    PtrIterator<Fund*> ptr_end()   { return PtrIterator( head(default_member_tag()) + num ); }
 };
 class Quote: public quote{
 public:

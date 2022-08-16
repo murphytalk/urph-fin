@@ -571,13 +571,6 @@ double AllAssets::get_price(const char* symbol)
     return r == quotes_by_symbol.end() ? std::nan("") : r->second->rate;
 }
 
-void AllAssets::load_funds(FundPortfolio* fp)
-{
-    for(const Fund& fund: *fp){
-        items.push_back(AssetItem(ASSET_TYPE_FUNDS, fund.broker, "JPY", fund.market_value, fund.profit));
-    }
-}
-
 template<typename RandomAccessIterator,  typename FieldSelectorUnaryFn>
 auto group_by(RandomAccessIterator _first, RandomAccessIterator _last, const FieldSelectorUnaryFn& fieldChooser)
 {
@@ -588,6 +581,21 @@ auto group_by(RandomAccessIterator _first, RandomAccessIterator _last, const Fie
         instancesByField[fieldChooser(*i)].push_back(*i);
     }
     return instancesByField;
+}
+
+void AllAssets::load_funds(FundPortfolio* fp)
+{
+    typedef std::pair<double, double> ValueProfit;
+    // don't iterate by Fund& , as group_by would copy it to vector and it will trigger ~Fund() , causing double free when the original Fund frees string it manages
+    for(auto& by_broker: group_by(fp->ptr_begin(), fp->ptr_end(),[](Fund* f){ return std::string(f->broker); })){
+        auto& broker = by_broker.first;
+        auto vp = std::accumulate(by_broker.second.begin(), by_broker.second.end(), std::make_pair(0.0, 0.0), [](ValueProfit& a, Fund* x){
+            a.first += x->market_value;
+            a.second += x->profit;
+            return a;
+        });
+        items.push_back(AssetItem(ASSET_TYPE_FUNDS, const_cast<std::string&>(broker), "JPY", vp.first, vp.second));
+    }
 }
 
 void AllAssets::load_stocks(StockPortfolio* sp)
