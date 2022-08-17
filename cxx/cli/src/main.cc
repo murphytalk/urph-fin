@@ -221,7 +221,19 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
     free_assets(h);
 }
 
-
+static GROUP to_lvl_group(std::string& lvl)
+{
+    switch(lvl[0]){
+        case 'a':
+        case 'A':
+            return GROUP_BY_ASSET;
+        case 'b':
+        case 'B':
+            return GROUP_BY_BROKER;
+        default:
+            return GROUP_BY_CCY;
+    }
+}
 
 static void main_menu()
 {
@@ -236,8 +248,17 @@ static void main_menu()
             [](ostream& out){
                 list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
             },                
-            "List by Asset-Broker-Currency"
+            "List by Asset-Broker-Currency => shortcut for: cs a b c"
         );
+
+        overViewMenu->Insert(
+            "cs",
+            [](ostream& out, std::string lvl1, std::string lvl2, std::string lvl3){
+                list_overview(to_lvl_group(lvl1),to_lvl_group(lvl2),to_lvl_group(lvl3), out);
+            },                
+            "custom list by lv1-lvl2-lvl3, a=> Asset b=>Broker c =>Currency"
+        );
+
 
         rootMenu->Insert(std::move(overViewMenu));
 
