@@ -188,8 +188,10 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
     for(auto& l1: *o){
         table.add_row({l1.name, "", "", "", format_with_commas(l1.value_sum_in_main_ccy), "", format_with_commas(l1.profit_sum_in_main_ccy)});
         for(auto& l2: l1){
+            if(l2.value_sum_in_main_ccy == 0) continue;
             table.add_row({"", l2.name,"", "", format_with_commas(l2.value_sum_in_main_ccy), "", format_with_commas(l2.profit_sum_in_main_ccy)});
             for(auto& l3: l2){
+                if(l3.value_in_main_ccy == 0) continue;
                 table.add_row({"", "", l3.name, format_with_commas(l3.value), format_with_commas(l3.value_in_main_ccy), format_with_commas(l3.profit), format_with_commas(l3.profit_in_main_ccy)});
             }
         }
