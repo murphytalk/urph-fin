@@ -170,6 +170,7 @@ const char* groupName [] = {
 };
 
 static std::string main_ccy = "JPY";
+static asset_handle ah = 0;
 
 static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
 {
@@ -182,8 +183,10 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
 
     table.add_row({groupName[lvl1], groupName[lvl2], groupName[lvl3], "Market Value", mkt_value_main_ccy.str(), "Profit", profit_main_ccy.str()});
 
-    auto h = load_assets();
-    auto *o = static_cast<Overview*>(get_overview(h, main_ccy.c_str(), lvl1, lvl2, lvl3));
+    if(ah == 0){
+        ah = load_assets();
+    }
+    auto *o = static_cast<Overview*>(get_overview(ah, main_ccy.c_str(), lvl1, lvl2, lvl3));
 
     int row = 0;
     for(auto& l1: *o){
@@ -218,7 +221,6 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
     for(auto i = 3 ; i <= 6 ;++i) table.column(i).format().font_align(FontAlign::right);
     out << "\n" << table << endl;
     delete o;
-    free_assets(h);
 }
 
 static GROUP to_lvl_group(std::string& lvl)
@@ -442,6 +444,7 @@ static void main_menu()
             [&scheduler](auto& out) // session exit action
             {
                 free_quotes(all_quotes);
+                if(ah>0) free_assets(ah);
                 scheduler.Stop();
             }
         );
