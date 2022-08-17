@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include "core/stock.hxx"
 #include "storage/storage.hxx"
 #include "core/core_internal.hxx"
@@ -564,12 +565,15 @@ TEST(TestOverview, overview_group_by_asset_broker)
     double broker2_usd_stocks_profit = 
         (stock3_price - stock3_buy_price) * stock3_shares + 
         (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares;
+
+    double broker2_jpy_stocks_value =  stock2_price * stock2_shares;
+    double broker2_jpy_stocks_profit = (stock2_price - stock2_buy_price) * stock2_shares;
     std::vector<overview_item> broker2_stock = {
        // jpy
         overview_item{
             const_cast<char*>(jpy), 
-            stock2_price * stock2_shares,  stock2_price * stock2_shares , 
-            (stock2_price - stock2_buy_price) * stock2_shares, (stock2_price - stock2_buy_price) * stock2_shares,
+            broker2_jpy_stocks_value, broker2_jpy_stocks_value,
+            broker2_jpy_stocks_profit, broker2_jpy_stocks_profit
         },
         // usd
         overview_item{
@@ -577,9 +581,23 @@ TEST(TestOverview, overview_group_by_asset_broker)
             broker2_usd_stocks_value,  broker2_usd_stocks_value  * usd_jpy_rate, 
             broker2_usd_stocks_profit, broker2_usd_stocks_profit * usd_jpy_rate
         },
-      };
+    };
 
+    double broker1_cash_value =  broker1_jpy + broker1_usd * usd_jpy_rate;
+    double broker2_cash_value =  broker2_jpy + broker2_usd * usd_jpy_rate;
 
+    double broker1_stock_value = broker1_stocks_value * usd_jpy_rate;
+    double broker2_stock_value = broker2_jpy_stocks_value + broker2_usd_stocks_value * usd_jpy_rate;
+    double broker1_stock_profit = broker1_stocks_profit * usd_jpy_rate;
+    double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_profit * usd_jpy_rate;
+
+    auto add_funds_callback = [](std::pair<double,double>& a,overview_item& x){
+        a.first += x.value_in_main_ccy;
+        a.second += x.profit_in_main_ccy;
+        return a;
+    };
+    auto broker1_funds_value_profit = std::accumulate(broker1_funds.begin(), broker1_funds.end(), std::make_pair(0.0,0.0), add_funds_callback);
+    auto broker2_funds_value_profit = std::accumulate(broker2_funds.begin(), broker2_funds.end(), std::make_pair(0.0,0.0), add_funds_callback);
 
     for(auto& lvl1: *overview){
         for(auto& lvl2: lvl1){
@@ -590,14 +608,34 @@ TEST(TestOverview, overview_group_by_asset_broker)
             if(cstr_eq(lvl1.name, ASSET_TYPE_CASH)){
                 std::vector<overview_item>& expected = cstr_eq(lvl2.name, "broker1") ? broker1_cash : broker2_cash;
                 assert_overview_items_eq(items, expected);
+
+                double expected_value =  cstr_eq(lvl2.name, "broker1") ? broker1_cash_value : broker2_cash_value;
+                ASSERT_EQ(lvl2.value_sum_in_main_ccy,  expected_value);
+                ASSERT_EQ(lvl2.profit_sum_in_main_ccy, 0);
+                ASSERT_EQ(lvl1.value_sum_in_main_ccy,  broker1_cash_value + broker2_cash_value);
+                ASSERT_EQ(lvl1.profit_sum_in_main_ccy, 0);
            }
             else if(cstr_eq(lvl1.name, ASSET_TYPE_FUNDS)){
                 std::vector<overview_item>& expected = cstr_eq(lvl2.name, "broker1") ? broker1_funds: broker2_funds;
                 assert_overview_items_eq(items, expected);
+
+                double expected_value = cstr_eq(lvl2.name, "broker1") ? broker1_funds_value_profit.first : broker2_funds_value_profit.first;
+                double expected_profit = cstr_eq(lvl2.name, "broker1") ? broker1_funds_value_profit.second : broker2_funds_value_profit.second;
+                ASSERT_EQ(lvl2.value_sum_in_main_ccy, expected_value);
+                ASSERT_EQ(lvl2.profit_sum_in_main_ccy, expected_profit);
+                ASSERT_EQ(lvl1.value_sum_in_main_ccy, broker1_funds_value_profit.first + broker2_funds_value_profit.first);
+                ASSERT_EQ(lvl1.profit_sum_in_main_ccy, broker1_funds_value_profit.second + broker2_funds_value_profit.second);
             }
             else if(cstr_eq(lvl1.name, ASSET_TYPE_STOCK)){
                 std::vector<overview_item>& expected = cstr_eq(lvl2.name, "broker1") ? broker1_stock: broker2_stock;
                 assert_overview_items_eq(items, expected);
+
+                double expected_value =  cstr_eq(lvl2.name, "broker1") ? broker1_stock_value : broker2_stock_value ;
+                double expected_profit = cstr_eq(lvl2.name, "broker1") ? broker1_stock_profit : broker2_stock_profit;
+                ASSERT_EQ(lvl2.value_sum_in_main_ccy, expected_value);
+                ASSERT_EQ(lvl2.profit_sum_in_main_ccy, expected_profit);
+                ASSERT_EQ(lvl1.value_sum_in_main_ccy, broker1_stock_value + broker2_stock_value);
+                ASSERT_EQ(lvl1.profit_sum_in_main_ccy, broker1_stock_profit + broker2_stock_profit);
             }
             else ASSERT_TRUE(false);
         }

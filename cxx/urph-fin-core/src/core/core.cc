@@ -700,7 +700,7 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
     auto lvl3 = LvlGroup(level3_group);
 
 
-    double lvl1_sum, lvl1_sum_profit = 0.0;
+    double lvl1_sum = 0.0, lvl1_sum_profit = 0.0;
     const auto& lvl1_grp = group_by(assets->items.begin(),assets->items.end(), lvl1);
     PlacementNew<overview_item_container_container> container_container_alloc(lvl1_grp.size());
     for(auto& l1: lvl1_grp){
@@ -709,11 +709,11 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
 
         PlacementNew<overview_item_container> container_alloc(lvl2_grp.size());
 
-        double lvl2_sum, lvl2_sum_profit = 0.0;
+        double lvl2_sum = 0.0, lvl2_sum_profit = 0.0;
         for(auto& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
             const auto& l2_name = l2.first;
             PlacementNew<overview_item> item_alloc(l2.second.size());
-            double sum, sum_profit = 0.0;
+            double sum = 0.0, sum_profit = 0.0;
             for(auto&& l3: l2.second){
                 double main_ccy_value  = assets->to_main_ccy(l3.value, l3.currency.c_str(), main_ccy);
                 double main_ccy_profit = assets->to_main_ccy(l3.profit,l3.currency.c_str(), main_ccy);

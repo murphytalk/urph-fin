@@ -43,8 +43,8 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/urph-fin-core/test",
-            "args": ["--gtest_filter=TestOverview.load_assets"],
-            //"args": ["--gtest_filter=TestOverview.overview_group_by_asset_broker"],
+            //"args": ["--gtest_filter=TestOverview.load_assets"],
+            "args": ["--gtest_filter=TestOverview.overview_group_by_asset_broker"],
             "cwd": "${workspaceFolder}",
             "MIMode": "gdb",
             "setupCommands": [
