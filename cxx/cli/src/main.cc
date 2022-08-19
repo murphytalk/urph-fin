@@ -258,7 +258,7 @@ static void main_menu()
             [](ostream& out, std::string lvl1, std::string lvl2, std::string lvl3){
                 list_overview(to_lvl_group(lvl1),to_lvl_group(lvl2),to_lvl_group(lvl3), out);
             },                
-            "custom list by lv1-lvl2-lvl3, a=> Asset b=>Broker c =>Currency"
+            "custom list by lv1-lvl2-lvl3, a=>Asset b=>Broker c=>Currency"
         );
 
 
