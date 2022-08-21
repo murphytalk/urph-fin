@@ -2,7 +2,7 @@ import 'package:urph_fin/dylib_utils.dart';
 import 'dart:ffi';
 import 'dart:isolate';
 
-final dl = dlopenPlatformSpecific('urph-fin-core-dart', path:'/home/mu/work/urph-fin/cxx/build/urph-fin-core-dart/');
+final dl = dlopenPlatformSpecific('urph-fin-core-dart');
 void requestExecuteCallback(dynamic message) {
   final int work_address = message;
   final work = Pointer<Work>.fromAddress(work_address);

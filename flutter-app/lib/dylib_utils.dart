@@ -7,6 +7,9 @@ import 'dart:io' show Platform;
 
 String _platformPath(String name, String path) {
   if (Platform.isLinux || Platform.isAndroid || Platform.isFuchsia) {
+    if(Platform.isLinux && path == ''){
+      path = "${Platform.environment['HOME']}/.local/lib64/";
+    }
     return "${path}lib$name.so";
   }
   if (Platform.isMacOS) return "${path}lib$name.dylib";
