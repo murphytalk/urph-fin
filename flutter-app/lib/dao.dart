@@ -16,6 +16,7 @@ final executeCallback = dl.lookupFunction<Void Function(Pointer<Work>),
 
 //urph-fin init
 final urphFinInitNative = dl.lookupFunction<Bool Function(), bool Function()>('dart_urph_fin_core_init');
+final urphFinClose = dl.lookupFunction<Void Function(), void Function()>('urph_fin_core_close');
 
 final regOnInitDoneCallback = dl.lookupFunction<
     Void Function(Int64 sendPort,

@@ -285,7 +285,9 @@ bool urph_fin_core_init(OnDone onInitDone)
 
 void urph_fin_core_close()
 {
+    LOG(INFO) << "Freeing storage ... ";
     delete storage;
+    LOG(INFO) << "freed! \n";
 }
 
 #define TRY try{
