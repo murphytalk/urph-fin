@@ -112,8 +112,7 @@ public:
 
         _firestore = nullptr;
         char buf[200];
-        getcwd(buf, 200);
-        LOG(DEBUG) << "Started at " << buf << "\n";
+        LOG(INFO) << "Started at " << getcwd(buf, 200)<< "\n";
         void* initialize_targets[] = {&_firestore};
 
         const firebase::ModuleInitializer::InitializerFn initializers[] = {

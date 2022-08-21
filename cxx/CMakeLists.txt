@@ -17,3 +17,4 @@ include(CMake/internal_utils.cmake)
 
 add_subdirectory (urph-fin-core)
 add_subdirectory (cli)
+add_subdirectory (urph-fin-core-dart)

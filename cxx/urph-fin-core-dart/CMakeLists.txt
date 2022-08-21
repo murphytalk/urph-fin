@@ -8,7 +8,7 @@ set(SRC
 )
 set(target urph-fin-cli-dart)
 
-add_library(${lib_target} ${SRC})
+add_library(${lib_target} SHARED ${SRC})
 
 target_include_directories(${lib_target} 
     PRIVATE ${DART_SDK}/include

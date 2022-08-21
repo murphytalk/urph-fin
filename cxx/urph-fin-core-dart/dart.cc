@@ -52,14 +52,15 @@ DART_EXPORT bool dart_urph_fin_core_init()
     });
 }
 
-// execute the dart side registered callback in the dart isolate which initiates the native call and call the registered 
+// execute the dart side registered callback in the dart isolate which initiates the native call
 //      Dart isolate                          Native thread
 // 
 //      native_call(callback)
-//                                            finished, got data
+//      [native code] req to process data     
+//                                            processing finished, got data
 //                                            wraps callback in work and capture the parameters (result)
 //                                            notify dart with the work pointer
-//      call work (via execute_callback)
+//      [native code] execute_callback
 //
 DART_EXPORT void execute_callback(Work *work_ptr)
 {
