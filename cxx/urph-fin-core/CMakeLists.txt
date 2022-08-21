@@ -1,5 +1,8 @@
 set(lib_target urph-fin-core)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
 add_src_libs_ (src the_SRC)
 
 set(FIREBASE_CPP_SDK_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/firebase_cpp_sdk)
