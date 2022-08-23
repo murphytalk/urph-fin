@@ -1,3 +1,4 @@
+import 'package:ffi/ffi.dart';
 import 'package:urph_fin/dylib_utils.dart';
 import 'dart:ffi';
 import 'dart:isolate';
@@ -39,3 +40,24 @@ void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCall
   final initResult = urphFinInitNative();
   print('urph-fin init result: $initResult');
 }
+
+class Strings extends Struct{
+  @Int32()
+  external int capacity;
+  external Pointer<Pointer<Utf8>> strs;
+  external Pointer<Pointer<Utf8>> last_str;
+}
+typedef GetAllBrokersNameFunc = Pointer<Strings> Function();
+final urphFinGetAllBrokersName = dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
+final urphFinFreeStrings = dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
+/*
+void dumpAllBrokerNames() {
+  final brokerNames = urphFinGetAllBrokersName();
+  print("got ${brokerNames.ref.capacity}");
+  final strs = brokerNames.ref.strs;
+  for (int i = 0; i < brokerNames.ref.capacity; i++) {
+    print("Broker ${strs[i].toDartString()}");
+  }
+  urphFinFreeStrings(brokerNames);
+}
+*/

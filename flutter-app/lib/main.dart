@@ -1,3 +1,4 @@
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'dart:ffi';
 import 'package:urph_fin/dao.dart';
@@ -5,6 +6,7 @@ import 'package:urph_fin/dao.dart';
 void onUrphFinInitDone(Pointer<Void> p)
 {
   print("urph-fin init done");
+
 }
 
 void main() {
