@@ -44,7 +44,7 @@ void free_broker(broker*);
 all_brokers* get_brokers();
 void free_brokers(all_brokers*);
 
-strings* get_all_broker_names(size_t*);
+strings* get_all_broker_names();
 
 // seconds since epoch
 typedef int64_t timestamp;

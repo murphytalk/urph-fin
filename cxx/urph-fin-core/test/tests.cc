@@ -78,7 +78,7 @@ public:
         return BrokerBuilder(0, 0);
     }
     AllBrokerBuilder<MockedStocksDao, BrokerType> *get_brokers() { return nullptr; }
-    StringsBuilder *get_all_broker_names(size_t &) { return nullptr; }
+    StringsBuilder *get_all_broker_names() { return nullptr; }
     void get_funds(FundsBuilder *, int, const char **) {}
     StringsBuilder get_known_stocks() { return StringsBuilder(0); }
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}

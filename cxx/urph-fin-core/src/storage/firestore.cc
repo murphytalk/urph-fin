@@ -226,16 +226,14 @@ public:
         });
     }
 
-    StringsBuilder* get_all_broker_names(size_t& size)
+    StringsBuilder* get_all_broker_names()
     {
-        size = 0;
         return for_each_broker<StringsBuilder>([&](const std::vector<DocumentSnapshot>& all_brokers) -> StringsBuilder*{
             StringsBuilder* p = new StringsBuilder(all_brokers.size());
             for (size_t i = 0; i < all_brokers.size(); ++i){
                 auto broker_name = all_brokers[i].id();
                 p->add(broker_name);
             }
-            size = all_brokers.size();
             return p;
         });
     }

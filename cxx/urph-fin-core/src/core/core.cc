@@ -320,11 +320,11 @@ void free_broker(broker* b)
     delete static_cast<Broker*>(b);
 }
 
-strings* get_all_broker_names(size_t* size)
+strings* get_all_broker_names()
 {
     assert(storage != nullptr);
     TRY
-    return storage->get_all_broker_names(*size);
+    return storage->get_all_broker_names();
     CATCH(nullptr)
 }
 
