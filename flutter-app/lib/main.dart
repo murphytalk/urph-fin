@@ -5,8 +5,7 @@ import 'package:urph_fin/dao.dart';
 
 void onUrphFinInitDone(Pointer<Void> p)
 {
-  print("urph-fin init done");
-
+  log("urph-fin init done");
 }
 
 void main() {
@@ -34,8 +33,22 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const WidthAwareView()
     );
+  }
+}
+
+class WidthAwareView extends StatelessWidget {
+  const WidthAwareView({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    // this query will trigger view be built whenever screen size is changed
+    // https://api.flutter.dev/flutter/widgets/MediaQuery/of.html
+    // https://codewithandrea.com/articles/flutter-responsive-layouts-split-view-drawer-navigation/
+    final screenWidth = MediaQuery.of(context).size.width;
+    print('build split view, screen width = $screenWidth');
+    return const MyHomePage(title: 'The Urph-fin App');
   }
 }
 

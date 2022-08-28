@@ -3,13 +3,18 @@ import 'package:urph_fin/dylib_utils.dart';
 import 'dart:ffi';
 import 'dart:isolate';
 
+void log(String s)
+{
+  print(s);
+}
+
 final dl = dlopenPlatformSpecific('urph-fin-core-dart');
 void requestExecuteCallback(dynamic message) {
-  final int work_address = message;
-  final work = Pointer<Work>.fromAddress(work_address);
-  print("Dart:   Calling into C to execute callback ($work).");
+  final int workAddress = message;
+  final work = Pointer<Work>.fromAddress(workAddress);
+  log("Dart:   Calling into C to execute callback ($work).");
   executeCallback(work);
-  print("Dart:   Done with callback.");
+  log("Dart:   Done with callback.");
 }
 
 final executeCallback = dl.lookupFunction<Void Function(Pointer<Work>),
@@ -32,13 +37,13 @@ void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCall
   final initializeApi = dl.lookupFunction<IntPtr Function(Pointer<Void>),
       int Function(Pointer<Void>)>("InitializeDartApiDL");
   final r = initializeApi(NativeApi.initializeApiDLData);
-  print("initApi $r");
+  log("initApi $r");
 
   final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
   final int nativePort = interactiveCppRequests.sendPort.nativePort;
   regOnInitDoneCallback(nativePort, initDoneCallbackFP);
   final initResult = urphFinInitNative();
-  print('urph-fin init result: $initResult');
+  log('urph-fin init result: $initResult');
 }
 
 class Strings extends Struct{
@@ -50,13 +55,14 @@ class Strings extends Struct{
 typedef GetAllBrokersNameFunc = Pointer<Strings> Function();
 final urphFinGetAllBrokersName = dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
 final urphFinFreeStrings = dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
+
 /*
 void dumpAllBrokerNames() {
   final brokerNames = urphFinGetAllBrokersName();
-  print("got ${brokerNames.ref.capacity}");
+  log("got ${brokerNames.ref.capacity}");
   final strs = brokerNames.ref.strs;
   for (int i = 0; i < brokerNames.ref.capacity; i++) {
-    print("Broker ${strs[i].toDartString()}");
+    log("Broker ${strs[i].toDartString()}");
   }
   urphFinFreeStrings(brokerNames);
 }
