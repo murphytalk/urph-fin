@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ffi/ffi.dart';
 import 'package:urph_fin/dylib_utils.dart';
 import 'dart:ffi';
@@ -52,6 +54,80 @@ class Strings extends Struct{
   external Pointer<Pointer<Utf8>> strs;
   external Pointer<Pointer<Utf8>> last_str;
 }
+
+// overview
+class OverviewItem extends Struct{
+  external Pointer<Pointer<Utf8>> name;
+  @Double()
+  external double value;
+  @Double()
+  external double value_in_main_ccy;
+  @Double()
+  external double profit;
+  @Double()
+  external double profit_in_main_ccy;
+}
+
+class OverviewItemContainer extends Struct{
+  external Pointer<Pointer<Utf8>> name;
+  external Pointer<Pointer<Utf8>> item_name;
+  @Double()
+  external double value_sum_in_main_ccy;
+  @Double()
+  external double profit_sum_in_main_ccy;
+  @Int32()
+  external int num;
+  external Pointer<OverviewItem> items;
+}
+
+class OverviewItemContainerContainer extends Struct{
+  external Pointer<Pointer<Utf8>> name;
+  external Pointer<Pointer<Utf8>> item_name;
+  @Double()
+  external double value_sum_in_main_ccy;
+  @Double()
+  external double profit_sum_in_main_ccy;
+  @Int32()
+  external int num;
+  external Pointer<OverviewItemContainer> containers;
+}
+
+class Overview extends Struct{
+  external Pointer<Pointer<Utf8>> item_name;
+  @Double()
+  external double value_sum_in_main_ccy;
+  @Double()
+  external double profit_sum_in_main_ccy;
+  @Int32()
+  external int num;
+  external Pointer<OverviewItemContainerContainer> first;
+}
+final urphFinLoadAssets = dl.lookupFunction<Int32 Function(), int Function()>('load_assets');
+final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(int)>('free_assets');
+
+const int groupByAsset  = 0;
+const int groupByBroker = 1;
+const int groupByCcy    = 2;
+final urphFinGetOverview = dl.lookupFunction<
+    Pointer<Overview> Function(Int32, Pointer<Utf8>,Uint8,Uint8,Uint8),
+    Pointer<Overview> Function(int  , Pointer<Utf8>,int,int,int)>('get_overview');
+
+Future<int>? _assetsFuture;
+Future<int> getAssets()
+{
+  final completer = Completer<int>();
+  _assetsFuture = completer.future;
+  return completer.future;
+}
+
+Pointer<Overview> getOverview(int assetHandler, String mainCcy, int lvl1, int lvl2, int lvl3)
+{
+  final nativeUtf8Ptr = mainCcy.toNativeUtf8();
+  final p = urphFinGetOverview(assetHandler, nativeUtf8Ptr , lvl1, lvl2, lvl3);
+  malloc.free(nativeUtf8Ptr);
+  return p;
+}
+
 typedef GetAllBrokersNameFunc = Pointer<Strings> Function();
 final urphFinGetAllBrokersName = dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
 final urphFinFreeStrings = dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
