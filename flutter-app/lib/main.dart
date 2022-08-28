@@ -2,15 +2,22 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'dart:ffi';
 import 'package:urph_fin/dao.dart';
+import 'package:window_manager/window_manager.dart';
 
 void onUrphFinInitDone(Pointer<Void> p)
 {
   log("urph-fin init done");
 }
 
+const TITLE = 'UrphFin';
+
 void main() {
   setupFFI(Pointer.fromFunction<Void Function(Pointer<Void>)>(onUrphFinInitDone));
   runApp(const MyApp());
+  windowManager.waitUntilReadyToShow().then((_) async{
+    //await windowManager.setAsFrameless();
+    await windowManager.setTitle(TITLE);
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -20,7 +27,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -37,7 +43,7 @@ class MyApp extends StatelessWidget {
         appBar: AppBar(
           // Here we take the value from the MyHomePage object that was created by
           // the App.build method, and use it to set our appbar title.
-          title: const Text('urph-fin'),
+          //title: const Text(TITLE),
         ),
         body: Center(
           // Center is a layout widget. It takes a single child and positions it
