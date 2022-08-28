@@ -73,13 +73,13 @@ static const int kSleepMs = 100;
 // completed successfully. If the Future returns an error, it will be logged.
 static bool Await(const firebase::FutureBase& future, const char* name) {
   int remaining_timeout = kTimeoutMs;
-  while (future.status() == firebase::kFutureStatusPending && remaining_timeout > 0) {
+  while (future.status() == firebase::kFutureStatusPending /*&& remaining_timeout > 0*/) {
     remaining_timeout -= kSleepMs;
     ProcessEvents(kSleepMs);
   }
 
   if (future.status() != firebase::kFutureStatusComplete) {
-    LOG(ERROR) << name << " returned an invalid result.\n";
+    LOG(ERROR) << name << " returned an invalid status " << future.status() << "\n";
     return false;
   } else if (future.error() != 0) {
     LOG(ERROR) << name << "returned error code=" << future.error() <<",msg=" << future.error_message() << "\n";
