@@ -82,7 +82,69 @@ class _WidthAwareViewState extends State<WidthAwareView> {
     // https://api.flutter.dev/flutter/widgets/MediaQuery/of.html
     final screenWidth = MediaQuery.of(context).size.width;
     print('build split view, screen width = $screenWidth');
-    return Container();
+    return const Expanded(
+      child: Overview(),
+    );
   }
 }
+
+class Overview extends StatefulWidget {
+  const Overview({Key? key}) : super(key: key);
+
+  @override
+  State<Overview> createState() => _OverviewState();
+}
+
+class _OverviewState extends State<Overview> {
+  @override
+  Widget build(BuildContext context) {
+    print('build overview');
+    return DataTable(
+      columns: const <DataColumn>[
+        DataColumn(
+          label: Text(
+            'Name',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            'Age',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+        DataColumn(
+          label: Text(
+            'Role',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
+        ),
+      ],
+      rows: const <DataRow>[
+        DataRow(
+          cells: <DataCell>[
+            DataCell(Text('Sarah')),
+            DataCell(Text('19')),
+            DataCell(Text('Student')),
+          ],
+        ),
+        DataRow(
+          cells: <DataCell>[
+            DataCell(Text('Janine')),
+            DataCell(Text('43')),
+            DataCell(Text('Professor')),
+          ],
+        ),
+        DataRow(
+          cells: <DataCell>[
+            DataCell(Text('William')),
+            DataCell(Text('27')),
+            DataCell(Text('Associate Professor')),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
 
