@@ -5,18 +5,19 @@ import 'package:urph_fin/dao.dart';
 import 'package:window_manager/window_manager.dart';
 
 void onUrphFinInitDone(Pointer<Void> p) {
-  log("urph-fin init done");
+  log("urph-fin init done, starting flutter app");
+  runApp(const MyApp());
 }
 
-const TITLE = 'UrphFin';
+const theTitle = 'UrphFin';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   setupFFI(
       Pointer.fromFunction<Void Function(Pointer<Void>)>(onUrphFinInitDone));
-  runApp(const MyApp());
   windowManager.waitUntilReadyToShow().then((_) async {
     //await windowManager.setAsFrameless();
-    await windowManager.setTitle(TITLE);
+    await windowManager.setTitle(theTitle);
   });
 }
 
