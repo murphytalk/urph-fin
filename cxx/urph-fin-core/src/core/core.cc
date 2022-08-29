@@ -15,6 +15,7 @@
 #include <condition_variable>
 #include <unordered_map>
 #include <algorithm>
+#include <thread>
 
 #include "storage/storage.hxx"
 #include "urph-fin-core.hxx"
@@ -244,7 +245,7 @@ OverviewItemContainerContainer::~OverviewItemContainerContainer()
 Overview::Overview(const std::string& item_name, double value_sum_in_main_ccy, double profit_sum_in_main_ccy,int num, overview_item_container_container* head)
 {
     this->item_name = copy_str(item_name);
-    this->sum_in_main_ccy = value_sum_in_main_ccy;
+    this->value_sum_in_main_ccy = value_sum_in_main_ccy;
     this->profit_sum_in_main_ccy = profit_sum_in_main_ccy;
     this->num = num;
     this->first = head;
@@ -655,6 +656,19 @@ asset_handle load_assets()
     all_assets_by_handle[h] = new AllAssets();
     return h;
 }
+
+void load_assets_async(OnAssetLoaded onLoaded, void *param)
+{
+    LOG(DEBUG) << "loading asset async\n";
+    std::thread t([param,onLoaded]{
+        auto h = load_assets();
+        LOG(DEBUG) << "asset async loaded, handle=" << h << "\n";
+        onLoaded(param,h);
+    });
+    t.detach();
+    LOG(DEBUG) << "loading asset async returned\n";
+}
+
 void free_assets(asset_handle handle)
 {
     auto assets = all_assets_by_handle.find(handle);

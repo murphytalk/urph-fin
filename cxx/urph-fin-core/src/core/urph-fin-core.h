@@ -240,7 +240,7 @@ struct overview_item_container_container{
 
 struct overview{
     char* item_name;
-    double sum_in_main_ccy;
+    double value_sum_in_main_ccy;
     double profit_sum_in_main_ccy;
     int num;
     overview_item_container_container *first;
@@ -248,6 +248,8 @@ struct overview{
 
 typedef int asset_handle;
 asset_handle load_assets();
+typedef void (*OnAssetLoaded)(void*param, asset_handle h);
+void load_assets_async(OnAssetLoaded onLoaded, void *param);
 void free_assets(asset_handle handle);
 
 const unsigned char GROUP_BY_ASSET  = 0;

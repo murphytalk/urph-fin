@@ -183,10 +183,7 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
 
     table.add_row({groupName[lvl1], groupName[lvl2], groupName[lvl3], "Market Value", mkt_value_main_ccy.str(), "Profit", profit_main_ccy.str()});
 
-    if(ah == 0){
-        ah = load_assets();
-    }
-    auto *o = static_cast<Overview*>(get_overview(ah, main_ccy.c_str(), lvl1, lvl2, lvl3));
+   auto *o = static_cast<Overview*>(get_overview(ah, main_ccy.c_str(), lvl1, lvl2, lvl3));
 
     int row = 0;
     for(auto& l1: *o){
@@ -213,7 +210,7 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
             }
         }
     }
-    table.add_row({"SUM", "","", "", format_with_commas(o->sum_in_main_ccy), "", format_with_commas(o->profit_sum_in_main_ccy)});
+    table.add_row({"SUM", "","", "", format_with_commas(o->value_sum_in_main_ccy), "", format_with_commas(o->profit_sum_in_main_ccy)});
     ++row;
     table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
 
@@ -248,7 +245,15 @@ static void main_menu()
         overViewMenu->Insert(
             "ls",
             [](ostream& out){
-                list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
+                if(ah == 0){
+                    load_assets_async([](void *p, asset_handle h){
+                        ostream* o = reinterpret_cast<ostream*>(p);
+                        ah = h;
+                        std::cout<<"asset handle " << h << std::endl;
+                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o);
+                    }, &out);
+                }
+                else list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
             },                
             "List by Asset-Broker-Currency => shortcut for: cs a b c"
         );
