@@ -12,13 +12,20 @@ DART_EXPORT intptr_t InitializeDartApiDL(void *data)
 }
 
 static Dart_Port send_port_;
-static OnDone on_init_done_callback;
 
+static OnDone on_init_done_callback;
 DART_EXPORT void register_init_callback(Dart_Port send_port, OnDone cb)
 {
     send_port_ = send_port;
     on_init_done_callback = cb;
 }
+
+static OnAssetLoaded on_asset_loaded_callback;
+DART_EXPORT void register_asset_loaded_callback(OnAssetLoaded cb)
+{
+    on_asset_loaded_callback = cb;
+}
+
 
 typedef std::function<void()> Work;
 // Notify Dart through a port that the C lib has pending async callbacks.
@@ -51,6 +58,17 @@ DART_EXPORT bool dart_urph_fin_core_init()
         notify_dart(send_port_, work_ptr); 
     });
 }
+
+DART_EXPORT void dart_urph_fin_load_assets()
+{
+    load_assets_async([](void *p, asset_handle h){
+        const Work work = [p,h](){on_asset_loaded_callback(p,h);};
+        // Copy to heap to make it outlive the function scope.
+        const Work* work_ptr = new Work(work);
+        notify_dart(send_port_, work_ptr); 
+    },nullptr);
+}
+
 
 // execute the dart side registered callback in the dart isolate which initiates the native call
 //      Dart isolate                          Native thread
