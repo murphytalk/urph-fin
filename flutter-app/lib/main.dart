@@ -5,21 +5,22 @@ import 'dart:ffi';
 import 'package:urph_fin/dao.dart';
 import 'package:window_manager/window_manager.dart';
 
-Completer<Pointer<Void>>? urphFinInitCompleter;
+Completer<Pointer<Void>>? _urphFinInitCompleter;
 void onUrphFinInitDone(Pointer<Void> p) {
   log("urph-fin init done, starting flutter app");
-  urphFinInitCompleter?.complete(p);
+  _urphFinInitCompleter?.complete(p);
 }
 
 Future<Pointer<Void>> initUrphFin()
 {
   final c = Completer<Pointer<Void>>();
-  urphFinInitCompleter = c;
+  _urphFinInitCompleter = c;
   setupFFI(Pointer.fromFunction<Void Function(Pointer<Void>)>(onUrphFinInitDone));
   return c.future;
 }
 
 const theTitle = 'UrphFin';
+const mainCcy = 'JPY';
 
 void main() {
   runApp(const MyApp());
@@ -32,14 +33,13 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  // This widget is the root of your application.
+  // root widget
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
         future: initUrphFin(),
         builder: (c, snapshot){
           Widget child;
-
           if(snapshot.hasData) {
             child = MaterialApp(
                 theme: ThemeData(
@@ -153,22 +153,46 @@ class _OverviewState extends State<Overview> {
     return DataTable(columns: const <DataColumn>[
       DataColumn(
         label: Text(
-          'Name',
-          style: TextStyle(fontStyle: FontStyle.italic),
+          'Asset',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       DataColumn(
         label: Text(
-          'Age',
-          style: TextStyle(fontStyle: FontStyle.italic),
+          'Broker',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       DataColumn(
         label: Text(
-          'Role',
-          style: TextStyle(fontStyle: FontStyle.italic),
+          'Currency',
+           style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
-    ], rows: _rows);
+      DataColumn(
+        label: Text(
+          'Market Value',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'Market Value ($mainCcy)',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'Profit',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+      DataColumn(
+        label: Text(
+          'Profit ($mainCcy)',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+      ),
+    ], rows: []);
   }
 }

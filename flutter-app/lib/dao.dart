@@ -28,9 +28,9 @@ final urphFinClose = dl.lookupFunction<Void Function(), void Function()>('urph_f
 
 final regOnInitDoneCallback = dl.lookupFunction<
     Void Function(Int64 sendPort,
-        Pointer<NativeFunction<Void Function(Pointer<Void>)>> functionPointer),
+        Pointer<NativeFunction<Void Function(Pointer<Void>)>>),
     void Function(int sendPort,
-        Pointer<NativeFunction<Void Function(Pointer<Void>)>> functionPointer)>('register_init_callback');
+        Pointer<NativeFunction<Void Function(Pointer<Void>)>>)>('register_init_callback');
 
 class Work extends Opaque {}
 
@@ -43,7 +43,10 @@ void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCall
 
   final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
   final int nativePort = interactiveCppRequests.sendPort.nativePort;
+
   regOnInitDoneCallback(nativePort, initDoneCallbackFP);
+  regOnAssetsLoadedCallback(Pointer.fromFunction<Void Function(Pointer<Void>, Int32)>(_onAssetLoadedCB));
+
   final initResult = urphFinInitNative();
   log('urph-fin init result: $initResult');
 }
@@ -55,7 +58,7 @@ class Strings extends Struct{
   external Pointer<Pointer<Utf8>> last_str;
 }
 
-// overview
+// asset overview
 class OverviewItem extends Struct{
   external Pointer<Pointer<Utf8>> name;
   @Double()
@@ -102,7 +105,12 @@ class Overview extends Struct{
   external int num;
   external Pointer<OverviewItemContainerContainer> first;
 }
-final urphFinLoadAssets = dl.lookupFunction<Int32 Function(), int Function()>('load_assets');
+
+final regOnAssetsLoadedCallback = dl.lookupFunction<
+    Void Function(Pointer<NativeFunction<Void Function(Pointer<Void>, Int32)>>),
+    void Function(Pointer<NativeFunction<Void Function(Pointer<Void>, Int32)>>)>('register_asset_loaded_callback');
+
+final _urphFinLoadAssets = dl.lookupFunction<Void Function(), void Function()>('dart_urph_fin_load_assets');
 final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(int)>('free_assets');
 
 const int groupByAsset  = 0;
@@ -112,11 +120,16 @@ final urphFinGetOverview = dl.lookupFunction<
     Pointer<Overview> Function(Int32, Pointer<Utf8>,Uint8,Uint8,Uint8),
     Pointer<Overview> Function(int  , Pointer<Utf8>,int,int,int)>('get_overview');
 
-Future<int>? _assetsFuture;
+Completer<int>? _assetsHandleCompleter;
+void _onAssetLoadedCB(Pointer<Void> p, int handle)
+{
+  _assetsHandleCompleter?.complete(handle);
+}
 Future<int> getAssets()
 {
   final completer = Completer<int>();
-  _assetsFuture = completer.future;
+  _assetsHandleCompleter = completer;
+  _urphFinLoadAssets();
   return completer.future;
 }
 
