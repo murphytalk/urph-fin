@@ -60,7 +60,7 @@ class Strings extends Struct{
 
 // asset overview
 class OverviewItem extends Struct{
-  external Pointer<Pointer<Utf8>> name;
+  external Pointer<Utf8> name;
   @Double()
   external double value;
   @Double()
@@ -72,8 +72,8 @@ class OverviewItem extends Struct{
 }
 
 class OverviewItemContainer extends Struct{
-  external Pointer<Pointer<Utf8>> name;
-  external Pointer<Pointer<Utf8>> item_name;
+  external Pointer<Utf8> name;
+  external Pointer<Utf8> item_name;
   @Double()
   external double value_sum_in_main_ccy;
   @Double()
@@ -84,8 +84,8 @@ class OverviewItemContainer extends Struct{
 }
 
 class OverviewItemContainerContainer extends Struct{
-  external Pointer<Pointer<Utf8>> name;
-  external Pointer<Pointer<Utf8>> item_name;
+  external Pointer<Utf8> name;
+  external Pointer<Utf8> item_name;
   @Double()
   external double value_sum_in_main_ccy;
   @Double()
@@ -96,7 +96,7 @@ class OverviewItemContainerContainer extends Struct{
 }
 
 class Overview extends Struct{
-  external Pointer<Pointer<Utf8>> item_name;
+  external Pointer<Utf8> item_name;
   @Double()
   external double value_sum_in_main_ccy;
   @Double()

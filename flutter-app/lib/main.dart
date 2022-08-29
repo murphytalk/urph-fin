@@ -1,14 +1,17 @@
 import 'dart:async';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'dart:ffi';
 import 'package:urph_fin/dao.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 Completer<Pointer<Void>>? _urphFinInitCompleter;
 void onUrphFinInitDone(Pointer<Void> p) {
   log("urph-fin init done, starting flutter app");
   _urphFinInitCompleter?.complete(p);
+  //getAssets().then((assetHandler) => print('asset handler is $assetHandler'));
 }
 
 Future<Pointer<Void>> initUrphFin()
@@ -85,11 +88,7 @@ class MyApp extends StatelessWidget {
                 ));
           }
           else{
-            child = const SizedBox(
-              width: 60,
-              height: 60,
-              child: CircularProgressIndicator(),
-            );
+            child = const AwaitWidget(caption: "Logging in");
           }
           return Center(
               child: child
@@ -118,6 +117,34 @@ class _WidthAwareViewState extends State<WidthAwareView> {
   }
 }
 
+class AwaitWidget extends StatelessWidget {
+  const AwaitWidget({Key? key, required this.caption}) : super(key: key);
+  final String caption;
+  @override
+  Widget build(BuildContext context) {
+    return
+      Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 60,
+              height: 60,
+              child: CircularProgressIndicator(),
+            ),
+            DefaultTextStyle(
+              style: Theme.of(context).textTheme.headline2!,
+              textAlign: TextAlign.center,
+              child: Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Directionality(textDirection: TextDirection.ltr, child: Text(caption))
+            )
+            )
+          ]
+      );
+  }
+}
+
+
 class Overview extends StatefulWidget {
   const Overview({Key? key}) : super(key: key);
 
@@ -126,73 +153,115 @@ class Overview extends StatefulWidget {
 }
 
 class _OverviewState extends State<Overview> {
-  List<DataRow> _rows = [
-    DataRow(
-      cells: <DataCell>[
-        DataCell(Text('Sarah')),
-        DataCell(Text('19')),
-        DataCell(Text('Student')),
-      ],
-    ),
-    DataRow(
-      cells: <DataCell>[
-        DataCell(Text('Janine')),
-        DataCell(Text('43')),
-        DataCell(Text('Professor')),
-      ],
-    ),
-    DataRow(cells: <DataCell>[
-      DataCell(Text('William')),
-      DataCell(Text('27')),
-      DataCell(Text('Associate Professor')),
-    ])
-  ];
+  List<DataRow> _populateDataTable(int? assetHandler){
+    if(assetHandler == null) return [];
+    final rows = <DataRow>[];
+    final ov = getOverview(assetHandler, mainCcy, groupByAsset, groupByBroker, groupByCcy).ref;
+    final fmt = NumberFormat('#,##,000');
+    for(int i = 0; i < ov.num; i++){
+      final containerContainer = ov.first[i];
 
+      rows.add(DataRow(
+          cells: [
+            DataCell(Text(containerContainer.name.toDartString())),
+            const DataCell(Text('')), // lvl2 name
+            const DataCell(Text('')), // lvl3 name
+            const DataCell(Text('')), // Market value
+            DataCell(Text(fmt.format(containerContainer.value_sum_in_main_ccy))), // Market value in main CCY
+            const DataCell(Text('')), // Profit
+            DataCell(Text(fmt.format(containerContainer.profit_sum_in_main_ccy))), // Profit in main CCY
+          ]
+      ));
+
+      for(int j = 0 ; j < containerContainer.num; j++){
+        final container = containerContainer.containers[j];
+
+        rows.add(DataRow(
+            cells: [
+              const DataCell(Text('')), // lvl1 name
+              DataCell(Text(container.name.toDartString())),
+              const DataCell(Text('')), // lvl3 name
+              const DataCell(Text('')), // Market value
+              DataCell(Text(fmt.format(container.value_sum_in_main_ccy))), // Market value in main CCY
+              const DataCell(Text('')), // Profit
+              DataCell(Text(fmt.format(container.profit_sum_in_main_ccy))), // Profit in main CCY
+            ]
+        ));
+
+        for(int k = 0; k < container.num ; k++){
+          final item = container.items[k];
+          rows.add(DataRow(
+            cells: [
+              const DataCell(Text('')), // lvl1 name
+              const DataCell(Text('')), // lvl2 name
+              DataCell(Text(item.name.toDartString())),
+              DataCell(Text(fmt.format(item.value))),              // Market value
+              DataCell(Text(fmt.format(item.value_in_main_ccy))),  // Market value in main CCY
+              DataCell(Text(fmt.format(item.profit))),             // Profit
+              DataCell(Text(fmt.format(item.profit_in_main_ccy))), // Profit in main CCY
+            ]
+          ));
+        }
+      }
+    }
+    return rows;
+  }
   @override
   Widget build(BuildContext context) {
-    return DataTable(columns: const <DataColumn>[
-      DataColumn(
-        label: Text(
-          'Asset',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Broker',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Currency',
-           style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Market Value',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Market Value ($mainCcy)',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Profit',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-      DataColumn(
-        label: Text(
-          'Profit ($mainCcy)',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-      ),
-    ], rows: []);
+    return FutureBuilder(
+      future: getAssets(),
+      builder: (BuildContext ctx, AsyncSnapshot<int> snapshot){
+        if(snapshot.hasData) {
+          return DataTable(columns: const <DataColumn>[
+            DataColumn(
+              label: Text(
+                'Asset',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Broker',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Currency',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Market Value',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Market Value ($mainCcy)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Profit',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            DataColumn(
+              label: Text(
+                'Profit ($mainCcy)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ], rows: _populateDataTable(snapshot.data));
+        }
+        else{
+          return const Center(child: AwaitWidget(caption: "Loading assets"));
+        }
+      }
+    );
+
   }
 }
