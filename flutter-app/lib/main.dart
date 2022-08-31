@@ -158,6 +158,12 @@ class Overview extends StatefulWidget {
 }
 
 class _OverviewState extends State<Overview> {
+  Future<int>? _assets;
+
+  _OverviewState(){
+    _assets = getAssets();
+  }
+
   List<DataRow> _populateDataTable(BuildContext ctx, int? assetHandler){
     if(assetHandler == null) return [];
     final rows = <DataRow>[];
@@ -194,6 +200,7 @@ class _OverviewState extends State<Overview> {
 
         for(int k = 0; k < container.num ; k++){
           final item = container.items[k];
+          if(item.value == 0) continue;
           final name = item.name.toDartString();
           rows.add(DataRow(
             cells: [
@@ -215,7 +222,7 @@ class _OverviewState extends State<Overview> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: getAssets(),
+      future: _assets,
       builder: (BuildContext ctx, AsyncSnapshot<int> snapshot){
         if(snapshot.hasData) {
           return SingleChildScrollView(
