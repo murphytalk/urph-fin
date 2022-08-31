@@ -201,10 +201,10 @@ class _OverviewState extends State<Overview> {
               const DataCell(Text('')), // lvl2 name
               DataCell(Text(name)),
               //TODO: overview_item needs ccy
-              DataCell(_value(ctx,name,item.value)),              // Market value
-              DataCell(_value(ctx,name,item.value_in_main_ccy)),  // Market value in main CCY
-              DataCell(_value(ctx,name,item.profit)),             // Profit
-              DataCell(_value(ctx,name,item.profit_in_main_ccy)), // Profit in main CCY
+              DataCell(_value(ctx,name,item.value)),                 // Market value
+              DataCell(_value(ctx,mainCcy,item.value_in_main_ccy)),  // Market value in main CCY
+              DataCell(_value(ctx,name,item.profit)),                // Profit
+              DataCell(_value(ctx,mainCcy,item.profit_in_main_ccy)), // Profit in main CCY
             ]
           ));
         }
