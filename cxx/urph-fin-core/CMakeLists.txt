@@ -3,7 +3,7 @@ set(lib_target urph-fin-core)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
-set(FIREBASE_CPP_SDK_DIR "/home/mu/work/firebase-cpp-sdk")
+set(FIREBASE_CPP_SDK_DIR "$ENV{HOME}/work/firebase-cpp-sdk")
 set(BUILD_TESTING OFF)
 set(FIREBASE_CPP_BUILD_TESTS OFF)
 set(FIREBASE_LINUX_USE_CXX11_ABI ON)
