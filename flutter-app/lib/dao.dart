@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:ffi/ffi.dart';
-import 'package:urph_fin/dylib_utils.dart';
+import 'package:urph_fin/utils.dart';
 import 'dart:ffi';
 import 'dart:isolate';
 

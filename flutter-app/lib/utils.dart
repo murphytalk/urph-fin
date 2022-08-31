@@ -4,6 +4,7 @@
 
 import 'dart:ffi';
 import 'dart:io' show Platform;
+import 'package:intl/intl.dart' hide TextDirection;
 
 String _platformPath(String name, String path) {
   if (Platform.isLinux || Platform.isAndroid || Platform.isFuchsia) {
@@ -20,4 +21,17 @@ String _platformPath(String name, String path) {
 DynamicLibrary dlopenPlatformSpecific(String name, {String path = ""}) {
   String fullPath = _platformPath(name, path);
   return DynamicLibrary.open(fullPath);
+}
+
+final Map<String, NumberFormat> _fmtByCcy = {
+    'JPY': NumberFormat.currency(locale: 'en_US', name: 'JPY', symbol: '¥'),
+    'CNY': NumberFormat.currency(locale: 'en_US', name: 'JPY', symbol: 'CN¥'),
+    'USD': NumberFormat.currency(locale: 'en_US', name: 'USD', symbol: '\$'),
+    'HKD': NumberFormat.currency(locale: 'en_US', name: 'HKD', symbol: 'HK\$'),
+};
+
+String formatCcy(String ccy,double num)
+{
+  if(num == 0) return "";
+  return (_fmtByCcy[ccy]?.format(num))??'$ccy $num';
 }

@@ -4,14 +4,13 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'dart:ffi';
 import 'package:urph_fin/dao.dart';
+import 'package:urph_fin/utils.dart';
 import 'package:window_manager/window_manager.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 
 Completer<Pointer<Void>>? _urphFinInitCompleter;
 void onUrphFinInitDone(Pointer<Void> p) {
   log("urph-fin init done, starting flutter app");
   _urphFinInitCompleter?.complete(p);
-  //getAssets().then((assetHandler) => print('asset handler is $assetHandler'));
 }
 
 Future<Pointer<Void>> initUrphFin()
@@ -144,6 +143,12 @@ class AwaitWidget extends StatelessWidget {
   }
 }
 
+Widget _value(BuildContext ctx, String ccy, double value)
+{
+  return Text(formatCcy(ccy, value),
+      textAlign: TextAlign.right,
+      style: TextStyle( color: value < 0 ? Colors.red : Colors.black));
+}
 
 class Overview extends StatefulWidget {
   const Overview({Key? key}) : super(key: key);
@@ -153,11 +158,10 @@ class Overview extends StatefulWidget {
 }
 
 class _OverviewState extends State<Overview> {
-  List<DataRow> _populateDataTable(int? assetHandler){
+  List<DataRow> _populateDataTable(BuildContext ctx, int? assetHandler){
     if(assetHandler == null) return [];
     final rows = <DataRow>[];
     final ov = getOverview(assetHandler, mainCcy, groupByAsset, groupByBroker, groupByCcy).ref;
-    final fmt = NumberFormat('#,##,000');
     for(int i = 0; i < ov.num; i++){
       final containerContainer = ov.first[i];
 
@@ -167,9 +171,9 @@ class _OverviewState extends State<Overview> {
             const DataCell(Text('')), // lvl2 name
             const DataCell(Text('')), // lvl3 name
             const DataCell(Text('')), // Market value
-            DataCell(Text(fmt.format(containerContainer.value_sum_in_main_ccy))), // Market value in main CCY
+            DataCell(_value(ctx,mainCcy, containerContainer.value_sum_in_main_ccy)), // Market value in main CCY
             const DataCell(Text('')), // Profit
-            DataCell(Text(fmt.format(containerContainer.profit_sum_in_main_ccy))), // Profit in main CCY
+            DataCell(_value(ctx,mainCcy, containerContainer.profit_sum_in_main_ccy)), // Profit in main CCY
           ]
       ));
 
@@ -182,23 +186,25 @@ class _OverviewState extends State<Overview> {
               DataCell(Text(container.name.toDartString())),
               const DataCell(Text('')), // lvl3 name
               const DataCell(Text('')), // Market value
-              DataCell(Text(fmt.format(container.value_sum_in_main_ccy))), // Market value in main CCY
+              DataCell(_value(ctx,mainCcy,container.value_sum_in_main_ccy)), // Market value in main CCY
               const DataCell(Text('')), // Profit
-              DataCell(Text(fmt.format(container.profit_sum_in_main_ccy))), // Profit in main CCY
+              DataCell(_value(ctx,mainCcy,container.profit_sum_in_main_ccy)), // Profit in main CCY
             ]
         ));
 
         for(int k = 0; k < container.num ; k++){
           final item = container.items[k];
+          final name = item.name.toDartString();
           rows.add(DataRow(
             cells: [
               const DataCell(Text('')), // lvl1 name
               const DataCell(Text('')), // lvl2 name
-              DataCell(Text(item.name.toDartString())),
-              DataCell(Text(fmt.format(item.value))),              // Market value
-              DataCell(Text(fmt.format(item.value_in_main_ccy))),  // Market value in main CCY
-              DataCell(Text(fmt.format(item.profit))),             // Profit
-              DataCell(Text(fmt.format(item.profit_in_main_ccy))), // Profit in main CCY
+              DataCell(Text(name)),
+              //TODO: overview_item needs ccy
+              DataCell(_value(ctx,name,item.value)),              // Market value
+              DataCell(_value(ctx,name,item.value_in_main_ccy)),  // Market value in main CCY
+              DataCell(_value(ctx,name,item.profit)),             // Profit
+              DataCell(_value(ctx,name,item.profit_in_main_ccy)), // Profit in main CCY
             ]
           ));
         }
@@ -212,11 +218,13 @@ class _OverviewState extends State<Overview> {
       future: getAssets(),
       builder: (BuildContext ctx, AsyncSnapshot<int> snapshot){
         if(snapshot.hasData) {
-          return DataTable(columns: const <DataColumn>[
+          return SingleChildScrollView(
+            child:
+            DataTable(columns: const <DataColumn>[
             DataColumn(
               label: Text(
                 'Asset',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style:  TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
             DataColumn(
@@ -255,7 +263,7 @@ class _OverviewState extends State<Overview> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ], rows: _populateDataTable(snapshot.data));
+          ], rows: _populateDataTable(ctx, snapshot.data)));
         }
         else{
           return const Center(child: AwaitWidget(caption: "Loading assets"));
