@@ -176,9 +176,7 @@ class _OverviewState extends State<Overview> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         Text(
-          'Market Value ($mainCcy)',
-          textAlign: TextAlign.right,
-          style: TextStyle(fontWeight: FontWeight.bold),
+          '',
         ),
         Text(
           'Profit',
@@ -186,9 +184,7 @@ class _OverviewState extends State<Overview> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         Text(
-          'Profit ($mainCcy)',
-          textAlign: TextAlign.right,
-          style: TextStyle(fontWeight: FontWeight.bold),
+          '',
         ),
       ])
     ];
@@ -223,15 +219,23 @@ class _OverviewState extends State<Overview> {
           //const Text(''), // lvl1 name
           IconButton(
               onPressed: () => {print('expand')},
-              icon: const Icon(Icons.expand_more)),
-          Text(container.name.toDartString()),
+              icon: const Icon(Icons.expand_less)),
+          TableCell(
+              verticalAlignment: TableCellVerticalAlignment.middle,
+              child: Text(
+                container.name.toDartString(),
+              )),
           const Text(''), // lvl3 name
           const Text(''), // Market value
-          _value(ctx, mainCcy,
-              container.value_sum_in_main_ccy), // Market value in main CCY
+          TableCell(
+              verticalAlignment: TableCellVerticalAlignment.middle,
+              child: _value(ctx, mainCcy,
+                  container.value_sum_in_main_ccy)), // Market value in main CCY
           const Text(''), // Profit
-          _value(ctx, mainCcy,
-              container.profit_sum_in_main_ccy), // Profit in main CCY
+          TableCell(
+              verticalAlignment: TableCellVerticalAlignment.middle,
+              child: _value(ctx, mainCcy,
+                  container.profit_sum_in_main_ccy)), // Profit in main CCY
         ]));
 
         for (int k = 0; k < container.num; k++) {
@@ -243,11 +247,20 @@ class _OverviewState extends State<Overview> {
             const Text(''), // lvl2 name
             Text(name),
             //TODO: overview_item needs ccy
-            _value(ctx, name, item.value), // Market value
-            _value(ctx, mainCcy,
-                item.value_in_main_ccy), // Market value in main CCY
-            _value(ctx, name, item.profit), // Profit
-            _value(ctx, mainCcy, item.profit_in_main_ccy), // Profit in main CCY
+            TableCell(
+                verticalAlignment: TableCellVerticalAlignment.middle,
+                child: _value(ctx, name, item.value)), // Market value
+            TableCell(
+                verticalAlignment: TableCellVerticalAlignment.middle,
+                child: _value(ctx, mainCcy,
+                    item.value_in_main_ccy)), // Market value in main CCY
+            TableCell(
+                verticalAlignment: TableCellVerticalAlignment.middle,
+                child: _value(ctx, name, item.profit)), // Profit
+            TableCell(
+                verticalAlignment: TableCellVerticalAlignment.middle,
+                child: _value(ctx, mainCcy,
+                    item.profit_in_main_ccy)), // Profit in main CCY
           ]));
         }
       }
@@ -264,15 +277,18 @@ class _OverviewState extends State<Overview> {
             return SingleChildScrollView(
                 child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Table(columnWidths: const {
-                      0: FixedColumnWidth(200),
-                      1: FixedColumnWidth(150),
-                      2: FixedColumnWidth(80),
-                      3: FlexColumnWidth(1),
-                      4: FlexColumnWidth(1),
-                      5: FlexColumnWidth(1),
-                      6: FlexColumnWidth(1),
-                    }, children: _populateDataTable(ctx, snapshot.data))));
+                    child: Table(
+                        columnWidths: const {
+                          0: FixedColumnWidth(100),
+                          1: FixedColumnWidth(100),
+                          2: FixedColumnWidth(80),
+                          3: FlexColumnWidth(1),
+                          4: FlexColumnWidth(1),
+                          5: FlexColumnWidth(1),
+                          6: FlexColumnWidth(1),
+                        },
+                        border: TableBorder.all(width: 1),
+                        children: _populateDataTable(ctx, snapshot.data))));
           } else {
             return const Center(child: AwaitWidget(caption: "Loading assets"));
           }
