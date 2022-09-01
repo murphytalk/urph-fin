@@ -211,15 +211,17 @@ class _OverviewState extends State<Overview> {
         final container = containerContainer.containers[j];
 
         rows.add(TableRow(children: [
-          //const Text(''), // lvl1 name
-          IconButton(
-              onPressed: () => {print('expand')},
-              icon: const Icon(Icons.expand_less)),
-          TableCell(
+         const Text(''), // lvl1 name
+         TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: Text(
-                container.name.toDartString(),
-              )),
+              child: Row(
+                children:[
+                  IconButton(
+                      onPressed: () => {print('expand')},
+                      icon: const Icon(Icons.expand_less)),
+                  Text(container.name.toDartString())
+                ])
+          ),
           const Text(''), // lvl3 name
           const Text(''), // Market value
           TableCell(
