@@ -522,22 +522,22 @@ TEST(TestOverview, overview_group_by_asset_broker)
     auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY));
 
     std::vector<overview_item> broker1_cash = {
-        overview_item{ const_cast<char*>(usd), broker1_usd, broker1_usd * usd_jpy_rate , 0,0 },
-        overview_item{ const_cast<char*>(jpy), broker1_jpy, broker1_jpy                , 0,0 },
+        overview_item{ const_cast<char*>(usd), const_cast<char*>(usd), broker1_usd, broker1_usd * usd_jpy_rate , 0,0 },
+        overview_item{ const_cast<char*>(jpy), const_cast<char*>(jpy), broker1_jpy, broker1_jpy                , 0,0 },
     };
     std::vector<overview_item> broker2_cash = {
-        overview_item{ const_cast<char*>(usd), broker2_usd, broker2_usd * usd_jpy_rate , 0,0 },
-        overview_item{ const_cast<char*>(jpy), broker2_jpy, broker2_jpy                , 0,0 },
+        overview_item{ const_cast<char*>(usd), const_cast<char*>(usd), broker2_usd, broker2_usd * usd_jpy_rate , 0,0 },
+        overview_item{ const_cast<char*>(jpy), const_cast<char*>(jpy), broker2_jpy, broker2_jpy                , 0,0 },
     };
 
     std::vector<overview_item> broker1_funds = {
-        overview_item{ const_cast<char*>(jpy), 
+        overview_item{ const_cast<char*>(jpy), const_cast<char*>(jpy), 
             funds2_value  + funds3_value , funds2_value  + funds3_value, 
             funds2_profit + funds3_profit, funds2_profit + funds3_profit
         },
     };
     std::vector<overview_item> broker2_funds = {
-        overview_item{ const_cast<char*>(jpy), funds1_value, funds1_value, funds1_profit, funds1_profit},
+        overview_item{ const_cast<char*>(jpy), const_cast<char*>(jpy),funds1_value, funds1_value, funds1_profit, funds1_profit},
     };
 
     double broker1_stocks_value = 
@@ -552,7 +552,7 @@ TEST(TestOverview, overview_group_by_asset_broker)
 
     std::vector<overview_item> broker1_stock = {
         overview_item{
-            const_cast<char*>(usd), 
+            const_cast<char*>(usd), const_cast<char*>(usd), 
             broker1_stocks_value,  broker1_stocks_value  * usd_jpy_rate, 
             broker1_stocks_profit, broker1_stocks_profit * usd_jpy_rate
         } 
@@ -571,13 +571,14 @@ TEST(TestOverview, overview_group_by_asset_broker)
     std::vector<overview_item> broker2_stock = {
        // jpy
         overview_item{
-            const_cast<char*>(jpy), 
+            const_cast<char*>(jpy), const_cast<char*>(jpy), 
+
             broker2_jpy_stocks_value, broker2_jpy_stocks_value,
             broker2_jpy_stocks_profit, broker2_jpy_stocks_profit
         },
         // usd
         overview_item{
-            const_cast<char*>(usd), 
+            const_cast<char*>(usd), const_cast<char*>(usd), 
             broker2_usd_stocks_value,  broker2_usd_stocks_value  * usd_jpy_rate, 
             broker2_usd_stocks_profit, broker2_usd_stocks_profit * usd_jpy_rate
         },

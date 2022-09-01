@@ -191,9 +191,10 @@ Quote::~Quote()
     delete []symbol;
 }
 
-OverviewItem::OverviewItem(const std::string& n, double v, double v2, double p, double p2)
+OverviewItem::OverviewItem(const std::string& n, const std::string& ccy,double v, double v2, double p, double p2)
 {
     name = copy_str(n);
+    currency = copy_str(ccy);
     value = v;
     value_in_main_ccy = v2;
     profit = p;
@@ -203,6 +204,7 @@ OverviewItem::OverviewItem(const std::string& n, double v, double v2, double p, 
 OverviewItem::~OverviewItem()
 {
     delete []name;
+    delete []currency;
 }
 
 
@@ -733,7 +735,7 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
             for(auto&& l3: l2.second){
                 double main_ccy_value  = assets->to_main_ccy(l3.value, l3.currency.c_str(), main_ccy);
                 double main_ccy_profit = assets->to_main_ccy(l3.profit,l3.currency.c_str(), main_ccy);
-                new (item_alloc.current++) OverviewItem(lvl3.key(l3), l3.value, main_ccy_value,l3.profit, main_ccy_profit);
+                new (item_alloc.current++) OverviewItem(lvl3.key(l3),l3.currency, l3.value, main_ccy_value,l3.profit, main_ccy_profit);
                 sum += main_ccy_value;
                 sum_profit += main_ccy_profit;
             }

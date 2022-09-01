@@ -10,7 +10,12 @@ void log(String s)
   print(s);
 }
 
-final dl = dlopenPlatformSpecific('urph-fin-core-dart');
+DynamicLibrary _dlopenPlatformSpecific(String name, {String path = ""}) {
+  String fullPath = platformPath(name, path);
+  return DynamicLibrary.open(fullPath);
+}
+
+final dl = _dlopenPlatformSpecific('urph-fin-core-dart');
 void requestExecuteCallback(dynamic message) {
   final int workAddress = message;
   final work = Pointer<Work>.fromAddress(workAddress);
@@ -61,6 +66,7 @@ class Strings extends Struct{
 // asset overview
 class OverviewItem extends Struct{
   external Pointer<Utf8> name;
+  external Pointer<Utf8> currency;
   @Double()
   external double value;
   @Double()

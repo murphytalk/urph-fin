@@ -135,12 +135,6 @@ class AwaitWidget extends StatelessWidget {
   }
 }
 
-Widget _value(BuildContext ctx, String ccy, double value) {
-  return Text(formatCcy(ccy, value),
-      textAlign: TextAlign.right,
-      style: TextStyle(color: value < 0 ? Colors.red : Colors.black));
-}
-
 class Overview extends StatefulWidget {
   const Overview({Key? key}) : super(key: key);
 
@@ -202,13 +196,13 @@ class _OverviewState extends State<Overview> {
         const Text(''), // lvl2 name
         const Text(''), // lvl3 name
         const Text(''), // Market value
-        _value(
+        financeValueText(
             ctx,
             mainCcy,
             containerContainer
                 .value_sum_in_main_ccy), // Market value in main CCY
         const Text(''), // Profit
-        _value(ctx, mainCcy,
+        financeValueText(ctx, mainCcy,
             containerContainer.profit_sum_in_main_ccy), // Profit in main CCY
       ]));
 
@@ -229,12 +223,12 @@ class _OverviewState extends State<Overview> {
           const Text(''), // Market value
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: _value(ctx, mainCcy,
+              child: financeValueText(ctx, mainCcy,
                   container.value_sum_in_main_ccy)), // Market value in main CCY
           const Text(''), // Profit
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: _value(ctx, mainCcy,
+              child: financeValueText(ctx, mainCcy,
                   container.profit_sum_in_main_ccy)), // Profit in main CCY
         ]));
 
@@ -242,24 +236,24 @@ class _OverviewState extends State<Overview> {
           final item = container.items[k];
           if (item.value == 0) continue;
           final name = item.name.toDartString();
+          final ccy = item.currency.toDartString();
           rows.add(TableRow(children: [
             const Text(''), // lvl1 name
             const Text(''), // lvl2 name
             Text(name),
-            //TODO: overview_item needs ccy
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: _value(ctx, name, item.value)), // Market value
+                child: financeValueText(ctx, ccy, item.value)), // Market value
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: _value(ctx, mainCcy,
+                child: financeValueText(ctx, mainCcy,
                     item.value_in_main_ccy)), // Market value in main CCY
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: _value(ctx, name, item.profit)), // Profit
+                child: financeValueText(ctx, ccy, item.profit)), // Profit
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: _value(ctx, mainCcy,
+                child: financeValueText(ctx, mainCcy,
                     item.profit_in_main_ccy)), // Profit in main CCY
           ]));
         }

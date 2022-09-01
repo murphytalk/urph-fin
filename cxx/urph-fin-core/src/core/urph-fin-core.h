@@ -214,6 +214,7 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
 */
 struct overview_item{
     char* name;
+    char* currency;
     double value;
     double value_in_main_ccy;
     double profit;
