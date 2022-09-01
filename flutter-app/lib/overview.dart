@@ -2,6 +2,7 @@ import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
+import 'package:urph_fin/shared_widgets.dart';
 import 'package:urph_fin/utils.dart';
 import 'package:urph_fin/dao.dart';
 

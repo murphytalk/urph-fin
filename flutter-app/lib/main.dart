@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:ffi';
 import 'package:urph_fin/dao.dart' hide Overview;
-import 'package:urph_fin/utils.dart';
+import 'package:urph_fin/shared_widgets.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'overview.dart';

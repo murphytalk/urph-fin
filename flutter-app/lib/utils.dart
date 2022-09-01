@@ -2,8 +2,8 @@
 // for details. All rights reserved. Use of this source code is governed by a
 // BSD-style license that can be found in the LICENSE file.
 
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 import 'package:intl/intl.dart' hide TextDirection;
 
 String platformPath(String name, String path) {
@@ -52,11 +52,6 @@ String formatCcy(String ccy, double num) {
   return (_fmtByCcy[ccy]?.format(num)) ?? '$ccy $num';
 }
 
-Widget financeValueText(BuildContext ctx, String ccy, double value, {Color positiveValueColor = Colors.black}) {
-  return Text(formatCcy(ccy, value),
-      textAlign: TextAlign.right,
-      style: TextStyle(color: value < 0 ? Colors.red : positiveValueColor));
-}
 
 Size calculateTextSize({
   required String text,
@@ -75,24 +70,3 @@ Size calculateTextSize({
   return textPainter.size;
 }
 
-class AwaitWidget extends StatelessWidget {
-  const AwaitWidget({Key? key, required this.caption}) : super(key: key);
-  final String caption;
-  @override
-  Widget build(BuildContext context) {
-    return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const SizedBox(
-        width: 60,
-        height: 60,
-        child: CircularProgressIndicator(),
-      ),
-      DefaultTextStyle(
-          style: Theme.of(context).textTheme.headline2!,
-          textAlign: TextAlign.center,
-          child: Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Directionality(
-                  textDirection: TextDirection.ltr, child: Text(caption))))
-    ]);
-  }
-}
