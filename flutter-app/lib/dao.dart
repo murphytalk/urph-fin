@@ -119,9 +119,6 @@ final regOnAssetsLoadedCallback = dl.lookupFunction<
 final _urphFinLoadAssets = dl.lookupFunction<Void Function(), void Function()>('dart_urph_fin_load_assets');
 final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(int)>('free_assets');
 
-const int groupByAsset  = 0;
-const int groupByBroker = 1;
-const int groupByCcy    = 2;
 final urphFinGetOverview = dl.lookupFunction<
     Pointer<Overview> Function(Int32, Pointer<Utf8>,Uint8,Uint8,Uint8),
     Pointer<Overview> Function(int  , Pointer<Utf8>,int,int,int)>('get_overview');
@@ -139,7 +136,7 @@ Future<int> getAssets()
   return completer.future;
 }
 
-Pointer<Overview> getOverview(int assetHandler, String mainCcy, int lvl1, int lvl2, int lvl3)
+Pointer<Overview> getOverview(int assetHandler, String mainCcy, OverviewGroup lvl1, OverviewGroup lvl2, OverviewGroup lvl3)
 {
   final nativeUtf8Ptr = mainCcy.toNativeUtf8();
   final p = urphFinGetOverview(assetHandler, nativeUtf8Ptr , lvl1, lvl2, lvl3);

@@ -144,40 +144,43 @@ class Overview extends StatefulWidget {
 
 class _OverviewState extends State<Overview> {
   Future<int>? _assets;
+  OverviewGroup _lvl1 = groupByAsset;
+  OverviewGroup _lvl2 = groupByBroker;
+  OverviewGroup _lvl3 = groupByCcy;
 
   _OverviewState() {
     _assets = getAssets();
   }
 
-  List<TableRow> _populateDataTable(BuildContext ctx, int? assetHandler) {
+  List<TableRow> _populateDataTable(BuildContext ctx, TextStyle headerTxtStyle, int? assetHandler) {
     final rows = <TableRow>[
-      const TableRow(children: [
+      TableRow(children: [
         Text(
           'Asset',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: headerTxtStyle,
         ),
         Text(
           'Broker',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: headerTxtStyle,
         ),
         Text(
           'Currency',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: headerTxtStyle,
         ),
         Text(
           'Market Value',
+          style: headerTxtStyle,
           textAlign: TextAlign.right,
-          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        Text(
+        const Text(
           '',
         ),
         Text(
           'Profit',
+          style: headerTxtStyle,
           textAlign: TextAlign.right,
-          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        Text(
+        const Text(
           '',
         ),
       ])
@@ -185,9 +188,7 @@ class _OverviewState extends State<Overview> {
 
     if (assetHandler == null) return [];
 
-    final ov = getOverview(
-            assetHandler, mainCcy, groupByAsset, groupByBroker, groupByCcy)
-        .ref;
+    final ov = getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3).ref;
     for (int i = 0; i < ov.num; i++) {
       final containerContainer = ov.first[i];
 
@@ -268,21 +269,23 @@ class _OverviewState extends State<Overview> {
         future: _assets,
         builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
           if (snapshot.hasData) {
+            const headerTxtStyle = TextStyle(fontWeight: FontWeight.bold);
+            const headerTxtPadding = 10;
             return SingleChildScrollView(
                 child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Table(
-                        columnWidths: const {
-                          0: FixedColumnWidth(100),
-                          1: FixedColumnWidth(100),
-                          2: FixedColumnWidth(80),
-                          3: FlexColumnWidth(1),
-                          4: FlexColumnWidth(1),
-                          5: FlexColumnWidth(1),
-                          6: FlexColumnWidth(1),
+                        columnWidths: {
+                          0: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl1).width + headerTxtPadding),
+                          1: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl2).width + headerTxtPadding),
+                          2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl3).width + headerTxtPadding),
+                          3: const FlexColumnWidth(1),
+                          4: const FlexColumnWidth(1),
+                          5: const FlexColumnWidth(1),
+                          6: const FlexColumnWidth(1),
                         },
                         border: TableBorder.all(width: 1),
-                        children: _populateDataTable(ctx, snapshot.data))));
+                        children: _populateDataTable(ctx, headerTxtStyle, snapshot.data))));
           } else {
             return const Center(child: AwaitWidget(caption: "Loading assets"));
           }

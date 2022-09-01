@@ -18,6 +18,27 @@ String platformPath(String name, String path) {
   throw Exception("Platform not implemented");
 }
 
+typedef OverviewGroup = int;
+const int groupByAsset  = 0;
+const int groupByBroker = 1;
+const int groupByCcy    = 2;
+const _overviewGroup = ["Asset", "Broker", "Currency"];
+Size getGroupTextSize(BuildContext ctx, TextStyle style, OverviewGroup group){
+  String txt = '';
+  switch(group){
+    case groupByAsset:
+      txt = 'Stock&ETF';
+      break;
+    case groupByBroker:
+      txt = '123456789012345';
+      break;
+    case groupByCcy:
+      txt = _overviewGroup[groupByCcy];
+      break;
+  }
+  return calculateTextSize(text: txt, style: style, context: ctx);
+}
+
 
 final Map<String, NumberFormat> _fmtByCcy = {
   'JPY': NumberFormat.currency(locale: 'en_US', name: 'JPY', symbol: '¥'),
