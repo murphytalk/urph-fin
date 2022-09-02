@@ -1,12 +1,11 @@
 import 'dart:async';
+import 'dart:ffi';
 
 import 'package:flutter/material.dart';
-import 'dart:ffi';
+import 'package:window_manager/window_manager.dart';
 import 'package:urph_fin/dao.dart' hide Overview;
 import 'package:urph_fin/shared_widgets.dart';
-import 'package:window_manager/window_manager.dart';
-
-import 'overview.dart';
+import 'package:urph_fin/overview.dart';
 
 Completer<Pointer<Void>>? _urphFinInitCompleter;
 void onUrphFinInitDone(Pointer<Void> p) {
@@ -108,9 +107,7 @@ class _WidthAwareViewState extends State<WidthAwareView> {
     final screenWidth = MediaQuery.of(context).size.width;
     print('build split view, screen width = $screenWidth');
     return const Expanded(
-      child: Overview(),
+      child: OverviewWidget(),
     );
   }
 }
-
-

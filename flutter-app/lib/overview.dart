@@ -6,27 +6,191 @@ import 'package:urph_fin/shared_widgets.dart';
 import 'package:urph_fin/utils.dart';
 import 'package:urph_fin/dao.dart';
 
-class Overview extends StatefulWidget {
-  const Overview({Key? key}) : super(key: key);
+class OverviewWidget extends StatefulWidget {
+  const OverviewWidget({Key? key}) : super(key: key);
 
   @override
-  State<Overview> createState() => _OverviewState();
+  State<OverviewWidget> createState() => _OverviewWidgetState();
 }
 
 const mainCcy = 'JPY';
-class _OverviewState extends State<Overview> {
+
+enum Level {
+  lvl1,
+  lvl2,
+  leaf;
+}
+
+class TableItem {
+  final Level level;
+  final Pointer<Utf8> name;
+  final Pointer<Utf8>? ccy;
+  final double valueInMainCcy;
+  final double profitInMainCcy;
+  final double value;
+  final double profit;
+  bool expanded = false;
+
+  TableItem(this.level, this.name, this.valueInMainCcy, this.profitInMainCcy)
+      : value = 0,
+        profit = 0,
+        ccy = null;
+
+  TableItem.leaf(this.name, this.ccy, this.value, this.valueInMainCcy, this.profit, this.profitInMainCcy)
+      : level = Level.leaf;
+}
+
+class TableItems {
+  final List<TableItem> _items = [];
+  final TextStyle _headerTxtStyle;
+  late double _valueInMainCcy;
+  late double _profitInMainCcy;
+
+  TableItems(this._headerTxtStyle, Pointer<Overview> overview) {
+    final ov = overview.ref;
+    _valueInMainCcy = ov.value_sum_in_main_ccy;
+    _profitInMainCcy = ov.profit_sum_in_main_ccy;
+
+    for (int i = 0; i < ov.num; i++) {
+      final containerContainer = ov.first[i];
+      _items.add(TableItem(Level.lvl1, containerContainer.name, containerContainer.value_sum_in_main_ccy,
+          containerContainer.profit_sum_in_main_ccy));
+
+      for (int j = 0; j < containerContainer.num; j++) {
+        final container = containerContainer.containers[j];
+        _items.add(
+            TableItem(Level.lvl2, container.name, container.value_sum_in_main_ccy, container.profit_sum_in_main_ccy));
+
+        for (int k = 0; k < container.num; k++) {
+          final item = container.items[k];
+          if (item.value == 0) continue;
+          _items.add(TableItem.leaf(
+              item.name, item.currency, item.value, item.value_in_main_ccy, item.profit, item.profit_in_main_ccy));
+        }
+      }
+    }
+  }
+
+  // for unit tests
+  TableItems.withItems(List<TableItem> i, this._valueInMainCcy, this._profitInMainCcy)
+      : _headerTxtStyle = const TextStyle() {
+    _items.addAll(i);
+  }
+
+  List<TableRow> populateTableRows() {
+    List<TableRow> rows = [
+      TableRow(children: [
+        Text(
+          'Asset',
+          style: _headerTxtStyle,
+        ),
+        Text(
+          'Broker',
+          style: _headerTxtStyle,
+        ),
+        Text(
+          'Currency',
+          style: _headerTxtStyle,
+        ),
+        Text(
+          'Market Value',
+          style: _headerTxtStyle,
+          textAlign: TextAlign.right,
+        ),
+        financeValueText(mainCcy, _valueInMainCcy, positiveValueColor: Colors.blue),
+        Text(
+          'Profit',
+          style: _headerTxtStyle,
+          textAlign: TextAlign.right,
+        ),
+        financeValueText(mainCcy, _profitInMainCcy, positiveValueColor: Colors.blue),
+      ])
+    ];
+
+    TableItem? greatParent = null;
+    TableItem? parent = null;
+
+    for (final item in _items) {
+      if (item.level == Level.lvl1) {
+        greatParent = item;
+        // level 1 item is always populated
+        rows.add(TableRow(children: [
+          Text(item.name.toDartString()),
+          const Text(''), // lvl2 name
+          const Text(''), // lvl3 name
+          const Text(''), // Market value
+          financeValueText(mainCcy, item.valueInMainCcy),
+          const Text(''), // Profit
+          financeValueText(mainCcy, item.profitInMainCcy),
+        ]));
+      } else {
+        if (item.level == Level.lvl2) {
+          parent = item;
+          if (greatParent?.expanded ?? false) {
+            rows.add(TableRow(children: [
+              const Text(''), // lvl1 name
+              TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.middle,
+                  child: Row(children: [
+                    IconButton(onPressed: () => {print('expand')}, icon: const Icon(Icons.expand_less)),
+                    Text(item.name.toDartString())
+                  ])),
+              const Text(''), // lvl3 name
+              const Text(''), // Market value
+              TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.middle,
+                  child: financeValueText(mainCcy, item.valueInMainCcy)),
+              const Text(''), // Profit
+              TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.middle,
+                  child: financeValueText(mainCcy, item.profitInMainCcy)),
+            ]));
+          }
+        } else {
+          // leave item
+          if (parent?.expanded ?? false) {
+            final name = item.name.toDartString();
+            final ccy = item.ccy?.toDartString() ?? mainCcy;
+            rows.add(TableRow(children: [
+              const Text(''), // lvl1 name
+              const Text(''), // lvl2 name
+              Text(name),
+              TableCell(verticalAlignment: TableCellVerticalAlignment.middle, child: financeValueText(ccy, item.value)),
+              TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.middle,
+                  child: financeValueText(mainCcy, item.valueInMainCcy)),
+              TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.middle, child: financeValueText(ccy, item.profit)),
+              TableCell(
+                  verticalAlignment: TableCellVerticalAlignment.middle,
+                  child: financeValueText(mainCcy, item.profitInMainCcy)),
+            ]));
+          }
+        }
+      }
+    }
+
+    return rows;
+  }
+}
+
+class _OverviewWidgetState extends State<OverviewWidget> {
   Future<int>? _assets;
+  Pointer<Overview>? _overview = null;
+
   OverviewGroup _lvl1 = groupByAsset;
   OverviewGroup _lvl2 = groupByBroker;
   OverviewGroup _lvl3 = groupByCcy;
 
-  _OverviewState() {
+  _OverviewWidgetState() {
     _assets = getAssets();
   }
 
   List<TableRow> _populateDataTable(BuildContext ctx, TextStyle headerTxtStyle, int? assetHandler) {
     if (assetHandler == null) return [];
-    final ov = getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3).ref;
+
+    _overview ??= getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3);
+    final ov = _overview!.ref;
 
     final rows = <TableRow>[
       TableRow(children: [
@@ -47,16 +211,15 @@ class _OverviewState extends State<Overview> {
           style: headerTxtStyle,
           textAlign: TextAlign.right,
         ),
-        financeValueText(ctx, mainCcy, ov.value_sum_in_main_ccy, positiveValueColor: Colors.blue),
+        financeValueText(mainCcy, ov.value_sum_in_main_ccy, positiveValueColor: Colors.blue),
         Text(
           'Profit',
           style: headerTxtStyle,
           textAlign: TextAlign.right,
         ),
-        financeValueText(ctx, mainCcy, ov.profit_sum_in_main_ccy, positiveValueColor: Colors.blue),
+        financeValueText(mainCcy, ov.profit_sum_in_main_ccy, positiveValueColor: Colors.blue),
       ])
     ];
-
 
     for (int i = 0; i < ov.num; i++) {
       final containerContainer = ov.first[i];
@@ -66,14 +229,9 @@ class _OverviewState extends State<Overview> {
         const Text(''), // lvl2 name
         const Text(''), // lvl3 name
         const Text(''), // Market value
-        financeValueText(
-            ctx,
-            mainCcy,
-            containerContainer
-                .value_sum_in_main_ccy), // Market value in main CCY
+        financeValueText(mainCcy, containerContainer.value_sum_in_main_ccy), // Market value in main CCY
         const Text(''), // Profit
-        financeValueText(ctx, mainCcy,
-            containerContainer.profit_sum_in_main_ccy), // Profit in main CCY
+        financeValueText(mainCcy, containerContainer.profit_sum_in_main_ccy), // Profit in main CCY
       ]));
 
       for (int j = 0; j < containerContainer.num; j++) {
@@ -83,25 +241,19 @@ class _OverviewState extends State<Overview> {
           const Text(''), // lvl1 name
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: Row(
-                  children:[
-                    IconButton(
-                        onPressed: () => {print('expand')},
-                        icon: const Icon(Icons.expand_less)),
-                    Text(container.name.toDartString())
-                  ])
-          ),
+              child: Row(children: [
+                IconButton(onPressed: () => {print('expand')}, icon: const Icon(Icons.expand_less)),
+                Text(container.name.toDartString())
+              ])),
           const Text(''), // lvl3 name
           const Text(''), // Market value
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(ctx, mainCcy,
-                  container.value_sum_in_main_ccy)), // Market value in main CCY
+              child: financeValueText(mainCcy, container.value_sum_in_main_ccy)), // Market value in main CCY
           const Text(''), // Profit
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(ctx, mainCcy,
-                  container.profit_sum_in_main_ccy)), // Profit in main CCY
+              child: financeValueText(mainCcy, container.profit_sum_in_main_ccy)), // Profit in main CCY
         ]));
 
         for (int k = 0; k < container.num; k++) {
@@ -115,18 +267,16 @@ class _OverviewState extends State<Overview> {
             Text(name),
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(ctx, ccy, item.value)), // Market value
+                child: financeValueText(ccy, item.value)), // Market value
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(ctx, mainCcy,
-                    item.value_in_main_ccy)), // Market value in main CCY
+                child: financeValueText(mainCcy, item.value_in_main_ccy)), // Market value in main CCY
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(ctx, ccy, item.profit)), // Profit
+                child: financeValueText(ccy, item.profit)), // Profit
             TableCell(
                 verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(ctx, mainCcy,
-                    item.profit_in_main_ccy)), // Profit in main CCY
+                child: financeValueText(mainCcy, item.profit_in_main_ccy)), // Profit in main CCY
           ]));
         }
       }

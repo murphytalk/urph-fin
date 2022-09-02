@@ -38,3 +38,6 @@ v/
 google-services.json
 mem.txt
 .cache/
+
+#flutter
+*.mocks.dart

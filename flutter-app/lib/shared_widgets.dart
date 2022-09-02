@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:urph_fin/utils.dart';
 
-Widget financeValueText(BuildContext ctx, String ccy, double value, {Color positiveValueColor = Colors.black}) {
+Widget financeValueText(String ccy, double value, {Color positiveValueColor = Colors.black}) {
   return Text(formatCcy(ccy, value),
-      textAlign: TextAlign.right,
-      style: TextStyle(color: value < 0 ? Colors.red : positiveValueColor));
+      textAlign: TextAlign.right, style: TextStyle(color: value < 0 ? Colors.red : positiveValueColor));
 }
 
 class AwaitWidget extends StatelessWidget {
@@ -23,8 +22,7 @@ class AwaitWidget extends StatelessWidget {
           textAlign: TextAlign.center,
           child: Padding(
               padding: const EdgeInsets.only(top: 16),
-              child: Directionality(
-                  textDirection: TextDirection.ltr, child: Text(caption))))
+              child: Directionality(textDirection: TextDirection.ltr, child: Text(caption))))
     ]);
   }
 }

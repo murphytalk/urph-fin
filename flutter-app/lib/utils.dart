@@ -42,7 +42,7 @@ Size getGroupTextSize(BuildContext ctx, TextStyle style, OverviewGroup group){
 
 final Map<String, NumberFormat> _fmtByCcy = {
   'JPY': NumberFormat.currency(locale: 'en_US', name: 'JPY', symbol: '¥'),
-  'CNY': NumberFormat.currency(locale: 'en_US', name: 'JPY', symbol: 'CN¥'),
+  'CNY': NumberFormat.currency(locale: 'en_US', name: 'CNY', symbol: 'CN¥'),
   'USD': NumberFormat.currency(locale: 'en_US', name: 'USD', symbol: '\$'),
   'HKD': NumberFormat.currency(locale: 'en_US', name: 'HKD', symbol: 'HK\$'),
 };
