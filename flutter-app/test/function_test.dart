@@ -29,42 +29,23 @@ void main() {
                    JPY   1000   1000          -2000     -2000     
     */
 
-    final value = 22000.0;
-    final profit = 4000.0;
+    const value = 22000.0;
+    const profit = 4000.0;
 
     const headerTxtStyle = TextStyle();
 
-    late Pointer<Utf8> cashPtr;
-    late Pointer<Utf8> fundPtr;
-    late Pointer<Utf8> stockPtr;
-    late Pointer<Utf8> b1Ptr;
-    late Pointer<Utf8> b2Ptr;
-    late Pointer<Utf8> b3Ptr;
-    late Pointer<Utf8> usdPtr;
-    late Pointer<Utf8> jpyPtr;
+    const cashPtr = 'Cash';
+    const fundPtr = 'Fund';
+    const stockPtr = 'Stock';
+    const b1Ptr = 'B1';
+    const b2Ptr = 'B2';
+    const b3Ptr = 'B3';
+    const usdPtr = 'USD';
+    const jpyPtr = 'JPY';
+
     late TableItems items;
 
-    tearDownAll(() {
-      malloc.free(cashPtr);
-      malloc.free(fundPtr);
-      malloc.free(stockPtr);
-      malloc.free(b1Ptr);
-      malloc.free(b2Ptr);
-      malloc.free(b3Ptr);
-      malloc.free(usdPtr);
-      malloc.free(jpyPtr);
-    });
-
     setUpAll(() {
-      cashPtr = 'Cash'.toNativeUtf8();
-      fundPtr = 'Fund'.toNativeUtf8();
-      stockPtr = 'Stock'.toNativeUtf8();
-      b1Ptr = 'B1'.toNativeUtf8();
-      b2Ptr = 'B2'.toNativeUtf8();
-      b3Ptr = 'B3'.toNativeUtf8();
-      usdPtr = 'USD'.toNativeUtf8();
-      jpyPtr = 'JPY'.toNativeUtf8();
-
       items = TableItems.withItems([
         // Cash
         TableItem(Level.lvl1, cashPtr, 10000.0, 0.0),
@@ -170,8 +151,6 @@ void main() {
       verifyStockGroupRow(rows[3]);
     });
 
-    test('Cash lvl2 expanded', () {
-      expect(cashPtr.toDartString(), 'Cash');
-    });
+    test('Cash lvl2 expanded', () {});
   });
 }

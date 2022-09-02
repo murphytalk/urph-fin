@@ -23,8 +23,8 @@ enum Level {
 
 class TableItem {
   final Level level;
-  final Pointer<Utf8> name;
-  final Pointer<Utf8>? ccy;
+  final String name;
+  final String ccy;
   final double valueInMainCcy;
   final double profitInMainCcy;
   final double value;
@@ -34,7 +34,7 @@ class TableItem {
   TableItem(this.level, this.name, this.valueInMainCcy, this.profitInMainCcy)
       : value = 0,
         profit = 0,
-        ccy = null;
+        ccy = '';
 
   TableItem.leaf(this.name, this.ccy, this.value, this.valueInMainCcy, this.profit, this.profitInMainCcy)
       : level = Level.leaf;
@@ -53,19 +53,19 @@ class TableItems {
 
     for (int i = 0; i < ov.num; i++) {
       final containerContainer = ov.first[i];
-      _items.add(TableItem(Level.lvl1, containerContainer.name, containerContainer.value_sum_in_main_ccy,
+      _items.add(TableItem(Level.lvl1, containerContainer.name.toDartString(), containerContainer.value_sum_in_main_ccy,
           containerContainer.profit_sum_in_main_ccy));
 
       for (int j = 0; j < containerContainer.num; j++) {
         final container = containerContainer.containers[j];
-        _items.add(
-            TableItem(Level.lvl2, container.name, container.value_sum_in_main_ccy, container.profit_sum_in_main_ccy));
+        _items.add(TableItem(Level.lvl2, container.name.toDartString(), container.value_sum_in_main_ccy,
+            container.profit_sum_in_main_ccy));
 
         for (int k = 0; k < container.num; k++) {
           final item = container.items[k];
           if (item.value == 0) continue;
-          _items.add(TableItem.leaf(
-              item.name, item.currency, item.value, item.value_in_main_ccy, item.profit, item.profit_in_main_ccy));
+          _items.add(TableItem.leaf(item.name.toDartString(), item.currency.toDartString(), item.value,
+              item.value_in_main_ccy, item.profit, item.profit_in_main_ccy));
         }
       }
     }
@@ -115,7 +115,7 @@ class TableItems {
         greatParent = item;
         // level 1 item is always populated
         rows.add(TableRow(children: [
-          Text(item.name.toDartString()),
+          Text(item.name),
           const Text(''), // lvl2 name
           const Text(''), // lvl3 name
           const Text(''), // Market value
@@ -133,7 +133,7 @@ class TableItems {
                   verticalAlignment: TableCellVerticalAlignment.middle,
                   child: Row(children: [
                     IconButton(onPressed: () => {print('expand')}, icon: const Icon(Icons.expand_less)),
-                    Text(item.name.toDartString())
+                    Text(item.name)
                   ])),
               const Text(''), // lvl3 name
               const Text(''), // Market value
@@ -149,8 +149,8 @@ class TableItems {
         } else {
           // leave item
           if (parent?.expanded ?? false) {
-            final name = item.name.toDartString();
-            final ccy = item.ccy?.toDartString() ?? mainCcy;
+            final name = item.name;
+            final ccy = item.ccy;
             rows.add(TableRow(children: [
               const Text(''), // lvl1 name
               const Text(''), // lvl2 name
