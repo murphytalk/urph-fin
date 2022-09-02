@@ -1,8 +1,6 @@
 import 'dart:ffi';
-import 'dart:ui';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:test/test.dart';
 import 'package:urph_fin/overview.dart';
 
@@ -102,6 +100,58 @@ void main() {
       return a!;
     }
 
+    void verifyCashGroupRow(TableRow cashRow) {
+      final lvl1 = getColumnTextWidget(cashRow, 0);
+      expect(lvl1.data, 'Cash');
+      final lvl2 = getColumnTextWidget(cashRow, 1);
+      expect(lvl2.data, '');
+      final lvl3 = getColumnTextWidget(cashRow, 2);
+      expect(lvl3.data, '');
+      final value = getColumnTextWidget(cashRow, 3);
+      expect(value.data, '');
+      final valueMainCcy = getColumnTextWidget(cashRow, 4);
+      expect(valueMainCcy.data, '¥10,000');
+      final profit = getColumnTextWidget(cashRow, 5);
+      expect(profit.data, '');
+      final profitMainCcy = getColumnTextWidget(cashRow, 6);
+      expect(profitMainCcy.data, '');
+    }
+
+    void verifyFundGroupRow(TableRow fundRow) {
+      final lvl1 = getColumnTextWidget(fundRow, 0);
+      expect(lvl1.data, 'Fund');
+      final lvl2 = getColumnTextWidget(fundRow, 1);
+      expect(lvl2.data, '');
+      final lvl3 = getColumnTextWidget(fundRow, 2);
+      expect(lvl3.data, '');
+      final value = getColumnTextWidget(fundRow, 3);
+      expect(value.data, '');
+      final valueMainCcy = getColumnTextWidget(fundRow, 4);
+      expect(valueMainCcy.data, '¥10,000');
+      final profit = getColumnTextWidget(fundRow, 5);
+      expect(profit.data, '');
+      final profitMainCcy = getColumnTextWidget(fundRow, 6);
+      expect(profitMainCcy.data, '¥5,000');
+    }
+
+    void verifyStockGroupRow(TableRow stockRow) {
+      final lvl1 = getColumnTextWidget(stockRow, 0);
+      expect(lvl1.data, 'Stock');
+      final lvl2 = getColumnTextWidget(stockRow, 1);
+      expect(lvl2.data, '');
+      final lvl3 = getColumnTextWidget(stockRow, 2);
+      expect(lvl3.data, '');
+      final value = getColumnTextWidget(stockRow, 3);
+      expect(value.data, '');
+      final valueMainCcy = getColumnTextWidget(stockRow, 4);
+      expect(valueMainCcy.data, '¥2,000');
+      final profit = getColumnTextWidget(stockRow, 5);
+      expect(profit.data, '');
+      final profitMainCcy = getColumnTextWidget(stockRow, 6);
+      expect(profitMainCcy.data, '-¥1,000');
+      expect(profitMainCcy.style, const TextStyle(color: Colors.red));
+    }
+
     test('only shows lvl1', () {
       final rows = items.populateTableRows();
       expect(rows.length, 4);
@@ -115,59 +165,9 @@ void main() {
       final p = getColumnTextWidget(headerRow, 6);
       expect(p.data, '¥4,000');
 
-      //// Cash
-      {
-        final cashRow = rows[1];
-        final lvl1 = getColumnTextWidget(cashRow, 0);
-        expect(lvl1.data, 'Cash');
-        final lvl2 = getColumnTextWidget(cashRow, 1);
-        expect(lvl2.data, '');
-        final lvl3 = getColumnTextWidget(cashRow, 2);
-        expect(lvl3.data, '');
-        final value = getColumnTextWidget(cashRow, 3);
-        expect(value.data, '');
-        final valueMainCcy = getColumnTextWidget(cashRow, 4);
-        expect(valueMainCcy.data, '¥10,000');
-        final profit = getColumnTextWidget(cashRow, 5);
-        expect(profit.data, '');
-        final profitMainCcy = getColumnTextWidget(cashRow, 6);
-        expect(profitMainCcy.data, '');
-      }
-      {
-        final fundRow = rows[2];
-        final lvl1 = getColumnTextWidget(fundRow, 0);
-        expect(lvl1.data, 'Fund');
-        final lvl2 = getColumnTextWidget(fundRow, 1);
-        expect(lvl2.data, '');
-        final lvl3 = getColumnTextWidget(fundRow, 2);
-        expect(lvl3.data, '');
-        final value = getColumnTextWidget(fundRow, 3);
-        expect(value.data, '');
-        final valueMainCcy = getColumnTextWidget(fundRow, 4);
-        expect(valueMainCcy.data, '¥10,000');
-        final profit = getColumnTextWidget(fundRow, 5);
-        expect(profit.data, '');
-        final profitMainCcy = getColumnTextWidget(fundRow, 6);
-        expect(profitMainCcy.data, '¥5,000');
-      }
-      {
-        final stockRow = rows[3];
-        final lvl1 = getColumnTextWidget(stockRow, 0);
-        expect(lvl1.data, 'Stock');
-        final lvl2 = getColumnTextWidget(stockRow, 1);
-        expect(lvl2.data, '');
-        final lvl3 = getColumnTextWidget(stockRow, 2);
-        expect(lvl3.data, '');
-        final value = getColumnTextWidget(stockRow, 3);
-        expect(value.data, '');
-        final valueMainCcy = getColumnTextWidget(stockRow, 4);
-        expect(valueMainCcy.data, '¥2,000');
-        final profit = getColumnTextWidget(stockRow, 5);
-        expect(profit.data, '');
-        final profitMainCcy = getColumnTextWidget(stockRow, 6);
-        expect(profitMainCcy.data, '-¥1,000');
-        expect(profitMainCcy.style, const TextStyle(color: Colors.red));
-      }
+      verifyCashGroupRow(rows[1]);
+      verifyFundGroupRow(rows[2]);
+      verifyStockGroupRow(rows[3]);
     });
 
     test('Cash lvl2 expanded', () {
