@@ -140,13 +140,13 @@ class TableItems {
         // level 1 item is always populated
         rows.add(TableRow(children: [
           textWithIconButton(item),
-          const Text(''), // lvl2 name
-          const Text(''), // lvl3 name
-          const Text(''), // Market value
+          Container(), // lvl2 name
+          Container(), // lvl3 name
+          Container(), // Market value
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
               child: financeValueText(mainCcy, item.valueInMainCcy)),
-          const Text(''), // Profit
+          Container(), // Profit
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
               child: financeValueText(mainCcy, item.profitInMainCcy)),
@@ -156,14 +156,14 @@ class TableItems {
           parent = item;
           if (greatParent?.expanded ?? false) {
             rows.add(TableRow(children: [
-              const Text(''), // lvl1 name
+              Container(), // lvl1 name
               textWithIconButton(item),
-              const Text(''), // lvl3 name
-              const Text(''), // Market value
+              Container(), // lvl3 name
+              Container(), // Market value
               TableCell(
                   verticalAlignment: TableCellVerticalAlignment.middle,
                   child: financeValueText(mainCcy, item.valueInMainCcy)),
-              const Text(''), // Profit
+              Container(), // Profit
               TableCell(
                   verticalAlignment: TableCellVerticalAlignment.middle,
                   child: financeValueText(mainCcy, item.profitInMainCcy)),
@@ -175,8 +175,8 @@ class TableItems {
             final name = item.name;
             final ccy = item.ccy;
             rows.add(TableRow(children: [
-              const Text(''), // lvl1 name
-              const Text(''), // lvl2 name
+              Container(), // lvl1 name
+              Container(), // lvl2 name
               Text(name),
               TableCell(verticalAlignment: TableCellVerticalAlignment.middle, child: financeValueText(ccy, item.value)),
               TableCell(
@@ -224,9 +224,8 @@ class _OverviewWidgetState extends State<OverviewWidget> {
     if (_items == null) {
       _items = TableItems(
           headerTxtStyle,
-          (item) => setState(() {
-                item.expanded = !item.expanded;
-              }));
+          // called when the expand/collapse button is clicked
+          (item) => setState(() => item.expanded = !item.expanded));
       _populateOverview(assetHandler);
     }
 
