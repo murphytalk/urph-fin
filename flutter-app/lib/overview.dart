@@ -274,7 +274,8 @@ class _OverviewWidgetState extends State<OverviewWidget> {
                     ],
                   ),
                 ),
-                SingleChildScrollView(
+                Expanded(
+                    child: SingleChildScrollView(
                   child: Padding(
                       padding: const EdgeInsets.only(left: 20, right: 20),
                       child: Table(
@@ -292,7 +293,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
                           },
                           //border: TableBorder.all(),
                           children: _populateDataTable(ctx, headerTxtStyle, snapshot.data))),
-                )
+                ))
               ],
             );
           } else {
