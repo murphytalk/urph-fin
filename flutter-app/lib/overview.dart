@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:math';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
@@ -81,6 +82,12 @@ class TableItems {
   TableItems.withItems(List<TableItem> i, this._valueInMainCcy, this._profitInMainCcy)
       : _headerTxtStyle = const TextStyle() {
     _items.addAll(i);
+  }
+
+  void expandOrCollapseAll(bool expand) {
+    for (final item in _items) {
+      item.expanded = expand;
+    }
   }
 
   List<TableRow> populateTableRows(OverviewGroup lvl1, OverviewGroup lvl2, OverviewGroup leaf) {
@@ -194,6 +201,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   Future<int>? _assetsFuture;
   int assetHandler = 0;
   TableItems? _items;
+  bool expandAll = false;
 
   final List<OverviewGroup> _levels = [groupByAsset, groupByBroker, groupByCcy];
 
@@ -232,11 +240,19 @@ class _OverviewWidgetState extends State<OverviewWidget> {
         final o = _levels[oldIdx];
         _levels.removeAt(oldIdx);
         _levels.insert(newIdx, o);
+        expandAll = false;
         _populateOverview(assetHandler);
       });
     }
 
     void setupFilter() {}
+
+    void toggleExpansion() {
+      setState(() {
+        expandAll = !expandAll;
+        _items?.expandOrCollapseAll(expandAll);
+      });
+    }
 
     Widget getGroupIcon(OverviewGroup group) {
       switch (group) {
@@ -258,24 +274,44 @@ class _OverviewWidgetState extends State<OverviewWidget> {
             const headerPaddingWithButton = headerPadding + 20; //todo: compensate the size of expand button more wisely
             return Column(
               children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxHeight: 60,
-                  ),
-                  child: ReorderableListView(
-                    scrollDirection: Axis.horizontal,
-                    onReorder: updateGroupOrder,
-                    children: [
-                      for (final level in _levels)
-                        Padding(
-                            key: ValueKey(level),
-                            padding: const EdgeInsets.only(left: 2, right: 1, top: 2),
-                            child: ElevatedButton.icon(
-                                onPressed: setupFilter,
-                                icon: getGroupIcon(level),
-                                label: Text(getOverviewGroupName(level))))
-                    ],
-                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 60, maxWidth: 330),
+                        child: ReorderableListView(
+                          scrollDirection: Axis.horizontal,
+                          onReorder: updateGroupOrder,
+                          children: [
+                            for (final level in _levels)
+                              Padding(
+                                  key: ValueKey(level),
+                                  padding: const EdgeInsets.only(left: 2, right: 1, top: 2),
+                                  child: ElevatedButton.icon(
+                                      onPressed: setupFilter,
+                                      icon: getGroupIcon(level),
+                                      label: Text(getOverviewGroupName(level))))
+                          ],
+                        )),
+                    const SizedBox(
+                        height: 60,
+                        child: VerticalDivider(
+                          width: 10,
+                          indent: 7,
+                          endIndent: 32,
+                          thickness: 1,
+                          color: Colors.grey,
+                        )),
+                    ConstrainedBox(
+                        constraints: const BoxConstraints(minHeight: 60),
+                        child: Padding(
+                            padding: const EdgeInsets.only(top: 2, bottom: 30),
+                            child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                                onPressed: toggleExpansion,
+                                child: Text(expandAll ? 'Collapse All' : 'Expand All'))))
+                  ],
                 ),
                 Expanded(
                     child: SingleChildScrollView(
