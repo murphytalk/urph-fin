@@ -257,7 +257,6 @@ class _OverviewWidgetState extends State<OverviewWidget> {
                 ConstrainedBox(
                   constraints: const BoxConstraints(
                     maxHeight: 60,
-                    maxWidth: 320,
                   ),
                   child: ReorderableListView(
                     scrollDirection: Axis.horizontal,
@@ -266,7 +265,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
                       for (final level in _levels)
                         Padding(
                             key: ValueKey(level),
-                            padding: const EdgeInsets.only(left: 1, right: 1, top: 1),
+                            padding: const EdgeInsets.only(left: 2, right: 1, top: 2),
                             child: ElevatedButton.icon(
                                 onPressed: setupFilter,
                                 icon: getGroupIcon(level),
