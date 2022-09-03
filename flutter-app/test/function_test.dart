@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:math';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:test/test.dart';
@@ -76,9 +77,27 @@ void main() {
 
     Text getColumnTextWidget(TableRow row, int colIdx) {
       final w = getColumn(row, colIdx);
-      final a = w is Text ? w : null;
-      expect(a == null, false);
-      return a!;
+      Text? t;
+      if (w is Text) {
+        t = w;
+      } else if (w is TableCell) {
+        expect(w.child is Row, true);
+        final r = w.child as Row;
+        expect(r.children.length, 2);
+        expect(r.children[1] is Text, true);
+        t = r.children[1] as Text;
+      }
+      expect(t == null, false);
+      return t!;
+    }
+
+    void verifyHeaderRow(TableRow headerRow) {
+      // value
+      final c = getColumnTextWidget(headerRow, 4);
+      expect(c.data, '¥22,000');
+      // profit
+      final p = getColumnTextWidget(headerRow, 6);
+      expect(p.data, '¥4,000');
     }
 
     void verifyCashGroupRow(TableRow cashRow) {
@@ -137,15 +156,7 @@ void main() {
       final rows = items.populateTableRows();
       expect(rows.length, 4);
 
-      //// header
-      final headerRow = rows[0];
-      // value
-      final c = getColumnTextWidget(headerRow, 4);
-      expect(c.data, '¥22,000');
-      // profit
-      final p = getColumnTextWidget(headerRow, 6);
-      expect(p.data, '¥4,000');
-
+      verifyHeaderRow(rows[0]);
       verifyCashGroupRow(rows[1]);
       verifyFundGroupRow(rows[2]);
       verifyStockGroupRow(rows[3]);

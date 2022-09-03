@@ -5,8 +5,7 @@ import 'package:urph_fin/utils.dart';
 import 'dart:ffi';
 import 'dart:isolate';
 
-void log(String s)
-{
+void log(String s) {
   print(s);
 }
 
@@ -24,25 +23,22 @@ void requestExecuteCallback(dynamic message) {
   log("Dart:   Done with callback.");
 }
 
-final executeCallback = dl.lookupFunction<Void Function(Pointer<Work>),
-    void Function(Pointer<Work>)>('execute_callback');
+final executeCallback =
+    dl.lookupFunction<Void Function(Pointer<Work>), void Function(Pointer<Work>)>('execute_callback');
 
 //urph-fin init
 final urphFinInitNative = dl.lookupFunction<Bool Function(), bool Function()>('dart_urph_fin_core_init');
 final urphFinClose = dl.lookupFunction<Void Function(), void Function()>('urph_fin_core_close');
 
 final regOnInitDoneCallback = dl.lookupFunction<
-    Void Function(Int64 sendPort,
-        Pointer<NativeFunction<Void Function(Pointer<Void>)>>),
-    void Function(int sendPort,
-        Pointer<NativeFunction<Void Function(Pointer<Void>)>>)>('register_init_callback');
+    Void Function(Int64 sendPort, Pointer<NativeFunction<Void Function(Pointer<Void>)>>),
+    void Function(int sendPort, Pointer<NativeFunction<Void Function(Pointer<Void>)>>)>('register_init_callback');
 
 class Work extends Opaque {}
 
-void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCallbackFP)
-{
-  final initializeApi = dl.lookupFunction<IntPtr Function(Pointer<Void>),
-      int Function(Pointer<Void>)>("InitializeDartApiDL");
+void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCallbackFP) {
+  final initializeApi =
+      dl.lookupFunction<IntPtr Function(Pointer<Void>), int Function(Pointer<Void>)>("InitializeDartApiDL");
   final r = initializeApi(NativeApi.initializeApiDLData);
   log("initApi $r");
 
@@ -56,7 +52,7 @@ void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCall
   log('urph-fin init result: $initResult');
 }
 
-class Strings extends Struct{
+class Strings extends Struct {
   @Int32()
   external int capacity;
   external Pointer<Pointer<Utf8>> strs;
@@ -64,7 +60,7 @@ class Strings extends Struct{
 }
 
 // asset overview
-class OverviewItem extends Struct{
+class OverviewItem extends Struct {
   external Pointer<Utf8> name;
   external Pointer<Utf8> currency;
   @Double()
@@ -77,7 +73,7 @@ class OverviewItem extends Struct{
   external double profit_in_main_ccy;
 }
 
-class OverviewItemContainer extends Struct{
+class OverviewItemContainer extends Struct {
   external Pointer<Utf8> name;
   external Pointer<Utf8> item_name;
   @Double()
@@ -89,7 +85,7 @@ class OverviewItemContainer extends Struct{
   external Pointer<OverviewItem> items;
 }
 
-class OverviewItemContainerContainer extends Struct{
+class OverviewItemContainerContainer extends Struct {
   external Pointer<Utf8> name;
   external Pointer<Utf8> item_name;
   @Double()
@@ -101,7 +97,7 @@ class OverviewItemContainerContainer extends Struct{
   external Pointer<OverviewItemContainer> containers;
 }
 
-class Overview extends Struct{
+class Overview extends Struct {
   external Pointer<Utf8> item_name;
   @Double()
   external double value_sum_in_main_ccy;
@@ -119,34 +115,37 @@ final regOnAssetsLoadedCallback = dl.lookupFunction<
 final _urphFinLoadAssets = dl.lookupFunction<Void Function(), void Function()>('dart_urph_fin_load_assets');
 final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(int)>('free_assets');
 
-final urphFinGetOverview = dl.lookupFunction<
-    Pointer<Overview> Function(Int32, Pointer<Utf8>,Uint8,Uint8,Uint8),
-    Pointer<Overview> Function(int  , Pointer<Utf8>,int,int,int)>('get_overview');
+final _urphFinGetOverview = dl.lookupFunction<Pointer<Overview> Function(Int32, Pointer<Utf8>, Uint8, Uint8, Uint8),
+    Pointer<Overview> Function(int, Pointer<Utf8>, int, int, int)>('get_overview');
 
 Completer<int>? _assetsHandleCompleter;
-void _onAssetLoadedCB(Pointer<Void> p, int handle)
-{
+void _onAssetLoadedCB(Pointer<Void> p, int handle) {
   _assetsHandleCompleter?.complete(handle);
 }
-Future<int> getAssets()
-{
+
+Future<int> getAssets() {
   final completer = Completer<int>();
   _assetsHandleCompleter = completer;
   _urphFinLoadAssets();
   return completer.future;
 }
 
-Pointer<Overview> getOverview(int assetHandler, String mainCcy, OverviewGroup lvl1, OverviewGroup lvl2, OverviewGroup lvl3)
-{
+Pointer<Overview> getOverview(
+    int assetHandler, String mainCcy, OverviewGroup lvl1, OverviewGroup lvl2, OverviewGroup lvl3) {
   final nativeUtf8Ptr = mainCcy.toNativeUtf8();
-  final p = urphFinGetOverview(assetHandler, nativeUtf8Ptr , lvl1, lvl2, lvl3);
+  final p = _urphFinGetOverview(assetHandler, nativeUtf8Ptr, lvl1, lvl2, lvl3);
   malloc.free(nativeUtf8Ptr);
   return p;
 }
 
+final urphFinFreeOverview =
+    dl.lookupFunction<Void Function(Pointer<Overview>), void Function(Pointer<Overview>)>('free_overview');
+
 typedef GetAllBrokersNameFunc = Pointer<Strings> Function();
-final urphFinGetAllBrokersName = dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
-final urphFinFreeStrings = dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
+final urphFinGetAllBrokersName =
+    dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
+final urphFinFreeStrings =
+    dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
 
 /*
 void dumpAllBrokerNames() {

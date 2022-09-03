@@ -185,7 +185,7 @@ class TableItems {
 
 class _OverviewWidgetState extends State<OverviewWidget> {
   Future<int>? _assets;
-  Pointer<Overview>? _overview = null;
+  TableItems? _items;
 
   OverviewGroup _lvl1 = groupByAsset;
   OverviewGroup _lvl2 = groupByBroker;
@@ -196,101 +196,14 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   }
 
   List<TableRow> _populateDataTable(BuildContext ctx, TextStyle headerTxtStyle, int? assetHandler) {
-    if (assetHandler == null) return [];
-
-    _overview ??= getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3);
-    final ov = _overview!.ref;
-
-    final rows = <TableRow>[
-      TableRow(children: [
-        Text(
-          'Asset',
-          style: headerTxtStyle,
-        ),
-        Text(
-          'Broker',
-          style: headerTxtStyle,
-        ),
-        Text(
-          'Currency',
-          style: headerTxtStyle,
-        ),
-        Text(
-          'Market Value',
-          style: headerTxtStyle,
-          textAlign: TextAlign.right,
-        ),
-        financeValueText(mainCcy, ov.value_sum_in_main_ccy, positiveValueColor: Colors.blue),
-        Text(
-          'Profit',
-          style: headerTxtStyle,
-          textAlign: TextAlign.right,
-        ),
-        financeValueText(mainCcy, ov.profit_sum_in_main_ccy, positiveValueColor: Colors.blue),
-      ])
-    ];
-
-    for (int i = 0; i < ov.num; i++) {
-      final containerContainer = ov.first[i];
-
-      rows.add(TableRow(children: [
-        Text(containerContainer.name.toDartString()),
-        const Text(''), // lvl2 name
-        const Text(''), // lvl3 name
-        const Text(''), // Market value
-        financeValueText(mainCcy, containerContainer.value_sum_in_main_ccy), // Market value in main CCY
-        const Text(''), // Profit
-        financeValueText(mainCcy, containerContainer.profit_sum_in_main_ccy), // Profit in main CCY
-      ]));
-
-      for (int j = 0; j < containerContainer.num; j++) {
-        final container = containerContainer.containers[j];
-
-        rows.add(TableRow(children: [
-          const Text(''), // lvl1 name
-          TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: Row(children: [
-                IconButton(onPressed: () => {print('expand')}, icon: const Icon(Icons.expand_less)),
-                Text(container.name.toDartString())
-              ])),
-          const Text(''), // lvl3 name
-          const Text(''), // Market value
-          TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(mainCcy, container.value_sum_in_main_ccy)), // Market value in main CCY
-          const Text(''), // Profit
-          TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(mainCcy, container.profit_sum_in_main_ccy)), // Profit in main CCY
-        ]));
-
-        for (int k = 0; k < container.num; k++) {
-          final item = container.items[k];
-          if (item.value == 0) continue;
-          final name = item.name.toDartString();
-          final ccy = item.currency.toDartString();
-          rows.add(TableRow(children: [
-            const Text(''), // lvl1 name
-            const Text(''), // lvl2 name
-            Text(name),
-            TableCell(
-                verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(ccy, item.value)), // Market value
-            TableCell(
-                verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(mainCcy, item.value_in_main_ccy)), // Market value in main CCY
-            TableCell(
-                verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(ccy, item.profit)), // Profit
-            TableCell(
-                verticalAlignment: TableCellVerticalAlignment.middle,
-                child: financeValueText(mainCcy, item.profit_in_main_ccy)), // Profit in main CCY
-          ]));
-        }
-      }
+    if (_items == null) {
+      if (assetHandler == null) return [];
+      final ov = getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3);
+      _items = TableItems(headerTxtStyle, ov);
+      urphFinFreeOverview(ov);
     }
-    return rows;
+
+    return _items?.populateTableRows() ?? [];
   }
 
   @override
@@ -300,7 +213,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
         builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
           if (snapshot.hasData) {
             const headerTxtStyle = TextStyle(fontWeight: FontWeight.bold);
-            const headerTxtPadding = 10;
+            const headerTxtPadding = 40; //todo: compensate the size of expand button more wisely
             return SingleChildScrollView(
                 child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -314,7 +227,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
                           5: const FlexColumnWidth(1),
                           6: const FlexColumnWidth(1),
                         },
-                        //border: const TableBorder(bottom: BorderSide(color: Colors.black)),
+                        //border: TableBorder.all(),
                         children: _populateDataTable(ctx, headerTxtStyle, snapshot.data))));
           } else {
             return const Center(child: AwaitWidget(caption: "Loading assets"));
