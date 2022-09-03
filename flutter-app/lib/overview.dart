@@ -45,8 +45,9 @@ class TableItems {
   final TextStyle _headerTxtStyle;
   late double _valueInMainCcy;
   late double _profitInMainCcy;
+  late void Function(TableItem) onExpandButtonPressed;
 
-  TableItems(this._headerTxtStyle, Pointer<Overview> overview) {
+  TableItems(this._headerTxtStyle, Pointer<Overview> overview, this.onExpandButtonPressed) {
     final ov = overview.ref;
     _valueInMainCcy = ov.value_sum_in_main_ccy;
     _profitInMainCcy = ov.profit_sum_in_main_ccy;
@@ -110,19 +111,23 @@ class TableItems {
     TableItem? greatParent;
     TableItem? parent;
 
+    Widget textWithIconButton(final TableItem item) {
+      return TableCell(
+          verticalAlignment: TableCellVerticalAlignment.middle,
+          child: Row(children: [
+            IconButton(
+                onPressed: () => onExpandButtonPressed(item),
+                icon: item.expanded ? const Icon(Icons.expand_less) : const Icon(Icons.expand_more)),
+            Text(item.name)
+          ]));
+    }
+
     for (final item in _items) {
       if (item.level == Level.lvl1) {
         greatParent = item;
         // level 1 item is always populated
         rows.add(TableRow(children: [
-          TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: Row(children: [
-                IconButton(
-                    onPressed: () => {print('expand')},
-                    icon: item.expanded ? const Icon(Icons.expand_less) : const Icon(Icons.expand_more)),
-                Text(item.name)
-              ])),
+          textWithIconButton(item),
           const Text(''), // lvl2 name
           const Text(''), // lvl3 name
           const Text(''), // Market value
@@ -136,14 +141,7 @@ class TableItems {
           if (greatParent?.expanded ?? false) {
             rows.add(TableRow(children: [
               const Text(''), // lvl1 name
-              TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: Row(children: [
-                    IconButton(
-                        onPressed: () => {print('expand')},
-                        icon: item.expanded ? const Icon(Icons.expand_less) : const Icon(Icons.expand_more)),
-                    Text(item.name)
-                  ])),
+              textWithIconButton(item),
               const Text(''), // lvl3 name
               const Text(''), // Market value
               TableCell(
@@ -199,7 +197,12 @@ class _OverviewWidgetState extends State<OverviewWidget> {
     if (_items == null) {
       if (assetHandler == null) return [];
       final ov = getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3);
-      _items = TableItems(headerTxtStyle, ov);
+      _items = TableItems(
+          headerTxtStyle,
+          ov,
+          (item) => setState(() {
+                item.expanded = !item.expanded;
+              }));
       urphFinFreeOverview(ov);
     }
 
@@ -213,15 +216,18 @@ class _OverviewWidgetState extends State<OverviewWidget> {
         builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
           if (snapshot.hasData) {
             const headerTxtStyle = TextStyle(fontWeight: FontWeight.bold);
-            const headerTxtPadding = 40; //todo: compensate the size of expand button more wisely
+            const headerPadding = 20;
+            const headerPaddingWithButton = headerPadding + 20; //todo: compensate the size of expand button more wisely
             return SingleChildScrollView(
                 child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Table(
                         columnWidths: {
-                          0: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl1).width + headerTxtPadding),
-                          1: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl2).width + headerTxtPadding),
-                          2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl3).width + headerTxtPadding),
+                          0: FixedColumnWidth(
+                              getGroupTextSize(ctx, headerTxtStyle, _lvl1).width + headerPaddingWithButton),
+                          1: FixedColumnWidth(
+                              getGroupTextSize(ctx, headerTxtStyle, _lvl2).width + headerPaddingWithButton),
+                          2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl3).width + headerPadding),
                           3: const FlexColumnWidth(1),
                           4: const FlexColumnWidth(1),
                           5: const FlexColumnWidth(1),
