@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:urph_fin/utils.dart';
 
-Widget financeValueText(String ccy, double value, {Color positiveValueColor = Colors.black}) {
+Widget financeValueText(String ccy, double value,
+    {Color positiveValueColor = Colors.black, Color negativeValueColor = Colors.red}) {
   return Text(formatCcy(ccy, value),
-      textAlign: TextAlign.right, style: TextStyle(color: value < 0 ? Colors.red : positiveValueColor));
+      textAlign: TextAlign.right, style: TextStyle(color: value < 0 ? negativeValueColor : positiveValueColor));
 }
 
 class AwaitWidget extends StatelessWidget {

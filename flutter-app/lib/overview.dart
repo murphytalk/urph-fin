@@ -1,5 +1,4 @@
 import 'dart:ffi';
-import 'dart:math';
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
@@ -47,6 +46,8 @@ class TableItems {
   late double _valueInMainCcy;
   late double _profitInMainCcy;
   late void Function(TableItem) onExpandButtonPressed;
+  static final _sumColors = [Colors.blue.shade900, Colors.blue.shade800, Colors.blue.shade400];
+  static final _sumLossColors = [Colors.red.shade900, Colors.red.shade800, Colors.red.shade400];
 
   TableItems(this._headerTxtStyle, this.onExpandButtonPressed);
 
@@ -110,13 +111,15 @@ class TableItems {
           style: _headerTxtStyle,
           textAlign: TextAlign.right,
         ),
-        financeValueText(mainCcy, _valueInMainCcy, positiveValueColor: Colors.blue),
+        financeValueText(mainCcy, _valueInMainCcy,
+            positiveValueColor: _sumColors[0], negativeValueColor: _sumLossColors[0]),
         Text(
           'Profit',
           style: _headerTxtStyle,
           textAlign: TextAlign.right,
         ),
-        financeValueText(mainCcy, _profitInMainCcy, positiveValueColor: Colors.blue),
+        financeValueText(mainCcy, _profitInMainCcy,
+            positiveValueColor: _sumColors[0], negativeValueColor: _sumLossColors[0]),
       ])
     ];
 
@@ -145,11 +148,13 @@ class TableItems {
           Container(), // Market value
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(mainCcy, item.valueInMainCcy)),
+              child: financeValueText(mainCcy, item.valueInMainCcy,
+                  positiveValueColor: _sumColors[1], negativeValueColor: _sumLossColors[1])),
           Container(), // Profit
           TableCell(
               verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(mainCcy, item.profitInMainCcy)),
+              child: financeValueText(mainCcy, item.profitInMainCcy,
+                  positiveValueColor: _sumColors[1], negativeValueColor: _sumLossColors[1])),
         ]));
       } else {
         if (item.level == Level.lvl2) {
@@ -162,11 +167,13 @@ class TableItems {
               Container(), // Market value
               TableCell(
                   verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: financeValueText(mainCcy, item.valueInMainCcy)),
+                  child: financeValueText(mainCcy, item.valueInMainCcy,
+                      positiveValueColor: _sumColors[2], negativeValueColor: _sumLossColors[2])),
               Container(), // Profit
               TableCell(
                   verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: financeValueText(mainCcy, item.profitInMainCcy)),
+                  child: financeValueText(mainCcy, item.profitInMainCcy,
+                      positiveValueColor: _sumColors[2], negativeValueColor: _sumLossColors[2])),
             ]));
           }
         } else if (greatParent?.expanded ?? false) {
