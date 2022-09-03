@@ -107,15 +107,22 @@ class TableItems {
       ])
     ];
 
-    TableItem? greatParent = null;
-    TableItem? parent = null;
+    TableItem? greatParent;
+    TableItem? parent;
 
     for (final item in _items) {
       if (item.level == Level.lvl1) {
         greatParent = item;
         // level 1 item is always populated
         rows.add(TableRow(children: [
-          Text(item.name),
+          TableCell(
+              verticalAlignment: TableCellVerticalAlignment.middle,
+              child: Row(children: [
+                IconButton(
+                    onPressed: () => {print('expand')},
+                    icon: item.expanded ? const Icon(Icons.expand_less) : const Icon(Icons.expand_more)),
+                Text(item.name)
+              ])),
           const Text(''), // lvl2 name
           const Text(''), // lvl3 name
           const Text(''), // Market value
@@ -132,7 +139,9 @@ class TableItems {
               TableCell(
                   verticalAlignment: TableCellVerticalAlignment.middle,
                   child: Row(children: [
-                    IconButton(onPressed: () => {print('expand')}, icon: const Icon(Icons.expand_less)),
+                    IconButton(
+                        onPressed: () => {print('expand')},
+                        icon: item.expanded ? const Icon(Icons.expand_less) : const Icon(Icons.expand_more)),
                     Text(item.name)
                   ])),
               const Text(''), // lvl3 name
@@ -146,8 +155,8 @@ class TableItems {
                   child: financeValueText(mainCcy, item.profitInMainCcy)),
             ]));
           }
-        } else {
-          // leave item
+        } else if (greatParent?.expanded ?? false) {
+          // leaf item
           if (parent?.expanded ?? false) {
             final name = item.name;
             final ccy = item.ccy;
