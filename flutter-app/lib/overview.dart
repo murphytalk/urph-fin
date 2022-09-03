@@ -189,7 +189,9 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   OverviewGroup _lvl2 = groupByBroker;
   OverviewGroup _lvl3 = groupByCcy;
 
-  _OverviewWidgetState() {
+  @override
+  void initState() {
+    super.initState();
     _assets = getAssets();
   }
 

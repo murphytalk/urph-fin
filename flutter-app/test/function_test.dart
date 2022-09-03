@@ -161,7 +161,5 @@ void main() {
       verifyFundGroupRow(rows[2]);
       verifyStockGroupRow(rows[3]);
     });
-
-    test('Cash lvl2 expanded', () {});
   });
 }
