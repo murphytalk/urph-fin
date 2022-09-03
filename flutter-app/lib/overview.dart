@@ -136,9 +136,13 @@ class TableItems {
           const Text(''), // lvl2 name
           const Text(''), // lvl3 name
           const Text(''), // Market value
-          financeValueText(mainCcy, item.valueInMainCcy),
+          TableCell(
+              verticalAlignment: TableCellVerticalAlignment.middle,
+              child: financeValueText(mainCcy, item.valueInMainCcy)),
           const Text(''), // Profit
-          financeValueText(mainCcy, item.profitInMainCcy),
+          TableCell(
+              verticalAlignment: TableCellVerticalAlignment.middle,
+              child: financeValueText(mainCcy, item.profitInMainCcy)),
         ]));
       } else {
         if (item.level == Level.lvl2) {
