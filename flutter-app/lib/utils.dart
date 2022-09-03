@@ -19,13 +19,17 @@ String platformPath(String name, String path) {
 }
 
 typedef OverviewGroup = int;
-const int groupByAsset  = 0;
+const int groupByAsset = 0;
 const int groupByBroker = 1;
-const int groupByCcy    = 2;
+const int groupByCcy = 2;
 const _overviewGroup = ["Asset", "Broker", "Currency"];
-Size getGroupTextSize(BuildContext ctx, TextStyle style, OverviewGroup group){
+String getOverviewGroupName(OverviewGroup lvl) {
+  return _overviewGroup[lvl];
+}
+
+Size getGroupTextSize(BuildContext ctx, TextStyle style, OverviewGroup group) {
   String txt = '';
-  switch(group){
+  switch (group) {
     case groupByAsset:
       txt = 'Stock&ETF';
       break;
@@ -39,7 +43,6 @@ Size getGroupTextSize(BuildContext ctx, TextStyle style, OverviewGroup group){
   return calculateTextSize(text: txt, style: style, context: ctx);
 }
 
-
 final Map<String, NumberFormat> _fmtByCcy = {
   'JPY': NumberFormat.currency(locale: 'en_US', name: 'JPY', symbol: '¥'),
   'CNY': NumberFormat.currency(locale: 'en_US', name: 'CNY', symbol: 'CN¥'),
@@ -51,7 +54,6 @@ String formatCcy(String ccy, double num) {
   if (num == 0) return "";
   return (_fmtByCcy[ccy]?.format(num)) ?? '$ccy $num';
 }
-
 
 Size calculateTextSize({
   required String text,
@@ -69,4 +71,3 @@ Size calculateTextSize({
 
   return textPainter.size;
 }
-

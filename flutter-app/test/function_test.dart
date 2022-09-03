@@ -4,6 +4,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:test/test.dart';
 import 'package:urph_fin/overview.dart';
+import 'package:urph_fin/utils.dart';
 
 void main() {
   group('Overview', () {
@@ -153,7 +154,7 @@ void main() {
     }
 
     test('only shows lvl1', () {
-      final rows = items.populateTableRows();
+      final rows = items.populateTableRows(groupByAsset, groupByBroker, groupByCcy);
       expect(rows.length, 4);
 
       verifyHeaderRow(rows[0]);

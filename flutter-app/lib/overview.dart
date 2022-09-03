@@ -41,24 +41,29 @@ class TableItem {
 }
 
 class TableItems {
-  final List<TableItem> _items = [];
+  List<TableItem> _items = [];
   final TextStyle _headerTxtStyle;
   late double _valueInMainCcy;
   late double _profitInMainCcy;
   late void Function(TableItem) onExpandButtonPressed;
 
-  TableItems(this._headerTxtStyle, Pointer<Overview> overview, this.onExpandButtonPressed) {
+  TableItems(this._headerTxtStyle, this.onExpandButtonPressed);
+
+  void loadFromOverview(Pointer<Overview> overview) {
+    _items = [];
     final ov = overview.ref;
     _valueInMainCcy = ov.value_sum_in_main_ccy;
     _profitInMainCcy = ov.profit_sum_in_main_ccy;
 
     for (int i = 0; i < ov.num; i++) {
       final containerContainer = ov.first[i];
+      if (containerContainer.value_sum_in_main_ccy == 0) continue;
       _items.add(TableItem(Level.lvl1, containerContainer.name.toDartString(), containerContainer.value_sum_in_main_ccy,
           containerContainer.profit_sum_in_main_ccy));
 
       for (int j = 0; j < containerContainer.num; j++) {
         final container = containerContainer.containers[j];
+        if (container.value_sum_in_main_ccy == 0) continue;
         _items.add(TableItem(Level.lvl2, container.name.toDartString(), container.value_sum_in_main_ccy,
             container.profit_sum_in_main_ccy));
 
@@ -78,19 +83,19 @@ class TableItems {
     _items.addAll(i);
   }
 
-  List<TableRow> populateTableRows() {
+  List<TableRow> populateTableRows(OverviewGroup lvl1, OverviewGroup lvl2, OverviewGroup leaf) {
     List<TableRow> rows = [
       TableRow(children: [
         Text(
-          'Asset',
+          getOverviewGroupName(lvl1),
           style: _headerTxtStyle,
         ),
         Text(
-          'Broker',
+          getOverviewGroupName(lvl2),
           style: _headerTxtStyle,
         ),
         Text(
-          'Currency',
+          getOverviewGroupName(leaf),
           style: _headerTxtStyle,
         ),
         Text(
@@ -182,61 +187,114 @@ class TableItems {
 }
 
 class _OverviewWidgetState extends State<OverviewWidget> {
-  Future<int>? _assets;
+  Future<int>? _assetsFuture;
+  int assetHandler = 0;
   TableItems? _items;
 
-  OverviewGroup _lvl1 = groupByAsset;
-  OverviewGroup _lvl2 = groupByBroker;
-  OverviewGroup _lvl3 = groupByCcy;
+  final List<OverviewGroup> _levels = [groupByAsset, groupByBroker, groupByCcy];
 
   @override
   void initState() {
     super.initState();
-    _assets = getAssets();
+    _assetsFuture = getAssets();
   }
 
-  List<TableRow> _populateDataTable(BuildContext ctx, TextStyle headerTxtStyle, int? assetHandler) {
+  void _populateOverview(int assetHandler) {
+    final ov = getOverview(assetHandler, mainCcy, _levels[0], _levels[1], _levels[2]);
+    _items?.loadFromOverview(ov);
+    urphFinFreeOverview(ov);
+  }
+
+  List<TableRow> _populateDataTable(BuildContext ctx, TextStyle headerTxtStyle, int? handler) {
+    if (handler == null) return [];
+    assetHandler = handler;
+
     if (_items == null) {
-      if (assetHandler == null) return [];
-      final ov = getOverview(assetHandler, mainCcy, _lvl1, _lvl2, _lvl3);
       _items = TableItems(
           headerTxtStyle,
-          ov,
           (item) => setState(() {
                 item.expanded = !item.expanded;
               }));
-      urphFinFreeOverview(ov);
+      _populateOverview(assetHandler);
     }
 
-    return _items?.populateTableRows() ?? [];
+    return _items?.populateTableRows(_levels[0], _levels[1], _levels[2]) ?? [];
   }
 
   @override
   Widget build(BuildContext context) {
+    void updateGroupOrder(int oldIdx, int newIdx) {
+      setState(() {
+        final o = _levels[oldIdx];
+        _levels.removeAt(oldIdx);
+        _levels.insert(newIdx, o);
+        _populateOverview(assetHandler);
+      });
+    }
+
+    void setupFilter() {}
+
+    Widget getGroupIcon(OverviewGroup group) {
+      switch (group) {
+        case groupByAsset:
+          return const Icon(Icons.apartment_outlined);
+        case groupByBroker:
+          return const Icon(Icons.badge_outlined);
+        default:
+          return const Icon(Icons.attach_money_outlined);
+      }
+    }
+
     return FutureBuilder(
-        future: _assets,
+        future: _assetsFuture,
         builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
           if (snapshot.hasData) {
             const headerTxtStyle = TextStyle(fontWeight: FontWeight.bold);
             const headerPadding = 20;
             const headerPaddingWithButton = headerPadding + 20; //todo: compensate the size of expand button more wisely
-            return SingleChildScrollView(
-                child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Table(
-                        columnWidths: {
-                          0: FixedColumnWidth(
-                              getGroupTextSize(ctx, headerTxtStyle, _lvl1).width + headerPaddingWithButton),
-                          1: FixedColumnWidth(
-                              getGroupTextSize(ctx, headerTxtStyle, _lvl2).width + headerPaddingWithButton),
-                          2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _lvl3).width + headerPadding),
-                          3: const FlexColumnWidth(1),
-                          4: const FlexColumnWidth(1),
-                          5: const FlexColumnWidth(1),
-                          6: const FlexColumnWidth(1),
-                        },
-                        //border: TableBorder.all(),
-                        children: _populateDataTable(ctx, headerTxtStyle, snapshot.data))));
+            return Column(
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxHeight: 60,
+                    maxWidth: 320,
+                  ),
+                  child: ReorderableListView(
+                    scrollDirection: Axis.horizontal,
+                    onReorder: updateGroupOrder,
+                    children: [
+                      for (final level in _levels)
+                        Padding(
+                            key: ValueKey(level),
+                            padding: const EdgeInsets.only(left: 1, right: 1, top: 1),
+                            child: ElevatedButton.icon(
+                                onPressed: setupFilter,
+                                icon: getGroupIcon(level),
+                                label: Text(getOverviewGroupName(level))))
+                    ],
+                  ),
+                ),
+                SingleChildScrollView(
+                  child: Padding(
+                      padding: const EdgeInsets.only(left: 20, right: 20),
+                      child: Table(
+                          columnWidths: {
+                            0: FixedColumnWidth(
+                                getGroupTextSize(ctx, headerTxtStyle, _levels[0]).width + headerPaddingWithButton),
+                            1: FixedColumnWidth(
+                                getGroupTextSize(ctx, headerTxtStyle, _levels[1]).width + headerPaddingWithButton),
+                            2: FixedColumnWidth(
+                                getGroupTextSize(ctx, headerTxtStyle, _levels[2]).width + headerPadding),
+                            3: const FlexColumnWidth(1),
+                            4: const FlexColumnWidth(1),
+                            5: const FlexColumnWidth(1),
+                            6: const FlexColumnWidth(1),
+                          },
+                          //border: TableBorder.all(),
+                          children: _populateDataTable(ctx, headerTxtStyle, snapshot.data))),
+                )
+              ],
+            );
           } else {
             return const Center(child: AwaitWidget(caption: "Loading assets"));
           }
