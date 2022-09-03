@@ -71,14 +71,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class WidthAwareView extends StatefulWidget {
+class WidthAwareView extends StatelessWidget {
   const WidthAwareView({Key? key}) : super(key: key);
 
-  @override
-  State<WidthAwareView> createState() => _WidthAwareViewState();
-}
-
-class _WidthAwareViewState extends State<WidthAwareView> {
   @override
   Widget build(BuildContext context) {
     // this query will trigger view be built whenever screen size is changed
