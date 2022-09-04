@@ -198,8 +198,18 @@ quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol);
 class OverviewItem : public overview_item{
 public:
     OverviewItem(const std::string& name, const std::string& ccy, double value, double value_in_main_ccy, double profit, double profit_in_main_ccy);
-
     ~OverviewItem();
+};
+
+class OverviewItemList : public overview_item_list{
+public:
+    OverviewItemList(int num, overview_item* head);
+    ~OverviewItemList();
+    inline OverviewItem * head(default_member_tag) { return static_cast<OverviewItem*>(first); }
+    inline int size(default_member_tag) { return num; }
+
+    Iterator<OverviewItem> begin() { return Iterator( head(default_member_tag()) ); }
+    Iterator<OverviewItem> end() { return Iterator( head(default_member_tag()) + num ); }
 };
 
 class OverviewItemContainer: public overview_item_container{
@@ -246,6 +256,7 @@ static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
 static_assert(sizeof(Quote)  == sizeof(quote));
 static_assert(sizeof(Quotes)  == sizeof(quotes));
 static_assert(sizeof(OverviewItem)  == sizeof(overview_item));
+static_assert(sizeof(OverviewItemList)  == sizeof(overview_item_list));
 static_assert(sizeof(OverviewItemContainer)  == sizeof(overview_item_container));
 static_assert(sizeof(OverviewItemContainerContainer)  == sizeof(overview_item_container_container));
 static_assert(sizeof(Overview)  == sizeof(overview));

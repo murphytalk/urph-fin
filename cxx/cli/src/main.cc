@@ -170,7 +170,7 @@ const char* groupName [] = {
 };
 
 static std::string main_ccy = "JPY";
-static asset_handle ah = 0;
+static AssetHandle ah = 0;
 
 static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
 {
@@ -246,7 +246,7 @@ static void main_menu()
             "ls",
             [](ostream& out){
                 if(ah == 0){
-                    load_assets_async([](void *p, asset_handle h){
+                    load_assets_async([](void *p, AssetHandle h){
                         ostream* o = reinterpret_cast<ostream*>(p);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;

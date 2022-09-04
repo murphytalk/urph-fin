@@ -208,6 +208,17 @@ OverviewItem::~OverviewItem()
 }
 
 
+OverviewItemList::OverviewItemList(int n, overview_item* head)
+{
+    this->num = n;
+    this->first = head;
+}
+
+OverviewItemList::~OverviewItemList()
+{
+    free_placement_allocated_structs<OverviewItemList, OverviewItem>(this);
+}
+
 OverviewItemContainer::OverviewItemContainer(const std::string& n, const std::string& item_name,double sum, double sum_profit,int num, overview_item* head)
 {
     name = copy_str(n);
@@ -650,11 +661,11 @@ void AllAssets::load_cash(AllBrokers *brokers)
     }
 }    
 
-static std::map<asset_handle, AllAssets*> all_assets_by_handle;
-static asset_handle next_asset_handle = 0;
-asset_handle load_assets()
+static std::map<AssetHandle, AllAssets*> all_assets_by_handle;
+static AssetHandle next_asset_handle = 0;
+AssetHandle load_assets()
 {
-    asset_handle h = ++next_asset_handle;
+    AssetHandle h = ++next_asset_handle;
     all_assets_by_handle[h] = new AllAssets();
     return h;
 }
@@ -671,7 +682,7 @@ void load_assets_async(OnAssetLoaded onLoaded, void *param)
     LOG(DEBUG) << "loading asset async returned\n";
 }
 
-void free_assets(asset_handle handle)
+void free_assets(AssetHandle handle)
 {
     auto assets = all_assets_by_handle.find(handle);
     if(assets != all_assets_by_handle.end()){
@@ -683,6 +694,8 @@ void free_assets(asset_handle handle)
 static char GROUP_ASSET [] = "Asset";
 static char GROUP_BROKER[] = "Broker";
 static char GROUP_CCY   [] = "Currency";
+static char* GROUPS[] = {GROUP_ASSET, GROUP_BROKER, GROUP_CCY};
+
 struct LvlGroup
 {
     LvlGroup(GROUP byGroup){
@@ -752,16 +765,54 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
     return new Overview(lvl1.group_name, lvl1_sum, lvl1_sum_profit, container_container_alloc.allocated_num(), container_container_alloc.head);
 }
 
-overview* get_overview(asset_handle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group)
+static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
 {
     auto assets = all_assets_by_handle.find(asset_handle);
     if(assets != all_assets_by_handle.end()){
-        return get_overview(assets->second, main_ccy, level1_group, level2_group, level3_group);
+        return assets->second;
     }
-    else{
+     else{
         LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";
         return nullptr;
     }
+}
+
+overview* get_overview(AssetHandle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group)
+{
+    return get_overview(get_assets_by_handle(asset_handle), main_ccy, level1_group, level2_group, level3_group);
+}
+
+static overview_item_list* get_sum_group(AssetHandle asset_handle, const char* main_ccy, GROUP group)
+{
+    auto assets = get_assets_by_handle(asset_handle);
+    const auto& groupedData = group_by(assets->items.begin(),assets->items.end(), [group](const AssetItem&) { return std::string(GROUPS[group]); });
+    PlacementNew<overview_item> item_alloc(groupedData.size());
+    
+    typedef std::pair<double, double> ValueAndProfit;
+    for(auto& data : groupedData){
+        ValueAndProfit s = {0.0, 0.0};
+        for(const auto&a : data.second){
+            s.first += assets->to_main_ccy(a.value, a.currency.c_str(), main_ccy);
+            s.second+= assets->to_main_ccy(a.profit, a.currency.c_str(), main_ccy);
+        };
+        new (item_alloc.current++) OverviewItem(data.first, data.first, 0.0, s.first, 0.0, s.second);
+    }
+    return new OverviewItemList(item_alloc.allocated_num(), item_alloc.head);
+}
+
+inline overview_item_list* get_sum_group_by_asset(AssetHandle asset_handle, const char* main_ccy)
+{
+    return get_sum_group(asset_handle, main_ccy, GROUP_BY_ASSET);
+}
+
+inline overview_item_list* get_sum_group_by_broker(AssetHandle asset_handle, const char* main_ccy)
+{
+    return get_sum_group(asset_handle, main_ccy, GROUP_BY_BROKER);
+}
+
+void free_overview_item_list(overview_item_list *list)
+{
+    delete static_cast<OverviewItemList*>(list);
 }
 
 void free_overview(overview* o)

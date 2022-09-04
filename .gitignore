@@ -39,5 +39,7 @@ google-services.json
 mem.txt
 .cache/
 
+geckodriver.log
+
 #flutter
 *.mocks.dart

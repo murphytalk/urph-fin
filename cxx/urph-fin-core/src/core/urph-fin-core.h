@@ -221,6 +221,11 @@ struct overview_item{
     double profit_in_main_ccy;
 };
 
+struct overview_item_list{
+    int num;
+    overview_item* first;
+};
+
 struct overview_item_container{
     char* name;
     char* item_name;
@@ -247,18 +252,22 @@ struct overview{
     overview_item_container_container *first;
 };
 
-typedef int asset_handle;
-asset_handle load_assets();
-typedef void (*OnAssetLoaded)(void*param, asset_handle h);
+typedef int AssetHandle;
+AssetHandle load_assets();
+typedef void (*OnAssetLoaded)(void*param, AssetHandle h);
 void load_assets_async(OnAssetLoaded onLoaded, void *param);
-void free_assets(asset_handle handle);
+void free_assets(AssetHandle handle);
 
 const unsigned char GROUP_BY_ASSET  = 0;
 const unsigned char GROUP_BY_BROKER = 1;
 const unsigned char GROUP_BY_CCY    = 2;
 typedef unsigned char GROUP;
-overview* get_overview(asset_handle asset, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
+overview* get_overview(AssetHandle asset, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 void free_overview(overview*);
+
+overview_item_list* get_sum_group_by_asset(AssetHandle asset_handle, const char* main_ccy);
+overview_item_list* get_sum_group_by_broker(AssetHandle asset_handle, const char* main_ccy);
+void free_overview_item_list(overview_item_list *list);
 
 }
 #endif // URPH_FIN_CORE_H_

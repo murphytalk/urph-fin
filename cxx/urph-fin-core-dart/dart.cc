@@ -61,7 +61,7 @@ DART_EXPORT bool dart_urph_fin_core_init()
 
 DART_EXPORT void dart_urph_fin_load_assets()
 {
-    load_assets_async([](void *p, asset_handle h){
+    load_assets_async([](void *p, AssetHandle h){
         const Work work = [p,h](){on_asset_loaded_callback(p,h);};
         // Copy to heap to make it outlive the function scope.
         const Work* work_ptr = new Work(work);
