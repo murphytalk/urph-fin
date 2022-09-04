@@ -55,12 +55,44 @@ class MyApp extends StatelessWidget {
                 primarySwatch: Colors.blue,
               ),
               home: Scaffold(
-                appBar: AppBar(
-                    // Here we take the value from the MyHomePage object that was created by
-                    // the App.build method, and use it to set our appbar title.
-                    //title: const Text(TITLE),
-                    ),
+                appBar: AppBar(),
                 body: const Center(child: WidthAwareView()),
+                drawer: Drawer(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: const <Widget>[
+                      /*
+                      DrawerHeader(
+                        decoration: BoxDecoration(
+                          color: Colors.blue,
+                        ),
+                        child: Text(
+                          'urph-fin',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                          ),
+                        ),
+                      ),
+                      */
+                      ListTile(
+                        leading: Icon(Icons.message),
+                        title: Text('Messages'),
+                        mouseCursor: SystemMouseCursors.click,
+                      ),
+                      ListTile(
+                        leading: Icon(Icons.account_circle),
+                        title: Text('Profile'),
+                        mouseCursor: SystemMouseCursors.click,
+                      ),
+                      ListTile(
+                        leading: Icon(Icons.settings),
+                        title: Text('Settings'),
+                        mouseCursor: SystemMouseCursors.click,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             );
           } else {
