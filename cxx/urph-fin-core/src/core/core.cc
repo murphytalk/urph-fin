@@ -802,12 +802,12 @@ overview_item_list* get_sum_group(AllAssets* assets, const char* main_ccy, GROUP
     return new OverviewItemList(item_alloc.allocated_num(), item_alloc.head);
 }
 
-inline overview_item_list* get_sum_group_by_asset(AssetHandle asset_handle, const char* main_ccy)
+overview_item_list* get_sum_group_by_asset(AssetHandle asset_handle, const char* main_ccy)
 {
     return get_sum_group(get_assets_by_handle(asset_handle), main_ccy, GROUP_BY_ASSET);
 }
 
-inline overview_item_list* get_sum_group_by_broker(AssetHandle asset_handle, const char* main_ccy)
+overview_item_list* get_sum_group_by_broker(AssetHandle asset_handle, const char* main_ccy)
 {
     return get_sum_group(get_assets_by_handle(asset_handle), main_ccy, GROUP_BY_BROKER);
 }
