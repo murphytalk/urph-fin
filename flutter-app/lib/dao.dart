@@ -85,6 +85,12 @@ class OverviewItemContainer extends Struct {
   external Pointer<OverviewItem> items;
 }
 
+class OverviewItemList extends Struct {
+  @Int32()
+  external int num;
+  external Pointer<OverviewItem> first;
+}
+
 class OverviewItemContainerContainer extends Struct {
   external Pointer<Utf8> name;
   external Pointer<Utf8> item_name;
@@ -118,6 +124,9 @@ final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(
 final _urphFinGetOverview = dl.lookupFunction<Pointer<Overview> Function(Int32, Pointer<Utf8>, Uint8, Uint8, Uint8),
     Pointer<Overview> Function(int, Pointer<Utf8>, int, int, int)>('get_overview');
 
+final urphFinFreeOverview =
+    dl.lookupFunction<Void Function(Pointer<Overview>), void Function(Pointer<Overview>)>('free_overview');
+
 Completer<int>? _assetsHandleCompleter;
 void _onAssetLoadedCB(Pointer<Void> p, int handle) {
   _assetsHandleCompleter?.complete(handle);
@@ -138,23 +147,34 @@ Pointer<Overview> getOverview(
   return p;
 }
 
-final urphFinFreeOverview =
-    dl.lookupFunction<Void Function(Pointer<Overview>), void Function(Pointer<Overview>)>('free_overview');
+final _urphFinGetSumGroupByAsset = dl.lookupFunction<Pointer<OverviewItemList> Function(Int32, Pointer<Utf8>),
+    Pointer<OverviewItemList> Function(int, Pointer<Utf8>)>('get_sum_group_by_asset');
+
+final _urphFinGetSumGroupByBroker = dl.lookupFunction<Pointer<OverviewItemList> Function(Int32, Pointer<Utf8>),
+    Pointer<OverviewItemList> Function(int, Pointer<Utf8>)>('get_sum_group_by_broker');
+
+Pointer<OverviewItemList> _getSumGroup(
+    String mainCcy, int assetHandler, Pointer<OverviewItemList> Function(int, Pointer<Utf8>) func) {
+  final nativeUtf8Ptr = mainCcy.toNativeUtf8();
+  final p = func(assetHandler, nativeUtf8Ptr);
+  malloc.free(nativeUtf8Ptr);
+  return p;
+}
+
+Pointer<OverviewItemList> getSumGroupByAsset(int assetHandler, String mainCcy) {
+  return _getSumGroup(mainCcy, assetHandler, _urphFinGetSumGroupByAsset);
+}
+
+Pointer<OverviewItemList> getSumGroupByBroker(int assetHandler, String mainCcy) {
+  return _getSumGroup(mainCcy, assetHandler, _urphFinGetSumGroupByBroker);
+}
+
+final urphFinFreeOverviewItemList =
+    dl.lookupFunction<Void Function(Pointer<OverviewItemList>), void Function(Pointer<OverviewItemList>)>(
+        'free_overview_item_list');
 
 typedef GetAllBrokersNameFunc = Pointer<Strings> Function();
 final urphFinGetAllBrokersName =
     dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
 final urphFinFreeStrings =
     dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
-
-/*
-void dumpAllBrokerNames() {
-  final brokerNames = urphFinGetAllBrokersName();
-  log("got ${brokerNames.ref.capacity}");
-  final strs = brokerNames.ref.strs;
-  for (int i = 0; i < brokerNames.ref.capacity; i++) {
-    log("Broker ${strs[i].toDartString()}");
-  }
-  urphFinFreeStrings(brokerNames);
-}
-*/

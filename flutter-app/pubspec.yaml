@@ -37,6 +37,7 @@ dependencies:
   ffi: ^2.0.1
   window_manager: ^0.2.7
   intl: ^0.17.0
+  fl_chart: ^0.55.1
 
 dev_dependencies:
   flutter_test:

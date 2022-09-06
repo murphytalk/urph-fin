@@ -1,6 +1,7 @@
 import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:urph_fin/shared_widgets.dart';
 import 'package:urph_fin/utils.dart';
@@ -45,11 +46,11 @@ class TableItems {
   final TextStyle _headerTxtStyle;
   late double _valueInMainCcy;
   late double _profitInMainCcy;
-  late void Function(TableItem) onExpandButtonPressed;
+  late void Function(TableItem) _onExpandButtonPressed;
   static final _sumColors = [Colors.blue.shade900, Colors.blue.shade800, Colors.blue.shade400];
   static final _sumLossColors = [Colors.red.shade900, Colors.red.shade800, Colors.red.shade400];
 
-  TableItems(this._headerTxtStyle, this.onExpandButtonPressed);
+  TableItems(this._headerTxtStyle, this._onExpandButtonPressed);
 
   void loadFromOverview(Pointer<Overview> overview) {
     _items = [];
@@ -131,7 +132,7 @@ class TableItems {
           verticalAlignment: TableCellVerticalAlignment.middle,
           child: Row(children: [
             IconButton(
-                onPressed: () => onExpandButtonPressed(item),
+                onPressed: () => _onExpandButtonPressed(item),
                 icon: item.expanded ? const Icon(Icons.expand_less) : const Icon(Icons.expand_more)),
             Text(item.name)
           ]));
@@ -199,8 +200,72 @@ class TableItems {
         }
       }
     }
-
     return rows;
+  }
+}
+
+typedef TitleAndValue = MapEntry<String, double>;
+
+class _PieChartData {
+  int touchedIndex = -1;
+  final List<TitleAndValue> _items = [];
+  final void Function(VoidCallback) _setState;
+
+  _PieChartData(int assetHandler, Pointer<OverviewItemList> Function(int, String) loadData, this._setState) {
+    final sumPtr = loadData(assetHandler, mainCcy);
+    final sum = sumPtr.ref;
+    for (int i = 0; i < sum.num; ++i) {
+      final ovItem = sum.first[i];
+      _items.add(TitleAndValue(ovItem.name.toDartString(), ovItem.value_in_main_ccy));
+    }
+    urphFinFreeOverviewItemList(sumPtr);
+  }
+
+  List<PieChartSectionData> _buildSections() {
+    List<PieChartSectionData> sections = [];
+
+    const firstColor = 0xff0293ee;
+    var color = firstColor;
+    const colorStep = 0xfff8b250 - firstColor;
+
+    for (int i = 0; i < _items.length; ++i) {
+      final isTouched = i == touchedIndex;
+      final fontSize = isTouched ? 25.0 : 16.0;
+      sections.add(PieChartSectionData(
+          color: Color(color),
+          title: _items[i].key,
+          value: _items[i].value,
+          titleStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: const Color(0xffffffff))));
+      color += colorStep;
+    }
+
+    return sections;
+  }
+
+  PieChartData populate() {
+    return PieChartData(
+        pieTouchData: PieTouchData(touchCallback: (FlTouchEvent event, pieTouchResponse) {
+          print('evnt $event');
+          print('idx is ${pieTouchResponse?.touchedSection?.touchedSectionIndex}');
+          if (event is FlPanDownEvent) {
+            print('evnt d ${event.details}');
+          }
+          _setState(() {
+            if (!event.isInterestedForInteractions ||
+                pieTouchResponse == null ||
+                pieTouchResponse.touchedSection == null) {
+              touchedIndex = -1;
+              return;
+            }
+            touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
+          });
+        }),
+        borderData: FlBorderData(
+          show: false,
+        ),
+        sectionsSpace: 0,
+        centerSpaceRadius: 40,
+        sections: _buildSections());
   }
 }
 
@@ -208,6 +273,8 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   Future<int>? _assetsFuture;
   int assetHandler = 0;
   TableItems? _items;
+  late _PieChartData _assetPieData;
+  late _PieChartData _brokerPieData;
   bool expandAll = false;
 
   final List<OverviewGroup> _levels = [groupByAsset, groupByBroker, groupByCcy];
@@ -216,9 +283,16 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   void initState() {
     super.initState();
     _assetsFuture = getAssets();
+    _assetsFuture?.then((value) => _onAssetsLoaded(value));
   }
 
-  void _populateOverview(int assetHandler) {
+  void _onAssetsLoaded(int handler) {
+    assetHandler = handler;
+    _assetPieData = _PieChartData(handler, getSumGroupByAsset, (callback) => setState(callback));
+    _brokerPieData = _PieChartData(handler, getSumGroupByBroker, (callback) => setState(callback));
+  }
+
+  void _populateOverviewTable(int assetHandler) {
     final ov = getOverview(assetHandler, mainCcy, _levels[0], _levels[1], _levels[2]);
     _items?.loadFromOverview(ov);
     urphFinFreeOverview(ov);
@@ -226,14 +300,14 @@ class _OverviewWidgetState extends State<OverviewWidget> {
 
   List<TableRow> _populateDataTable(BuildContext ctx, TextStyle headerTxtStyle, int? handler) {
     if (handler == null) return [];
-    assetHandler = handler;
+    //assetHandler = handler;
 
     if (_items == null) {
       _items = TableItems(
           headerTxtStyle,
           // called when the expand/collapse button is clicked
           (item) => setState(() => item.expanded = !item.expanded));
-      _populateOverview(assetHandler);
+      _populateOverviewTable(assetHandler);
     }
 
     return _items?.populateTableRows(_levels[0], _levels[1], _levels[2]) ?? [];
@@ -247,7 +321,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
         _levels.removeAt(oldIdx);
         _levels.insert(newIdx, o);
         expandAll = false;
-        _populateOverview(assetHandler);
+        _populateOverviewTable(assetHandler);
       });
     }
 
@@ -271,76 +345,91 @@ class _OverviewWidgetState extends State<OverviewWidget> {
       }
     }
 
+    Widget buildOverviewTable(BuildContext ctx, int? asset) {
+      const headerTxtStyle = TextStyle(fontWeight: FontWeight.bold);
+      const headerPadding = 20;
+      const headerPaddingWithButton = headerPadding + 20; //todo: compensate the size of expand button more wisely
+      return Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 60, maxWidth: 330),
+                  child: ReorderableListView(
+                    scrollDirection: Axis.horizontal,
+                    onReorder: updateGroupOrder,
+                    children: [
+                      for (final level in _levels)
+                        Padding(
+                            key: ValueKey(level),
+                            padding: const EdgeInsets.only(left: 2, right: 1, top: 2),
+                            child: ElevatedButton.icon(
+                                onPressed: setupFilter,
+                                icon: getGroupIcon(level),
+                                label: Text(getOverviewGroupName(level))))
+                    ],
+                  )),
+              const SizedBox(
+                  height: 60,
+                  child: VerticalDivider(
+                    width: 10,
+                    indent: 7,
+                    endIndent: 32,
+                    thickness: 1,
+                    color: Colors.grey,
+                  )),
+              ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 60),
+                  child: Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 30),
+                      child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
+                          onPressed: toggleExpansion,
+                          child: Text(expandAll ? 'Collapse All' : 'Expand All'))))
+            ],
+          ),
+          Expanded(
+              child: SingleChildScrollView(
+            child: Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20),
+                child: Table(
+                    columnWidths: {
+                      0: FixedColumnWidth(
+                          getGroupTextSize(ctx, headerTxtStyle, _levels[0]).width + headerPaddingWithButton),
+                      1: FixedColumnWidth(
+                          getGroupTextSize(ctx, headerTxtStyle, _levels[1]).width + headerPaddingWithButton),
+                      2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _levels[2]).width + headerPadding),
+                      3: const FlexColumnWidth(1),
+                      4: const FlexColumnWidth(1),
+                      5: const FlexColumnWidth(1),
+                      6: const FlexColumnWidth(1),
+                    },
+                    //border: TableBorder.all(),
+                    children: _populateDataTable(ctx, headerTxtStyle, asset))),
+          ))
+        ],
+      );
+    }
+
+    Widget buildCharts(BuildContext ctx) {
+      return Row(
+        children: [
+          Expanded(flex: 1, child: PieChart(_assetPieData.populate())),
+          Expanded(flex: 1, child: PieChart(_brokerPieData.populate())),
+        ],
+      );
+    }
+
     return FutureBuilder(
         future: _assetsFuture,
         builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
           if (snapshot.hasData) {
-            const headerTxtStyle = TextStyle(fontWeight: FontWeight.bold);
-            const headerPadding = 20;
-            const headerPaddingWithButton = headerPadding + 20; //todo: compensate the size of expand button more wisely
-            return Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 60, maxWidth: 330),
-                        child: ReorderableListView(
-                          scrollDirection: Axis.horizontal,
-                          onReorder: updateGroupOrder,
-                          children: [
-                            for (final level in _levels)
-                              Padding(
-                                  key: ValueKey(level),
-                                  padding: const EdgeInsets.only(left: 2, right: 1, top: 2),
-                                  child: ElevatedButton.icon(
-                                      onPressed: setupFilter,
-                                      icon: getGroupIcon(level),
-                                      label: Text(getOverviewGroupName(level))))
-                          ],
-                        )),
-                    const SizedBox(
-                        height: 60,
-                        child: VerticalDivider(
-                          width: 10,
-                          indent: 7,
-                          endIndent: 32,
-                          thickness: 1,
-                          color: Colors.grey,
-                        )),
-                    ConstrainedBox(
-                        constraints: const BoxConstraints(minHeight: 60),
-                        child: Padding(
-                            padding: const EdgeInsets.only(top: 2, bottom: 30),
-                            child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.indigo),
-                                onPressed: toggleExpansion,
-                                child: Text(expandAll ? 'Collapse All' : 'Expand All'))))
-                  ],
-                ),
-                Expanded(
-                    child: SingleChildScrollView(
-                  child: Padding(
-                      padding: const EdgeInsets.only(left: 20, right: 20),
-                      child: Table(
-                          columnWidths: {
-                            0: FixedColumnWidth(
-                                getGroupTextSize(ctx, headerTxtStyle, _levels[0]).width + headerPaddingWithButton),
-                            1: FixedColumnWidth(
-                                getGroupTextSize(ctx, headerTxtStyle, _levels[1]).width + headerPaddingWithButton),
-                            2: FixedColumnWidth(
-                                getGroupTextSize(ctx, headerTxtStyle, _levels[2]).width + headerPadding),
-                            3: const FlexColumnWidth(1),
-                            4: const FlexColumnWidth(1),
-                            5: const FlexColumnWidth(1),
-                            6: const FlexColumnWidth(1),
-                          },
-                          //border: TableBorder.all(),
-                          children: _populateDataTable(ctx, headerTxtStyle, snapshot.data))),
-                ))
-              ],
-            );
+            return Row(children: [
+              Expanded(flex: 1, child: buildOverviewTable(ctx, snapshot.data)),
+              Expanded(flex: 1, child: buildCharts(ctx)),
+            ]);
           } else {
             return const Center(child: AwaitWidget(caption: "Loading assets"));
           }
