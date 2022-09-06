@@ -508,6 +508,32 @@ static void assert_overview_items_eq(std::vector<overview_item>& items, std::vec
     }
 }
 
+double broker1_stocks_value = 
+    stock1_price * stock1_shares + 
+    stock_both_brokers_price * stock_both_brokers_broker1_shares +
+    stock_both_brokers_price * stock_both_brokers_broker1_shares2;
+
+double broker1_stocks_profit = 
+    (stock1_price - stock1_buy_price) * stock1_shares + 
+    (stock_both_brokers_price - stock_both_brokers_broker1_buy_price ) * stock_both_brokers_broker1_shares +
+    (stock_both_brokers_price - stock_both_brokers_broker1_buy_price2) * stock_both_brokers_broker1_shares2;
+
+double broker2_usd_stocks_value = 
+    stock3_price * stock3_shares +
+    stock_both_brokers_price * stock_both_brokers_broker2_shares;
+
+double broker2_usd_stocks_profit = 
+    (stock3_price - stock3_buy_price) * stock3_shares + 
+    (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares;
+
+double broker2_jpy_stocks_value =  stock2_price * stock2_shares;
+double broker2_jpy_stocks_profit = (stock2_price - stock2_buy_price) * stock2_shares;
+
+double broker1_stock_value = broker1_stocks_value * usd_jpy_rate;
+double broker2_stock_value = broker2_jpy_stocks_value + broker2_usd_stocks_value * usd_jpy_rate;
+double broker1_stock_profit = broker1_stocks_profit * usd_jpy_rate;
+double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_profit * usd_jpy_rate;
+
 extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 TEST(TestOverview, overview_group_by_asset_broker)
 {
@@ -540,16 +566,6 @@ TEST(TestOverview, overview_group_by_asset_broker)
         overview_item{ const_cast<char*>(jpy), const_cast<char*>(jpy),funds1_value, funds1_value, funds1_profit, funds1_profit},
     };
 
-    double broker1_stocks_value = 
-        stock1_price * stock1_shares + 
-        stock_both_brokers_price * stock_both_brokers_broker1_shares +
-        stock_both_brokers_price * stock_both_brokers_broker1_shares2;
-
-    double broker1_stocks_profit = 
-        (stock1_price - stock1_buy_price) * stock1_shares + 
-        (stock_both_brokers_price - stock_both_brokers_broker1_buy_price ) * stock_both_brokers_broker1_shares +
-        (stock_both_brokers_price - stock_both_brokers_broker1_buy_price2) * stock_both_brokers_broker1_shares2;
-
     std::vector<overview_item> broker1_stock = {
         overview_item{
             const_cast<char*>(usd), const_cast<char*>(usd), 
@@ -558,17 +574,7 @@ TEST(TestOverview, overview_group_by_asset_broker)
         } 
     };
 
-    double broker2_usd_stocks_value = 
-        stock3_price * stock3_shares +
-        stock_both_brokers_price * stock_both_brokers_broker2_shares;
-
-    double broker2_usd_stocks_profit = 
-        (stock3_price - stock3_buy_price) * stock3_shares + 
-        (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares;
-
-    double broker2_jpy_stocks_value =  stock2_price * stock2_shares;
-    double broker2_jpy_stocks_profit = (stock2_price - stock2_buy_price) * stock2_shares;
-    std::vector<overview_item> broker2_stock = {
+   std::vector<overview_item> broker2_stock = {
        // jpy
         overview_item{
             const_cast<char*>(jpy), const_cast<char*>(jpy), 
@@ -586,11 +592,6 @@ TEST(TestOverview, overview_group_by_asset_broker)
 
     double broker1_cash_value =  broker1_jpy + broker1_usd * usd_jpy_rate;
     double broker2_cash_value =  broker2_jpy + broker2_usd * usd_jpy_rate;
-
-    double broker1_stock_value = broker1_stocks_value * usd_jpy_rate;
-    double broker2_stock_value = broker2_jpy_stocks_value + broker2_usd_stocks_value * usd_jpy_rate;
-    double broker1_stock_profit = broker1_stocks_profit * usd_jpy_rate;
-    double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_profit * usd_jpy_rate;
 
     auto add_funds_callback = [](std::pair<double,double>& a,overview_item& x){
         a.first += x.value_in_main_ccy;
@@ -642,6 +643,49 @@ TEST(TestOverview, overview_group_by_asset_broker)
         }
     }
 
+    delete overview;
+    delete brokers;
+    delete funds;
+    delete stocks;
+    delete q;
+    delete assets;
+}
+
+extern overview_item_list* get_sum_group(AllAssets* assets, const char* main_ccy, GROUP group);
+const char ASSET[] = "Asset";
+TEST(TestOverview, get_sum_group_by_asset)
+{
+    QuoteBySymbol quotes_by_symbol;
+    auto * q = prepare_quotes(quotes_by_symbol);
+    auto * funds = prepare_funds();
+    auto * brokers = prepare_brokers();
+    auto * stocks = prepare_stocks();
+
+    auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
+
+    auto *by_asset = static_cast<OverviewItemList*>(get_sum_group(assets, jpy, GROUP_BY_ASSET));
+
+    for(auto& item: *by_asset){
+        if(cstr_eq(item.name, ASSET_TYPE_CASH)){
+            ASSERT_EQ(
+                broker1_jpy + broker1_usd * usd_jpy_rate + 
+                broker2_jpy + broker2_usd * usd_jpy_rate,
+                item.value_in_main_ccy 
+            );
+            ASSERT_EQ(0.0, item.profit_in_main_ccy);
+        }
+        else if(cstr_eq(item.name, ASSET_TYPE_FUNDS)){
+            ASSERT_EQ(funds1_value + funds2_value + funds3_value, item.value_in_main_ccy);
+            ASSERT_EQ(funds1_profit + funds2_profit + funds3_profit, item.profit_in_main_ccy);
+        }
+        else if(cstr_eq(item.name, ASSET_TYPE_STOCK)){
+            ASSERT_EQ(broker1_stock_value + broker2_stock_value, item.value_in_main_ccy);
+            ASSERT_EQ(broker1_stock_profit + broker2_stock_profit, item.profit_in_main_ccy);
+        }
+        else ASSERT_TRUE(false);
+    }
+
+    delete by_asset;
     delete brokers;
     delete funds;
     delete stocks;

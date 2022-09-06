@@ -782,32 +782,34 @@ overview* get_overview(AssetHandle asset_handle, const char* main_ccy, GROUP lev
     return get_overview(get_assets_by_handle(asset_handle), main_ccy, level1_group, level2_group, level3_group);
 }
 
-static overview_item_list* get_sum_group(AssetHandle asset_handle, const char* main_ccy, GROUP group)
+overview_item_list* get_sum_group(AllAssets* assets, const char* main_ccy, GROUP group)
 {
-    auto assets = get_assets_by_handle(asset_handle);
-    const auto& groupedData = group_by(assets->items.begin(),assets->items.end(), [group](const AssetItem&) { return std::string(GROUPS[group]); });
+    if(assets == nullptr) return nullptr;
+
+    const LvlGroup lvl(group);
+    const auto& groupedData = group_by(assets->items.begin(),assets->items.end(), lvl);
     PlacementNew<overview_item> item_alloc(groupedData.size());
-    
     typedef std::pair<double, double> ValueAndProfit;
+    std::string dummyCcy;
     for(auto& data : groupedData){
         ValueAndProfit s = {0.0, 0.0};
         for(const auto&a : data.second){
             s.first += assets->to_main_ccy(a.value, a.currency.c_str(), main_ccy);
             s.second+= assets->to_main_ccy(a.profit, a.currency.c_str(), main_ccy);
         };
-        new (item_alloc.current++) OverviewItem(data.first, data.first, 0.0, s.first, 0.0, s.second);
+        new (item_alloc.current++) OverviewItem(data.first, dummyCcy, 0.0, s.first, 0.0, s.second);
     }
     return new OverviewItemList(item_alloc.allocated_num(), item_alloc.head);
 }
 
 inline overview_item_list* get_sum_group_by_asset(AssetHandle asset_handle, const char* main_ccy)
 {
-    return get_sum_group(asset_handle, main_ccy, GROUP_BY_ASSET);
+    return get_sum_group(get_assets_by_handle(asset_handle), main_ccy, GROUP_BY_ASSET);
 }
 
 inline overview_item_list* get_sum_group_by_broker(AssetHandle asset_handle, const char* main_ccy)
 {
-    return get_sum_group(asset_handle, main_ccy, GROUP_BY_BROKER);
+    return get_sum_group(get_assets_by_handle(asset_handle), main_ccy, GROUP_BY_BROKER);
 }
 
 void free_overview_item_list(overview_item_list *list)
