@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:math';
 
 import 'package:ffi/ffi.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -221,12 +222,15 @@ class _PieChartData {
     urphFinFreeOverviewItemList(sumPtr);
   }
 
-  List<PieChartSectionData> _buildSections() {
+  List<PieChartSectionData> _buildSections(BoxConstraints constrains) {
     List<PieChartSectionData> sections = [];
 
     const firstColor = 0xff0293ee;
     var color = firstColor;
-    const colorStep = 0xfff8b250 - firstColor;
+    const colorStep = 8000;
+    //0xfff8b250 - firstColor;
+
+    final n = (min(constrains.maxHeight, constrains.maxWidth)) / 2;
 
     for (int i = 0; i < _items.length; ++i) {
       final isTouched = i == touchedIndex;
@@ -235,6 +239,7 @@ class _PieChartData {
           color: Color(color),
           title: _items[i].key,
           value: _items[i].value,
+          radius: n,
           titleStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: const Color(0xffffffff))));
       color += colorStep;
     }
@@ -242,7 +247,7 @@ class _PieChartData {
     return sections;
   }
 
-  PieChartData populate() {
+  PieChartData populate(BoxConstraints constrains) {
     return PieChartData(
         pieTouchData: PieTouchData(touchCallback: (FlTouchEvent event, pieTouchResponse) {
           print('evnt $event');
@@ -264,8 +269,8 @@ class _PieChartData {
           show: false,
         ),
         sectionsSpace: 0,
-        centerSpaceRadius: 40,
-        sections: _buildSections());
+        centerSpaceRadius: 0,
+        sections: _buildSections(constrains));
   }
 }
 
@@ -414,10 +419,20 @@ class _OverviewWidgetState extends State<OverviewWidget> {
     }
 
     Widget buildCharts(BuildContext ctx) {
-      return Row(
+      Widget buildChart(_PieChartData pie) {
+        return Expanded(
+            flex: 1,
+            child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: LayoutBuilder(builder: (ctx, constrains) {
+                  return PieChart(pie.populate(constrains));
+                })));
+      }
+
+      return Column(
         children: [
-          Expanded(flex: 1, child: PieChart(_assetPieData.populate())),
-          Expanded(flex: 1, child: PieChart(_brokerPieData.populate())),
+          buildChart(_assetPieData),
+          buildChart(_brokerPieData),
         ],
       );
     }
