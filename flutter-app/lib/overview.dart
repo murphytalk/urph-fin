@@ -443,6 +443,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
           if (snapshot.hasData) {
             return Row(children: [
               Expanded(flex: 1, child: buildOverviewTable(ctx, snapshot.data)),
+              const VerticalDivider(indent: 10, endIndent: 10, color: Colors.grey),
               Expanded(flex: 1, child: buildCharts(ctx)),
             ]);
           } else {
