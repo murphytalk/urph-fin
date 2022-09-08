@@ -382,21 +382,23 @@ class _OverviewWidgetState extends State<OverviewWidget> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 60, maxWidth: 330),
-                  child: ReorderableListView(
-                    scrollDirection: Axis.horizontal,
-                    onReorder: updateGroupOrder,
-                    children: [
-                      for (final level in _levels)
-                        Padding(
-                            key: ValueKey(level),
-                            padding: const EdgeInsets.only(left: 2, right: 1, top: 2),
-                            child: ElevatedButton.icon(
-                                onPressed: setupFilter,
-                                icon: getGroupIcon(level),
-                                label: Text(getOverviewGroupName(level))))
-                    ],
-                  )),
+                  constraints: const BoxConstraints(maxHeight: 60, maxWidth: 320),
+                  child: Padding(
+                      padding: const EdgeInsets.only(left: 2),
+                      child: ReorderableListView(
+                        scrollDirection: Axis.horizontal,
+                        onReorder: updateGroupOrder,
+                        children: [
+                          for (final level in _levels)
+                            Padding(
+                                key: ValueKey(level),
+                                padding: const EdgeInsets.only(left: 2, right: 0, top: 2),
+                                child: ElevatedButton.icon(
+                                    onPressed: setupFilter,
+                                    icon: getGroupIcon(level),
+                                    label: Text(getOverviewGroupName(level))))
+                        ],
+                      ))),
               const SizedBox(
                   height: 60,
                   child: VerticalDivider(
@@ -439,7 +441,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
       );
     }
 
-    Widget buildCharts(BuildContext ctx) {
+    Widget buildCharts(BuildContext ctx, bool arrangeChartsInRow) {
       Widget buildChart(_PieChartData pie) {
         return Expanded(
             flex: 1,
@@ -450,23 +452,33 @@ class _OverviewWidgetState extends State<OverviewWidget> {
                 })));
       }
 
-      return Column(
-        children: [
-          buildChart(_assetPieData),
-          buildChart(_brokerPieData),
-        ],
-      );
+      final children = [
+        buildChart(_assetPieData),
+        buildChart(_brokerPieData),
+      ];
+      return arrangeChartsInRow ? Row(children: children) : Column(children: children);
+    }
+
+    List<Widget> buildTableAndCharts(BuildContext ctx, int? asset, bool arrangeChartsInRow) {
+      final bool useVerticalDivider = !arrangeChartsInRow;
+      return [
+        Expanded(flex: 1, child: buildOverviewTable(ctx, asset)),
+        useVerticalDivider
+            ? const VerticalDivider(indent: 10, endIndent: 10, color: Colors.grey)
+            : const Divider(indent: 10, endIndent: 10, color: Colors.grey),
+        Expanded(flex: 1, child: buildCharts(ctx, arrangeChartsInRow)),
+      ];
     }
 
     return FutureBuilder(
         future: _assetsFuture,
         builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
           if (snapshot.hasData) {
-            return Row(children: [
-              Expanded(flex: 1, child: buildOverviewTable(ctx, snapshot.data)),
-              const VerticalDivider(indent: 10, endIndent: 10, color: Colors.grey),
-              Expanded(flex: 1, child: buildCharts(ctx)),
-            ]);
+            return LayoutBuilder(builder: (ctx, constrains) {
+              final arrangeTableAndChartInRow = constrains.maxWidth >= 1600;
+              final children = buildTableAndCharts(ctx, snapshot.data, !arrangeTableAndChartInRow);
+              return arrangeTableAndChartInRow ? Row(children: children) : Column(children: children);
+            });
           } else {
             return const Center(child: AwaitWidget(caption: "Loading assets"));
           }

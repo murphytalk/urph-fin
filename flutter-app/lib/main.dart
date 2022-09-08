@@ -56,7 +56,7 @@ class MyApp extends StatelessWidget {
               ),
               home: Scaffold(
                 appBar: AppBar(),
-                body: const Center(child: WidthAwareView()),
+                body: const Center(child: OverviewWidget()),
                 drawer: Drawer(
                   child: ListView(
                     padding: EdgeInsets.zero,
