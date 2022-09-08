@@ -211,6 +211,7 @@ class _PieChartData {
   int touchedIndex = -1;
   final List<TitleAndValue> _items = [];
   final void Function(VoidCallback) _setState;
+  double valueSum = 0;
 
   _PieChartData(int assetHandler, Pointer<OverviewItemList> Function(int, String) loadData, this._setState) {
     final sumPtr = loadData(assetHandler, mainCcy);
@@ -218,6 +219,7 @@ class _PieChartData {
     for (int i = 0; i < sum.num; ++i) {
       final ovItem = sum.first[i];
       _items.add(TitleAndValue(ovItem.name.toDartString(), ovItem.value_in_main_ccy));
+      valueSum += ovItem.value_in_main_ccy;
     }
     urphFinFreeOverviewItemList(sumPtr);
   }
@@ -240,6 +242,7 @@ class _PieChartData {
           title: _items[i].key,
           value: _items[i].value,
           radius: n,
+          showTitle: isTouched || (_items[i].value / valueSum) > 0.05,
           titleStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: const Color(0xffffffff))));
       color += colorStep;
     }
@@ -251,7 +254,8 @@ class _PieChartData {
     return PieChartData(
         pieTouchData: PieTouchData(touchCallback: (FlTouchEvent event, pieTouchResponse) {
           print('evnt $event');
-          print('idx is ${pieTouchResponse?.touchedSection?.touchedSectionIndex}');
+          print(
+              'idx is ${pieTouchResponse?.touchedSection?.touchedSectionIndex}, angle is ${pieTouchResponse?.touchedSection?.touchAngle}');
           if (event is FlPanDownEvent) {
             print('evnt d ${event.details}');
           }
