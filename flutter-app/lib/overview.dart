@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:ffi/ffi.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:urph_fin/shared_widgets.dart';
 import 'package:urph_fin/utils.dart';
 import 'package:urph_fin/dao.dart';
@@ -211,40 +212,56 @@ class _PieChartData {
   int touchedIndex = -1;
   final List<TitleAndValue> _items = [];
   final void Function(VoidCallback) _setState;
-  double valueSum = 0;
-
-  _PieChartData(int assetHandler, Pointer<OverviewItemList> Function(int, String) loadData, this._setState) {
+  final double _minValueToShowTitle = 0.05;
+  double _valueSum = 0;
+  final NumberFormat _fmt = NumberFormat("##.##%");
+  final List<Color> _colors = [
+    const Color(0xff003f5c),
+    const Color(0xff2f4b7c),
+    const Color(0xff665191),
+    const Color(0xffa05195),
+    const Color(0xffd45087),
+    const Color(0xfff95d6a),
+    const Color(0xffff7c43),
+    const Color(0xffffa600),
+  ];
+  _PieChartData(
+    int assetHandler,
+    Pointer<OverviewItemList> Function(int, String) loadData,
+    Color initColor,
+    this._setState,
+  ) {
     final sumPtr = loadData(assetHandler, mainCcy);
     final sum = sumPtr.ref;
     for (int i = 0; i < sum.num; ++i) {
       final ovItem = sum.first[i];
       _items.add(TitleAndValue(ovItem.name.toDartString(), ovItem.value_in_main_ccy));
-      valueSum += ovItem.value_in_main_ccy;
+      _valueSum += ovItem.value_in_main_ccy;
     }
     urphFinFreeOverviewItemList(sumPtr);
   }
 
+  Color _getColor(int index) {
+    final i = index % _colors.length;
+    return _colors[i];
+  }
+
   List<PieChartSectionData> _buildSections(BoxConstraints constrains) {
     List<PieChartSectionData> sections = [];
-
-    const firstColor = 0xff0293ee;
-    var color = firstColor;
-    const colorStep = 8000;
-    //0xfff8b250 - firstColor;
 
     final n = (min(constrains.maxHeight, constrains.maxWidth)) / 2;
 
     for (int i = 0; i < _items.length; ++i) {
       final isTouched = i == touchedIndex;
       final fontSize = isTouched ? 25.0 : 16.0;
+      final fontColor = isTouched ? Color.fromARGB(255, 58, 221, 8) : const Color(0xffffffff);
       sections.add(PieChartSectionData(
-          color: Color(color),
-          title: _items[i].key,
+          color: _getColor(i),
+          title: isTouched ? "${_items[i].key} (${_fmt.format(_items[i].value / _valueSum)})" : _items[i].key,
           value: _items[i].value,
           radius: n,
-          showTitle: isTouched || (_items[i].value / valueSum) > 0.05,
-          titleStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: const Color(0xffffffff))));
-      color += colorStep;
+          showTitle: isTouched || (_items[i].value / _valueSum) > _minValueToShowTitle,
+          titleStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: fontColor)));
     }
 
     return sections;
@@ -297,8 +314,8 @@ class _OverviewWidgetState extends State<OverviewWidget> {
 
   void _onAssetsLoaded(int handler) {
     assetHandler = handler;
-    _assetPieData = _PieChartData(handler, getSumGroupByAsset, (callback) => setState(callback));
-    _brokerPieData = _PieChartData(handler, getSumGroupByBroker, (callback) => setState(callback));
+    _assetPieData = _PieChartData(handler, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
+    _brokerPieData = _PieChartData(handler, getSumGroupByBroker, Colors.greenAccent, (callback) => setState(callback));
   }
 
   void _populateOverviewTable(int assetHandler) {
