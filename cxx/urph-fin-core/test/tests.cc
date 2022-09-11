@@ -685,10 +685,48 @@ TEST(TestOverview, get_sum_group_by_asset)
         else ASSERT_TRUE(false);
     }
 
+
     delete by_asset;
     delete brokers;
     delete funds;
     delete stocks;
     delete q;
     delete assets;
+}
+
+extern const quote* get_latest_quote(AllAssets*, const char* symbol);
+extern const quotes* get_latest_quotes(AllAssets* assets, int num, const char** );
+
+static void assert_quote_eq(quote* q, const char* sym, timestamp date, double rate)
+{
+    ASSERT_STREQ(q->symbol, sym);
+    ASSERT_EQ(q->date, date);
+    ASSERT_EQ(q->rate, rate);
+}
+
+TEST(TestOverview, get_latest_quotes)
+{
+    QuoteBySymbol quotes_by_symbol;
+    auto * q = prepare_quotes(quotes_by_symbol);
+    auto* assets = new AllAssets(std::move(quotes_by_symbol), nullptr, nullptr, nullptr);
+
+    const char usdjpy[] = "USDJPY";
+    const char stock2[] = "Stock2";
+
+    auto * usd_jpy_q = get_latest_quote(assets, usdjpy);
+    assert_quote_eq((quote*)usd_jpy_q, usd_jpy.c_str(), usd_jpy_date, usd_jpy_rate);
+
+    const char* symbols [] = {usdjpy, stock2};
+    Quotes* quotes = const_cast<Quotes*>(
+        static_cast<const Quotes*>(get_latest_quotes(assets, sizeof(symbols)/sizeof(const char*), symbols))
+    );
+
+    auto it = quotes->begin();
+    assert_quote_eq(&(*it++), usdjpy, usd_jpy_date, usd_jpy_rate);
+    assert_quote_eq(&(*it), stock2, stock2_date, stock2_price);
+
+    free_quotes(quotes);
+
+    delete q;
+    delete assets;    
 }

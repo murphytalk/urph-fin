@@ -60,6 +60,8 @@ public:
 
     double to_main_ccy(double value, const char* ccy, const char* main_ccy);
 
+    const Quote* get_latest_quote(const char* symbol);
+
     AssetItems items;
 private:
     double get_price(const char* symbol);

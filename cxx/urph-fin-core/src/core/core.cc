@@ -553,9 +553,9 @@ AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio*
     q = nullptr;
     quotes_by_symbol = quotes;
     
-    load_cash(brokers);
-    load_funds(fp);
-    load_stocks(sp);
+    if(brokers!=nullptr) load_cash(brokers);
+    if(fp!=nullptr) load_funds(fp);
+    if(sp!=nullptr) load_stocks(sp);
 }
 
 AllAssets::~AllAssets(){
@@ -682,6 +682,62 @@ void load_assets_async(OnAssetLoaded onLoaded, void *param)
     LOG(DEBUG) << "loading asset async returned\n";
 }
 
+const Quote* AllAssets::get_latest_quote(const char* symbol)
+{
+    auto it = quotes_by_symbol.find(std::string(symbol));
+    return it == quotes_by_symbol.end() ? nullptr : it->second;
+}
+
+static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
+{
+    auto assets = all_assets_by_handle.find(asset_handle);
+    if(assets != all_assets_by_handle.end()){
+        return assets->second;
+    }
+     else{
+        LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";
+        return nullptr;
+    }
+}
+
+
+const quote* get_latest_quote(AllAssets* assets, const char* symbol)
+{
+    return assets == nullptr ? nullptr : assets->get_latest_quote(symbol);
+}
+
+const quote* get_latest_quote(AssetHandle handle, const char* symbol)
+{
+    return get_latest_quote(get_assets_by_handle(handle), symbol);
+}
+
+
+const quotes* get_latest_quotes(AllAssets* assets, int num, const char** symbols)
+{
+    if(assets == nullptr) return nullptr;
+
+    Quotes *quotes = nullptr;
+    auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(num, [&quotes](LatestQuotesBuilder::Alloc *alloc){
+        quotes = new Quotes(alloc->allocated_num(), alloc->head);
+    }));
+ 
+    for(int i = 0; i < num; ++i){
+        char* p = const_cast<char*>(symbols[i]);
+        auto *q = assets->get_latest_quote(p);
+        if(q!=nullptr){
+            builder->add_quote(p, q->date, q->rate);
+        }
+    }
+    builder->succeed();
+
+    return quotes;
+}
+
+const quotes* get_latest_quotes(AssetHandle handle, int num, const char** symbols)
+{
+    return get_latest_quotes(get_assets_by_handle(handle), num, symbols);
+}
+
 void free_assets(AssetHandle handle)
 {
     auto assets = all_assets_by_handle.find(handle);
@@ -763,18 +819,6 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
     }
 
     return new Overview(lvl1.group_name, lvl1_sum, lvl1_sum_profit, container_container_alloc.allocated_num(), container_container_alloc.head);
-}
-
-static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
-{
-    auto assets = all_assets_by_handle.find(asset_handle);
-    if(assets != all_assets_by_handle.end()){
-        return assets->second;
-    }
-     else{
-        LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";
-        return nullptr;
-    }
 }
 
 overview* get_overview(AssetHandle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group)
