@@ -120,7 +120,7 @@ public:
     int size();
     inline char** begin() { return strs; }
     inline char** end()   { return last_str; }
-    // caller is responsible to free the mem
+    // caller is responsible for freeing the mem
     char** to_str_array();
 };
 
@@ -253,6 +253,7 @@ static_assert(sizeof(Broker) == sizeof(broker));
 static_assert(sizeof(CashBalance)  == sizeof(cash_balance));
 static_assert(sizeof(Fund)  == sizeof(fund));
 static_assert(sizeof(FundPortfolio)  == sizeof(fund_portfolio));
+static_assert(sizeof(Strings)  == sizeof(strings));
 static_assert(sizeof(Quote)  == sizeof(quote));
 static_assert(sizeof(Quotes)  == sizeof(quotes));
 static_assert(sizeof(OverviewItem)  == sizeof(overview_item));

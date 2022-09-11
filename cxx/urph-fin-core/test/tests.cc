@@ -438,6 +438,7 @@ static const char ASSET_TYPE_STOCK [] = "Stock&ETF";
 static const char ASSET_TYPE_FUNDS [] = "Funds";
 static const char ASSET_TYPE_CASH  [] = "Cash";
 
+extern strings* get_all_ccy(AllAssets* assets);
 TEST(TestOverview, load_assets)
 {
     QuoteBySymbol quotes_by_symbol;
@@ -476,6 +477,22 @@ TEST(TestOverview, load_assets)
             (stock3_price - stock3_buy_price) * stock3_shares + (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares
         ),
     };
+
+    
+    std::set all_ccys = assets->get_all_ccy();
+    ASSERT_EQ(all_ccys.size(),2);
+    ASSERT_TRUE(all_ccys.find(jpy) != all_ccys.end());
+    ASSERT_TRUE(all_ccys.find(usd) != all_ccys.end());
+    ASSERT_TRUE(all_ccys.find("HKD") == all_ccys.end());
+
+    Strings* all_ccy_strs = static_cast<Strings*>(get_all_ccy(assets));
+    auto i = all_ccy_strs->begin();
+    ASSERT_TRUE(strcmp(*i , jpy) == 0 ||strcmp(*i , usd) == 0);
+    ++i;
+    ASSERT_TRUE(strcmp(*i , jpy) == 0 ||strcmp(*i , usd) == 0);
+    ASSERT_EQ(++i, all_ccy_strs->end());
+    delete all_ccy_strs;
+
 
     ASSERT_EQ(items,assets->items);
 

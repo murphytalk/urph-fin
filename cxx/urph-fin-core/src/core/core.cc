@@ -562,6 +562,16 @@ AllAssets::~AllAssets(){
     free_quotes(q);
 }
 
+
+std::set<std::string> AllAssets::get_all_ccy()
+{
+    std::set<std::string> all_ccy;
+    for(auto& i: this->items){
+        all_ccy.insert(i.currency);
+    }
+    return all_ccy;
+}
+
 double AllAssets::to_main_ccy(double value, const char* ccy, const char* main_ccy)
 {
     if(strcmp(ccy, main_ccy) == 0){
@@ -761,6 +771,21 @@ const quotes* get_latest_quotes_delimeter(AllAssets* assets, int num, const char
 const quotes* get_latest_quotes_delimeter(AssetHandle handle, int num, const char* delimiter , const char* symbols)
 {
     return get_latest_quotes_delimeter(get_assets_by_handle(handle), num, delimiter, symbols);
+}
+
+strings* get_all_ccy(AllAssets* assets)
+{
+    const auto all_ccy = assets->get_all_ccy();
+    StringsBuilder sb(all_ccy.size());
+    for(auto i = all_ccy.cbegin(); i != all_ccy.cend(); ++i){
+        sb.add(*i);
+    }
+    return sb.strings;
+}
+
+strings* get_all_ccy(AssetHandle handle)
+{
+    return get_all_ccy(get_assets_by_handle(handle));
 }
 
 void free_assets(AssetHandle handle)

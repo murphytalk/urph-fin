@@ -255,6 +255,8 @@ struct overview{
 typedef int AssetHandle;
 AssetHandle load_assets();
 
+strings* get_all_ccy(AssetHandle handle);
+
 // this function returns pointer owned and managed by AllAssets
 const quote*  get_latest_quote (AssetHandle handle, const char* symbol);
 
