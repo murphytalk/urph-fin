@@ -161,12 +161,12 @@ Pointer<OverviewItemList> _getSumGroup(
   return p;
 }
 
-Pointer<OverviewItemList> getSumGroupByAsset(int assetHandler, String mainCcy) {
-  return _getSumGroup(mainCcy, assetHandler, _urphFinGetSumGroupByAsset);
+Pointer<OverviewItemList> getSumGroupByAsset(int assetHandle, String mainCcy) {
+  return _getSumGroup(mainCcy, assetHandle, _urphFinGetSumGroupByAsset);
 }
 
-Pointer<OverviewItemList> getSumGroupByBroker(int assetHandler, String mainCcy) {
-  return _getSumGroup(mainCcy, assetHandler, _urphFinGetSumGroupByBroker);
+Pointer<OverviewItemList> getSumGroupByBroker(int assetHandle, String mainCcy) {
+  return _getSumGroup(mainCcy, assetHandle, _urphFinGetSumGroupByBroker);
 }
 
 final urphFinFreeOverviewItemList =

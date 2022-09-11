@@ -30,51 +30,94 @@ void main() {
   });
 }
 
-class MyApp extends StatelessWidget {
+enum _Status {
+  login,
+  loadingAssets,
+  loadedAssets,
+}
+
+class _AssetsManager {
+  final Future<Pointer<Void>> _initCloudFuture;
+  late Completer<int> _assetHandle;
+  late Future<int> _assetsFuture;
+
+  _Status _status = _Status.login;
+  String get status {
+    switch (_status) {
+      case _Status.login:
+        return "Logging in";
+      case _Status.loadingAssets:
+        return "Loading Assets";
+      case _Status.loadedAssets:
+        return "Loaded Assets";
+    }
+  }
+
+  late int _assets;
+  int get assets {
+    return _status != _Status.loadedAssets ? 0 : _assets;
+  }
+
+  _AssetsManager() : _initCloudFuture = initUrphFin();
+
+  void load(void Function(VoidCallback) setState) {
+    _assetHandle = Completer<int>();
+    _initCloudFuture.then((_) {
+      setState(() => _status = _Status.loadingAssets);
+      _assetsFuture = getAssets();
+      _assetsFuture.then((handle) {
+        _status = _Status.loadedAssets;
+        _assets = handle;
+        _assetHandle.complete(handle);
+      });
+    }); //todo: onError
+  }
+
+  Future<int> getAssetsFuture() {
+    return _assetHandle.future;
+  }
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final _AssetsManager _assetsManager = _AssetsManager();
+
+  List<Widget> _buildFxRates() {
+    return [];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _assetsManager.load((cb) => setState(cb));
+  }
 
   // root widget
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-        future: initUrphFin(),
-        builder: (c, snapshot) {
+        future: _assetsManager.getAssetsFuture(),
+        builder: (c, AsyncSnapshot<int> snapshot) {
           Widget child;
           if (snapshot.hasData) {
             child = MaterialApp(
+              debugShowCheckedModeBanner: false,
               theme: ThemeData(
-                // This is the theme of your application.
-                //
-                // Try running your application with "flutter run". You'll see the
-                // application has a blue toolbar. Then, without quitting the app, try
-                // changing the primarySwatch below to Colors.green and then invoke
-                // "hot reload" (press "r" in the console where you ran "flutter run",
-                // or simply save your changes to "hot reload" in a Flutter IDE).
-                // Notice that the counter didn't reset back to zero; the application
-                // is not restarted.
                 primarySwatch: Colors.blue,
               ),
               home: Scaffold(
-                appBar: AppBar(),
-                body: const Center(child: OverviewWidget()),
+                appBar: AppBar(actions: _buildFxRates()),
+                body: Center(child: OverviewWidget(_assetsManager.assets)),
                 drawer: Drawer(
                   child: ListView(
                     padding: EdgeInsets.zero,
                     children: const <Widget>[
-                      /*
-                      DrawerHeader(
-                        decoration: BoxDecoration(
-                          color: Colors.blue,
-                        ),
-                        child: Text(
-                          'urph-fin',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                      */
                       ListTile(
                         leading: Icon(Icons.message),
                         title: Text('Messages'),
@@ -96,7 +139,7 @@ class MyApp extends StatelessWidget {
               ),
             );
           } else {
-            child = const AwaitWidget(caption: "Logging in");
+            child = AwaitWidget(caption: _assetsManager.status);
           }
           return Center(child: child);
         });

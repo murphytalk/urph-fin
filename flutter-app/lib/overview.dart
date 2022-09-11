@@ -10,7 +10,8 @@ import 'package:urph_fin/utils.dart';
 import 'package:urph_fin/dao.dart';
 
 class OverviewWidget extends StatefulWidget {
-  const OverviewWidget({Key? key}) : super(key: key);
+  final int assetsHandle;
+  const OverviewWidget(this.assetsHandle, {Key? key}) : super(key: key);
 
   @override
   State<OverviewWidget> createState() => _OverviewWidgetState();
@@ -309,8 +310,6 @@ class _PieChartData {
 }
 
 class _OverviewWidgetState extends State<OverviewWidget> {
-  Future<int>? _assetsFuture;
-  int assetHandler = 0;
   TableItems? _items;
   late _PieChartData _assetPieData;
   late _PieChartData _brokerPieData;
@@ -321,15 +320,11 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   @override
   void initState() {
     super.initState();
-    _assetsFuture = getAssets();
-    _assetsFuture?.then((value) => _onAssetsLoaded(value));
-  }
 
-  void _onAssetsLoaded(int handler) {
-    assetHandler = handler;
-    _assetPieData = _PieChartData(handler, 0, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
-    _brokerPieData =
-        _PieChartData(handler, 0, getSumGroupByBroker, Colors.greenAccent, (callback) => setState(callback));
+    _assetPieData =
+        _PieChartData(widget.assetsHandle, 0, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
+    _brokerPieData = _PieChartData(
+        widget.assetsHandle, 0, getSumGroupByBroker, Colors.greenAccent, (callback) => setState(callback));
   }
 
   void _populateOverviewTable(int assetHandler) {
@@ -347,7 +342,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
           headerTxtStyle,
           // called when the expand/collapse button is clicked
           (item) => setState(() => item.expanded = !item.expanded));
-      _populateOverviewTable(assetHandler);
+      _populateOverviewTable(widget.assetsHandle);
     }
 
     return _items?.populateTableRows(_levels[0], _levels[1], _levels[2]) ?? [];
@@ -361,7 +356,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
         _levels.removeAt(oldIdx);
         _levels.insert(newIdx, o);
         expandAll = false;
-        _populateOverviewTable(assetHandler);
+        _populateOverviewTable(widget.assetsHandle);
       });
     }
 
@@ -473,7 +468,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
       return arrangeChartsInRow ? Row(children: children) : Column(children: children);
     }
 
-    List<Widget> buildTableAndCharts(BuildContext ctx, int? asset, bool arrangeChartsInRow) {
+    List<Widget> buildTableAndCharts(BuildContext ctx, int asset, bool arrangeChartsInRow) {
       final bool useVerticalDivider = !arrangeChartsInRow;
       return [
         Expanded(flex: 1, child: buildOverviewTable(ctx, asset)),
@@ -484,18 +479,10 @@ class _OverviewWidgetState extends State<OverviewWidget> {
       ];
     }
 
-    return FutureBuilder(
-        future: _assetsFuture,
-        builder: (BuildContext ctx, AsyncSnapshot<int> snapshot) {
-          if (snapshot.hasData) {
-            return LayoutBuilder(builder: (ctx, constrains) {
-              final arrangeTableAndChartInRow = constrains.maxWidth >= 1600;
-              final children = buildTableAndCharts(ctx, snapshot.data, !arrangeTableAndChartInRow);
-              return arrangeTableAndChartInRow ? Row(children: children) : Column(children: children);
-            });
-          } else {
-            return const Center(child: AwaitWidget(caption: "Loading assets"));
-          }
-        });
+    return LayoutBuilder(builder: (ctx, constrains) {
+      final arrangeTableAndChartInRow = constrains.maxWidth >= 1600;
+      final children = buildTableAndCharts(ctx, widget.assetsHandle, !arrangeTableAndChartInRow);
+      return arrangeTableAndChartInRow ? Row(children: children) : Column(children: children);
+    });
   }
 }
