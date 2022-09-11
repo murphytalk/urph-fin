@@ -102,16 +102,3 @@ class MyApp extends StatelessWidget {
         });
   }
 }
-
-class WidthAwareView extends StatelessWidget {
-  const WidthAwareView({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    // this query will trigger view be built whenever screen size is changed
-    // https://api.flutter.dev/flutter/widgets/MediaQuery/of.html
-    final screenWidth = MediaQuery.of(context).size.width;
-    print('build split view, screen width = $screenWidth');
-    return const OverviewWidget();
-  }
-}

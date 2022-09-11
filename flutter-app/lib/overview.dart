@@ -215,18 +215,30 @@ class _PieChartData {
   final double _minValueToShowTitle = 0.05;
   double _valueSum = 0;
   final NumberFormat _fmt = NumberFormat("##.##%");
-  final List<Color> _colors = [
-    const Color(0xff003f5c),
-    const Color(0xff2f4b7c),
-    const Color(0xff665191),
-    const Color(0xffa05195),
-    const Color(0xffd45087),
-    const Color(0xfff95d6a),
-    const Color(0xffff7c43),
-    const Color(0xffffa600),
+  final _colorThemes = [
+    [
+      const Color(0xffe74645),
+      const Color(0xfffb7756),
+      const Color(0xfffacd60),
+      const Color(0xfffdfa66),
+      const Color(0xff1ac0c6),
+    ],
+    [
+      const Color(0xff003f5c),
+      const Color(0xff2f4b7c),
+      const Color(0xff665191),
+      const Color(0xffa05195),
+      const Color(0xffd45087),
+      const Color(0xfff95d6a),
+      const Color(0xffff7c43),
+      const Color(0xffffa600),
+    ],
   ];
+  final int _selectedColorTheme;
+
   _PieChartData(
     int assetHandler,
+    this._selectedColorTheme,
     Pointer<OverviewItemList> Function(int, String) loadData,
     Color initColor,
     this._setState,
@@ -242,8 +254,9 @@ class _PieChartData {
   }
 
   Color _getColor(int index) {
-    final i = index % _colors.length;
-    return _colors[i];
+    final colors = _colorThemes[_selectedColorTheme];
+    final i = index % colors.length;
+    return colors[i];
   }
 
   List<PieChartSectionData> _buildSections(BoxConstraints constrains) {
@@ -254,7 +267,7 @@ class _PieChartData {
     for (int i = 0; i < _items.length; ++i) {
       final isTouched = i == touchedIndex;
       final fontSize = isTouched ? 25.0 : 16.0;
-      final fontColor = isTouched ? Color.fromARGB(255, 58, 221, 8) : const Color(0xffffffff);
+      final fontColor = isTouched ? const Color.fromARGB(255, 58, 221, 8) : const Color(0xffffffff);
       sections.add(PieChartSectionData(
           color: _getColor(i),
           title: isTouched ? "${_items[i].key} (${_fmt.format(_items[i].value / _valueSum)})" : _items[i].key,
@@ -314,8 +327,9 @@ class _OverviewWidgetState extends State<OverviewWidget> {
 
   void _onAssetsLoaded(int handler) {
     assetHandler = handler;
-    _assetPieData = _PieChartData(handler, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
-    _brokerPieData = _PieChartData(handler, getSumGroupByBroker, Colors.greenAccent, (callback) => setState(callback));
+    _assetPieData = _PieChartData(handler, 0, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
+    _brokerPieData =
+        _PieChartData(handler, 0, getSumGroupByBroker, Colors.greenAccent, (callback) => setState(callback));
   }
 
   void _populateOverviewTable(int assetHandler) {
