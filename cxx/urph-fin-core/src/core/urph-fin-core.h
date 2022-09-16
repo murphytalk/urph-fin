@@ -257,10 +257,12 @@ AssetHandle load_assets();
 
 strings* get_all_ccy(AssetHandle handle);
 
+
 // this function returns pointer owned and managed by AllAssets
 const quote*  get_latest_quote (AssetHandle handle, const char* symbol);
 
 // the quotes* pointer is allocated by this function and the caller is responsible for releasing
+const quotes* get_all_ccy_pairs_quote(AssetHandle handle);
 const quotes* get_latest_quotes(AssetHandle handle, int num, const char** symbols);
 const quotes* get_latest_quotes_delimeter(AssetHandle handle, int num, const char* delimiter, const char* symbols);
 

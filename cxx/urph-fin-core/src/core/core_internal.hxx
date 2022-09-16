@@ -62,6 +62,7 @@ public:
 
     const Quote* get_latest_quote(const char* symbol);
     std::set<std::string> get_all_ccy();
+    std::vector<std::string> get_all_ccy_pairs();
 
     AssetItems items;
 private:
@@ -70,8 +71,11 @@ private:
     void load_stocks(StockPortfolio* sp);
     void load_cash(AllBrokers *brokers);
     std::condition_variable cv;
-    quotes* q;
     QuoteBySymbol quotes_by_symbol;
+
+    Quotes* q;
+    StockPortfolio *stocks;
+    FundPortfolio *funds;
 
     AllAssets(const AllAssets&) = delete;
     AllAssets(AllAssets&) = delete;

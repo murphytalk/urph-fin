@@ -515,7 +515,7 @@ const char ASSET_TYPE_FUNDS [] = "Funds";
 const char ASSET_TYPE_CASH  [] = "Cash";
 
 AllAssets::AllAssets(){
-    q = get_all_quotes(quotes_by_symbol);
+    q = static_cast<Quotes*>(get_all_quotes(quotes_by_symbol));
 
     AllBrokers *brokers = static_cast<AllBrokers*>(get_brokers());
     load_cash(brokers);
@@ -526,15 +526,13 @@ AllAssets::AllAssets(){
         std::lock_guard<std::mutex> lk(m);
         get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
             AllAssets *me = reinterpret_cast<AllAssets*>(param);
-            auto* funds = static_cast<FundPortfolio*>(fp);
-            me->load_funds(funds);
-            delete funds;
+            me->funds = static_cast<FundPortfolio*>(fp);
+            me->load_funds(me->funds);
 
             get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
                 AllAssets *me = reinterpret_cast<AllAssets*>(param);
-                auto* stocks = static_cast<StockPortfolio*>(p);
-                me->load_stocks(stocks);
-                delete stocks;
+                me->stocks = static_cast<StockPortfolio*>(p);
+                me->load_stocks(me->stocks);
                 me->cv.notify_one(); 
             },param);
 
@@ -551,6 +549,8 @@ AllAssets::AllAssets(){
 AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp)
 {
     q = nullptr;
+    funds = nullptr;
+    stocks = nullptr;
     quotes_by_symbol = quotes;
     
     if(brokers!=nullptr) load_cash(brokers);
@@ -559,7 +559,9 @@ AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio*
 }
 
 AllAssets::~AllAssets(){
-    free_quotes(q);
+    delete funds;
+    delete stocks;
+    delete q;
 }
 
 
@@ -570,6 +572,18 @@ std::set<std::string> AllAssets::get_all_ccy()
         all_ccy.insert(i.currency);
     }
     return all_ccy;
+}
+
+
+std::vector<std::string> AllAssets::get_all_ccy_pairs()
+{
+    std::vector<std::string> all_ccy_pairs;
+    for(auto& stx: *stocks){
+        if(quotes_by_symbol.find(std::string(stx.instrument->symbol)) != quotes_by_symbol.end()){
+            all_ccy_pairs.push_back(stx.instrument->symbol);
+        }
+    }
+    return all_ccy_pairs;
 }
 
 double AllAssets::to_main_ccy(double value, const char* ccy, const char* main_ccy)
@@ -781,6 +795,31 @@ strings* get_all_ccy(AllAssets* assets)
         sb.add(*i);
     }
     return sb.strings;
+}
+
+quotes* get_all_ccy_pairs_quote(AllAssets* assets)
+{
+    Quotes *quotes = nullptr;
+
+    auto all_pairs = assets->get_all_ccy_pairs();
+
+    auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(all_pairs.size(), [&quotes](LatestQuotesBuilder::Alloc *alloc){
+        quotes = new Quotes(alloc->allocated_num(), alloc->head);
+    }));
+
+    for(auto& pair: all_pairs) {
+        auto *q = get_latest_quote(assets, pair.c_str());
+        if(q!=nullptr){
+            builder->add_quote(pair.c_str(), q->date, q->rate);
+        }
+    }
+    builder->succeed();
+    return quotes;
+}
+
+const quotes* get_all_ccy_pairs_quote(AssetHandle handle)
+{
+    return get_all_ccy_pairs_quote(get_assets_by_handle(handle));
 }
 
 strings* get_all_ccy(AssetHandle handle)
