@@ -551,9 +551,39 @@ double broker2_stock_value = broker2_jpy_stocks_value + broker2_usd_stocks_value
 double broker1_stock_profit = broker1_stocks_profit * usd_jpy_rate;
 double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_profit * usd_jpy_rate;
 
+namespace
+{
+    struct PrepareAssets
+    {
+        Quotes *q;
+        FundPortfolio *funds;
+        AllBrokers *brokers;
+        StockPortfolio* stocks;
+        AllAssets *assets;
+        QuoteBySymbol quotes_by_symbol;
+
+        PrepareAssets(){
+            q = prepare_quotes(quotes_by_symbol);
+            funds = prepare_funds();
+            brokers = prepare_brokers();
+            stocks = prepare_stocks();
+            assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
+        }
+
+        ~PrepareAssets(){
+            delete brokers;
+            delete funds;
+            delete stocks;
+            delete q;
+            delete assets;
+        }       
+    };
+}
+
 extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 TEST(TestOverview, overview_group_by_asset_broker)
 {
+    //PrepareAssets prepare;
     QuoteBySymbol quotes_by_symbol;
     auto * q = prepare_quotes(quotes_by_symbol);
     auto * funds = prepare_funds();
@@ -561,6 +591,7 @@ TEST(TestOverview, overview_group_by_asset_broker)
     auto * stocks = prepare_stocks();
 
     auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
+
 
     auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY));
 
@@ -661,6 +692,7 @@ TEST(TestOverview, overview_group_by_asset_broker)
     }
 
     delete overview;
+
     delete brokers;
     delete funds;
     delete stocks;
@@ -704,6 +736,7 @@ TEST(TestOverview, get_sum_group_by_asset)
 
 
     delete by_asset;
+
     delete brokers;
     delete funds;
     delete stocks;
@@ -714,6 +747,7 @@ TEST(TestOverview, get_sum_group_by_asset)
 extern const quote* get_latest_quote(AllAssets*, const char* symbol);
 extern const quotes* get_latest_quotes(AllAssets* assets, int num, const char** );
 extern const quotes* get_latest_quotes_delimeter(AllAssets* assets, int num, const char* delimiter, const char* symbols);
+extern quotes* get_all_ccy_pairs_quote(AllAssets* assets);
 
 static void assert_quote_eq(quote* q, const char* sym, timestamp date, double rate)
 {
@@ -758,8 +792,18 @@ TEST(TestOverview, get_latest_quotes)
 
         free_quotes(quotes);
     }
+}
+
+/*
+TEST(TestOverview, get_all_ccy_pairs_quote)
+{
+    auto *quotes = static_cast<Quotes*>(get_all_ccy_pairs_quote(assets));
+
+        free_quotes(quotes);
+    }
 
 
     delete q;
     delete assets;    
 }
+*/

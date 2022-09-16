@@ -549,13 +549,14 @@ AllAssets::AllAssets(){
 AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp)
 {
     q = nullptr;
-    funds = nullptr;
-    stocks = nullptr;
     quotes_by_symbol = quotes;
     
     if(brokers!=nullptr) load_cash(brokers);
     if(fp!=nullptr) load_funds(fp);
     if(sp!=nullptr) load_stocks(sp);
+
+    funds = nullptr;
+    stocks = nullptr;
 }
 
 AllAssets::~AllAssets(){
