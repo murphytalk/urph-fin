@@ -105,19 +105,20 @@ public:
     }
 };
 
-static std::vector<stock_test_data> test1_stocks = {
+namespace{
+std::vector<stock_test_data> test1_stocks = {
     {"SYM1", "USD"},
     {"SYM2", "USD"},
 };
 
-static std::vector<stock_tx_test_data> sym1_tx = {
+std::vector<stock_tx_test_data> sym1_tx = {
     {10.0, 100.0, 1.0, "BUY", "broker1", 1000},
     {0.0, 2.0, 0.0, "SPLIT", "broker1", 2000},   // total shares after split: 20
     {20.0, 40.0, 1.0, "BUY", "broker2", 3000},   // shares: 40
     {30.0, 100.0, 1.0, "SELL", "broker2", 4000}, // shares: 10
 };
 
-static std::vector<stock_tx_test_data> sym2_tx = {
+std::vector<stock_tx_test_data> sym2_tx = {
     {10.0, 100.0, 1.0, "BUY", "broker1", 1000},
     {20.0, 40.0, 1.0, "BUY", "broker2", 2000},   // shares: 30
     {30.0, 100.0, 1.0, "SELL", "broker2", 3000}, // shares:  0
@@ -127,6 +128,7 @@ static std::vector<stock_tx_test_data> sym2_tx = {
     {10.0, 70.0, 1.0, "BUY", "broker3", 4000},   // shares: 40
     {15.0, 100.0, 1.0, "SELL", "broker2", 5000}, // shares: 25
 };
+}
 
 TEST(TestStockPortfolio, get_stock_all_portfolio1)
 {
@@ -196,15 +198,17 @@ TEST(TestStockPortfolio, get_stock_all_portfolio1)
     ASSERT_TRUE(triggered);
 }
 
-static std::vector<stock_test_data> test2_stocks = {
+namespace{
+std::vector<stock_test_data> test2_stocks = {
     {"0700.HK", "HKD"},
 };
-static std::vector<stock_tx_test_data> test2_tx = {
+std::vector<stock_tx_test_data> test2_tx = {
     {100.0, 369.0, 72.75, "BUY", "broker1", 1000},
     {100.0, 260.0, 51.302, "BUY", "broker1", 2000},
     {100.0, 468.6, 99.76, "BUY", "broker1", 3000},
     {100.0, 373.0, 79.90, "BUY", "broker1", 4000},
 };
+}
 
 TEST(TestStockPortfolio, get_stock_all_portfolio2)
 {
@@ -229,100 +233,101 @@ TEST(TestStockPortfolio, get_stock_all_portfolio2)
     ASSERT_TRUE(triggered);
 }
 
-static const char usd[] = "USD";
-static const char jpy[] = "JPY";
-static const std::string usd_jpy = {"USDJPY"};
-static const double usd_jpy_rate = 100;
-static const timestamp usd_jpy_date = 100;
+namespace{
+const char usd[] = "USD";
+const char jpy[] = "JPY";
+const std::string usd_jpy = {"USDJPY"};
+const double usd_jpy_rate = 100;
+const timestamp usd_jpy_date = 100;
 
-static const double fee = 1.0;
+const double fee = 1.0;
 
-static const std::string broker1 = {"broker1"};
-static const std::string broker2 = {"broker2"};
-static const std::string* brokers[] = {&broker1, &broker2};
+const std::string broker1 = {"broker1"};
+const std::string broker2 = {"broker2"};
+const std::string* brokers[] = {&broker1, &broker2};
 
-static double broker1_jpy = 10000;
-static double broker1_usd = 1000;
+double broker1_jpy = 10000;
+double broker1_usd = 1000;
 
-static double broker2_jpy = 20000;
-static double broker2_usd = 2000;
+double broker2_jpy = 20000;
+double broker2_usd = 2000;
 
-static const std::string stock_both_brokers = {"Stock4"};
-static const char* stock_both_brokers_ccy = usd;
-static const double stock_both_brokers_price = 300;
-static const timestamp stock_both_brokers_date = 100;
+const std::string stock_both_brokers = {"Stock4"};
+const char* stock_both_brokers_ccy = usd;
+const double stock_both_brokers_price = 300;
+const timestamp stock_both_brokers_date = 100;
 
-static const double stock_both_brokers_broker1_buy_price = 90;
-static const double stock_both_brokers_broker1_shares = 100;
+const double stock_both_brokers_broker1_buy_price = 90;
+const double stock_both_brokers_broker1_shares = 100;
 
-static const double stock_both_brokers_broker2_buy_price = 95;
-static const double stock_both_brokers_broker2_shares = 50;
+const double stock_both_brokers_broker2_buy_price = 95;
+const double stock_both_brokers_broker2_shares = 50;
 
-static const double stock_both_brokers_broker1_buy_price2 = 90;
-static const double stock_both_brokers_broker1_shares2 = 60;
-
-
-static const std::string stock1 = {"Stock1"};
-static const std::string& stock1_broker = broker1;
-static const char* stock1_ccy = usd;
-static const double stock1_price = 100;
-static const double stock1_buy_price = 90;
-static const double stock1_shares = 100;
-static const timestamp stock1_date = 100;
+const double stock_both_brokers_broker1_buy_price2 = 90;
+const double stock_both_brokers_broker1_shares2 = 60;
 
 
-static const std::string stock2 = {"Stock2"};
-static const std::string& stock2_broker = broker2;
-static const char* stock2_ccy = jpy;
-static const double stock2_price = 200;
-static const double stock2_buy_price = 190;
-static const double stock2_shares = 100;
-static const timestamp stock2_date = 100;
-
-static const std::string stock3 = {"Stock3"};
-static const std::string& stock3_broker = broker2;
-static const char* stock3_ccy = usd;
-static const double stock3_price = 30;
-static const double stock3_buy_price = 10;
-static const double stock3_shares = 10;
-static const timestamp stock3_date = 100;
+const std::string stock1 = {"Stock1"};
+const std::string& stock1_broker = broker1;
+const char* stock1_ccy = usd;
+const double stock1_price = 100;
+const double stock1_buy_price = 90;
+const double stock1_shares = 100;
+const timestamp stock1_date = 100;
 
 
-static const std::string funds1 = {"Funds1"};
-static const std::string funds1_id = {"id1"};
-static const std::string& funds1_broker = broker2;
-static const double funds1_amt = 1;
-static const double funds1_price = 1000;
-static const double funds1_value = 3000;
-static const double funds1_capital = 2000;
-static const double funds1_profit = funds1_value - funds1_capital;
-static const double funds1_roi = 100 * funds1_profit/funds1_capital;
-static const timestamp funds1_date = 100;
+const std::string stock2 = {"Stock2"};
+const std::string& stock2_broker = broker2;
+const char* stock2_ccy = jpy;
+const double stock2_price = 200;
+const double stock2_buy_price = 190;
+const double stock2_shares = 100;
+const timestamp stock2_date = 100;
 
-static const std::string funds2 = {"Funds2"};
-static const std::string funds2_id = {"id2"};
-static const std::string& funds2_broker = broker1;
-static const double funds2_amt = 2;
-static const double funds2_price = 900;
-static const double funds2_value = 4000;
-static const double funds2_capital = 5000;
-static const double funds2_profit = funds2_value - funds2_capital;
-static const double funds2_roi = 100 * funds2_profit/funds2_capital;
-static const timestamp funds2_date = 100;
-
-static const std::string funds3 = {"Funds3"};
-static const std::string funds3_id = {"id3"};
-static const std::string& funds3_broker = broker1;
-static const double funds3_amt = 3;
-static const double funds3_price = 900;
-static const double funds3_value = 4000;
-static const double funds3_capital = 5000;
-static const double funds3_profit = funds3_value - funds3_capital;
-static const double funds3_roi = 100 * funds3_profit/funds3_capital;
-static const timestamp funds3_date = 100;
+const std::string stock3 = {"Stock3"};
+const std::string& stock3_broker = broker2;
+const char* stock3_ccy = usd;
+const double stock3_price = 30;
+const double stock3_buy_price = 10;
+const double stock3_shares = 10;
+const timestamp stock3_date = 100;
 
 
-static Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
+const std::string funds1 = {"Funds1"};
+const std::string funds1_id = {"id1"};
+const std::string& funds1_broker = broker2;
+const double funds1_amt = 1;
+const double funds1_price = 1000;
+const double funds1_value = 3000;
+const double funds1_capital = 2000;
+const double funds1_profit = funds1_value - funds1_capital;
+const double funds1_roi = 100 * funds1_profit/funds1_capital;
+const timestamp funds1_date = 100;
+
+const std::string funds2 = {"Funds2"};
+const std::string funds2_id = {"id2"};
+const std::string& funds2_broker = broker1;
+const double funds2_amt = 2;
+const double funds2_price = 900;
+const double funds2_value = 4000;
+const double funds2_capital = 5000;
+const double funds2_profit = funds2_value - funds2_capital;
+const double funds2_roi = 100 * funds2_profit/funds2_capital;
+const timestamp funds2_date = 100;
+
+const std::string funds3 = {"Funds3"};
+const std::string funds3_id = {"id3"};
+const std::string& funds3_broker = broker1;
+const double funds3_amt = 3;
+const double funds3_price = 900;
+const double funds3_value = 4000;
+const double funds3_capital = 5000;
+const double funds3_profit = funds3_value - funds3_capital;
+const double funds3_roi = 100 * funds3_profit/funds3_capital;
+const timestamp funds3_date = 100;
+
+
+Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
 {
     Quotes *q = nullptr;
     auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(5, [&q](LatestQuotesBuilder::Alloc *alloc){
@@ -342,7 +347,7 @@ static Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
     return q;
 }
 
-static StockPortfolio* prepare_stocks()
+StockPortfolio* prepare_stocks()
 {
     StockPortfolio* stocks;
 
@@ -382,7 +387,7 @@ static StockPortfolio* prepare_stocks()
     return stocks;
 }
 
-static FundPortfolio* prepare_funds()
+FundPortfolio* prepare_funds()
 {
     FundPortfolio* funds;
     auto *builder = static_cast<FundsBuilder*>(FundsBuilder::create(3,[&funds](FundsBuilder::Alloc* fund_alloc){
@@ -423,7 +428,7 @@ public:
     }
 };
 
-static AllBrokers* prepare_brokers()
+AllBrokers* prepare_brokers()
 {
     BrokerDao dao;
     auto *builder = new AllBrokerBuilder<BrokerDao, BrokerType>(2);
@@ -434,9 +439,10 @@ static AllBrokers* prepare_brokers()
     return b;
 }
 
-static const char ASSET_TYPE_STOCK [] = "Stock&ETF";
-static const char ASSET_TYPE_FUNDS [] = "Funds";
-static const char ASSET_TYPE_CASH  [] = "Cash";
+const char ASSET_TYPE_STOCK [] = "Stock&ETF";
+const char ASSET_TYPE_FUNDS [] = "Funds";
+const char ASSET_TYPE_CASH  [] = "Cash";
+}
 
 extern strings* get_all_ccy(AllAssets* assets);
 TEST(TestOverview, load_assets)
@@ -502,20 +508,21 @@ TEST(TestOverview, load_assets)
     delete q;
     delete assets;
 }
-
-static inline bool cstr_eq(const char*s1, const char*s2)
+namespace
+{
+inline bool cstr_eq(const char*s1, const char*s2)
 {
     return strcmp(s1, s2) == 0;
 }
 
-static inline bool cmp_overview_item(overview_item& a, overview_item& b)
+inline bool cmp_overview_item(overview_item& a, overview_item& b)
 {
     return cstr_eq(a.name, b.name) && 
         a.profit == b.profit && a.profit_in_main_ccy == b.profit_in_main_ccy &&
         a.value == b.value && a.value_in_main_ccy == b.value_in_main_ccy;
 }
 
-static void assert_overview_items_eq(std::vector<overview_item>& items, std::vector<overview_item>& expected)
+void assert_overview_items_eq(std::vector<overview_item>& items, std::vector<overview_item>& expected)
 {
     ASSERT_EQ(items.size(), expected.size());
     auto i = items.begin();
@@ -551,8 +558,7 @@ double broker2_stock_value = broker2_jpy_stocks_value + broker2_usd_stocks_value
 double broker1_stock_profit = broker1_stocks_profit * usd_jpy_rate;
 double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_profit * usd_jpy_rate;
 
-namespace
-{
+
     struct PrepareAssets
     {
         Quotes *q;
@@ -723,7 +729,7 @@ extern const quotes* get_latest_quotes(AllAssets* assets, int num, const char** 
 extern const quotes* get_latest_quotes_delimeter(AllAssets* assets, int num, const char* delimiter, const char* symbols);
 extern quotes* get_all_ccy_pairs_quote(AllAssets* assets);
 
-static void assert_quote_eq(quote* q, const char* sym, timestamp date, double rate)
+void assert_quote_eq(quote* q, const char* sym, timestamp date, double rate)
 {
     ASSERT_STREQ(q->symbol, sym);
     ASSERT_EQ(q->date, date);
