@@ -155,7 +155,7 @@ public:
     }
     void prepare_stock_alloc(int n) {
         LOG(DEBUG) << "Got " << n << " stocks\n";
-        unfinished_brokers = n;
+        unfinished_stocks = n;
         stock_alloc = new StockAlloc(n);
     }
     void prepare_tx_alloc(const std::string& symbol, int num){
@@ -171,7 +171,7 @@ public:
             delete it->second;
             tx.erase(it);
         }
-        --unfinished_brokers;
+        --unfinished_stocks;
     }
     void addTx(const std::string& broker,const std::string& symbol, const std::string& type, const double price, const double shares, const double fee, const timestamp date){
         LOG(DEBUG) << "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares << "\n";
@@ -219,7 +219,7 @@ public:
         return head;
     } 
 private:
-    int unfinished_brokers = std::numeric_limits<int>::max();
+    int unfinished_stocks = std::numeric_limits<int>::max();
     TxAllocPointerBySymbol tx;
     OnSuccess onSuccess;
     StockPortfolioBuilder(OnSuccess on_success){ 
@@ -231,9 +231,9 @@ private:
             LOG(DEBUG) << "Checking completion: cur =" << alloc->counter << ", max=" << alloc->max_counter << "\n";
         }
         if(alloc == nullptr || alloc->has_enough_counter()){
-            --unfinished_brokers;
-            LOG(DEBUG) << "Enough tx , remaining stocks = " << unfinished_brokers << "\n";
-            if(unfinished_brokers == 0){
+            --unfinished_stocks;
+            LOG(DEBUG) << "Enough tx , remaining stocks = " << unfinished_stocks << "\n";
+            if(unfinished_stocks == 0){
                 // no more pending
                 onSuccess(stock_alloc, tx);
                 delete this;
