@@ -555,8 +555,8 @@ AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio*
     if(fp!=nullptr) load_funds(fp);
     if(sp!=nullptr) load_stocks(sp);
 
-    funds = nullptr;
-    stocks = nullptr;
+    funds =  fp;
+    stocks = sp;
 }
 
 AllAssets::~AllAssets(){
@@ -576,13 +576,15 @@ std::set<std::string> AllAssets::get_all_ccy()
 }
 
 
-std::vector<std::string> AllAssets::get_all_ccy_pairs()
+// stock and FX pairs have quotes, so if we exclude all stocks from quotes what's left is FX pairs
+std::set<std::string> AllAssets::get_all_ccy_pairs()
 {
-    std::vector<std::string> all_ccy_pairs;
+    std::set<std::string> all_ccy_pairs;
+    for (auto& [symbol, _]: quotes_by_symbol) {
+        all_ccy_pairs.insert(symbol);
+    }
     for(auto& stx: *stocks){
-        if(quotes_by_symbol.find(std::string(stx.instrument->symbol)) != quotes_by_symbol.end()){
-            all_ccy_pairs.push_back(stx.instrument->symbol);
-        }
+        all_ccy_pairs.erase(std::string(stx.instrument->symbol));
     }
     return all_ccy_pairs;
 }

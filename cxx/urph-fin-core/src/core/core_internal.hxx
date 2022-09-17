@@ -62,7 +62,7 @@ public:
 
     const Quote* get_latest_quote(const char* symbol);
     std::set<std::string> get_all_ccy();
-    std::vector<std::string> get_all_ccy_pairs();
+    std::set<std::string> get_all_ccy_pairs();
 
     AssetItems items;
 private:

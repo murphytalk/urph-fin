@@ -234,6 +234,7 @@ TEST(TestStockPortfolio, get_stock_all_portfolio2)
 }
 
 namespace{
+
 const char usd[] = "USD";
 const char jpy[] = "JPY";
 const std::string usd_jpy = {"USDJPY"};
@@ -442,74 +443,7 @@ AllBrokers* prepare_brokers()
 const char ASSET_TYPE_STOCK [] = "Stock&ETF";
 const char ASSET_TYPE_FUNDS [] = "Funds";
 const char ASSET_TYPE_CASH  [] = "Cash";
-}
 
-extern strings* get_all_ccy(AllAssets* assets);
-TEST(TestOverview, load_assets)
-{
-    QuoteBySymbol quotes_by_symbol;
-    auto * q = prepare_quotes(quotes_by_symbol);
-    auto * funds = prepare_funds();
-    auto * brokers = prepare_brokers();
-    auto * stocks = prepare_stocks();
-
-    auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
-
-
-    AssetItems items = {
-        AssetItem(ASSET_TYPE_CASH , broker1.c_str(), usd, broker1_usd, 0),
-        AssetItem(ASSET_TYPE_CASH , broker1.c_str(), jpy, broker1_jpy, 0),
-        AssetItem(ASSET_TYPE_CASH , broker2.c_str(), usd, broker2_usd, 0),
-        AssetItem(ASSET_TYPE_CASH , broker2.c_str(), jpy, broker2_jpy, 0),
-
-        AssetItem(ASSET_TYPE_FUNDS, funds2_broker.c_str(), jpy, funds2_value + funds3_value, funds2_profit + funds3_profit),
-        AssetItem(ASSET_TYPE_FUNDS, funds1_broker.c_str(), jpy, funds1_value, funds1_profit),
-
-        AssetItem(ASSET_TYPE_STOCK, broker1.c_str(), usd, 
-            // stock1 + stock4
-            stock1_price * stock1_shares + stock_both_brokers_price * (stock_both_brokers_broker1_shares + stock_both_brokers_broker1_shares2),
-            (stock1_price - stock1_buy_price) * stock1_shares 
-                + (stock_both_brokers_price - stock_both_brokers_broker1_buy_price)  * stock_both_brokers_broker1_shares
-                + (stock_both_brokers_price - stock_both_brokers_broker1_buy_price2) * stock_both_brokers_broker1_shares2
-        ),
-        AssetItem(ASSET_TYPE_STOCK, broker2.c_str(), jpy, 
-            // stock2
-            stock2_price * stock2_shares,
-            (stock2_price - stock2_buy_price) * stock2_shares
-        ),
-        AssetItem(ASSET_TYPE_STOCK, broker2.c_str(), usd, 
-            // stock3 + stock4
-            stock3_price * stock3_shares + stock_both_brokers_price * stock_both_brokers_broker2_shares,
-            (stock3_price - stock3_buy_price) * stock3_shares + (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares
-        ),
-    };
-
-    
-    std::set all_ccys = assets->get_all_ccy();
-    ASSERT_EQ(all_ccys.size(),2);
-    ASSERT_TRUE(all_ccys.find(jpy) != all_ccys.end());
-    ASSERT_TRUE(all_ccys.find(usd) != all_ccys.end());
-    ASSERT_TRUE(all_ccys.find("HKD") == all_ccys.end());
-
-    Strings* all_ccy_strs = static_cast<Strings*>(get_all_ccy(assets));
-    auto i = all_ccy_strs->begin();
-    ASSERT_TRUE(strcmp(*i , jpy) == 0 ||strcmp(*i , usd) == 0);
-    ++i;
-    ASSERT_TRUE(strcmp(*i , jpy) == 0 ||strcmp(*i , usd) == 0);
-    ASSERT_EQ(++i, all_ccy_strs->end());
-    delete all_ccy_strs;
-
-
-    ASSERT_EQ(items,assets->items);
-
-    delete brokers;
-    delete funds;
-    delete stocks;
-    delete q;
-    delete assets;
-}
-namespace
-{
 inline bool cstr_eq(const char*s1, const char*s2)
 {
     return strcmp(s1, s2) == 0;
@@ -559,8 +493,8 @@ double broker1_stock_profit = broker1_stocks_profit * usd_jpy_rate;
 double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_profit * usd_jpy_rate;
 
 
-    struct PrepareAssets
-    {
+struct PrepareAssets
+{
         Quotes *q;
         FundPortfolio *funds;
         AllBrokers *brokers;
@@ -570,21 +504,74 @@ double broker2_stock_profit = broker2_jpy_stocks_profit + broker2_usd_stocks_pro
         PrepareAssets(){
             QuoteBySymbol quotes_by_symbol;
             q = prepare_quotes(quotes_by_symbol);
-            funds = prepare_funds();
             brokers = prepare_brokers();
+            // AllAssets will own the following two pointers and free them
+            funds = prepare_funds();
             stocks = prepare_stocks();
             assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
         }
 
         ~PrepareAssets(){
             delete brokers;
-            delete funds;
-            delete stocks;
             delete q;
             delete assets;
         }       
+};
+
+} //namespace
+
+extern strings* get_all_ccy(AllAssets* assets);
+TEST(TestOverview, load_assets)
+{
+    PrepareAssets prepare;
+
+    AssetItems items = {
+        AssetItem(ASSET_TYPE_CASH , broker1.c_str(), usd, broker1_usd, 0),
+        AssetItem(ASSET_TYPE_CASH , broker1.c_str(), jpy, broker1_jpy, 0),
+        AssetItem(ASSET_TYPE_CASH , broker2.c_str(), usd, broker2_usd, 0),
+        AssetItem(ASSET_TYPE_CASH , broker2.c_str(), jpy, broker2_jpy, 0),
+
+        AssetItem(ASSET_TYPE_FUNDS, funds2_broker.c_str(), jpy, funds2_value + funds3_value, funds2_profit + funds3_profit),
+        AssetItem(ASSET_TYPE_FUNDS, funds1_broker.c_str(), jpy, funds1_value, funds1_profit),
+
+        AssetItem(ASSET_TYPE_STOCK, broker1.c_str(), usd, 
+            // stock1 + stock4
+            stock1_price * stock1_shares + stock_both_brokers_price * (stock_both_brokers_broker1_shares + stock_both_brokers_broker1_shares2),
+            (stock1_price - stock1_buy_price) * stock1_shares 
+                + (stock_both_brokers_price - stock_both_brokers_broker1_buy_price)  * stock_both_brokers_broker1_shares
+                + (stock_both_brokers_price - stock_both_brokers_broker1_buy_price2) * stock_both_brokers_broker1_shares2
+        ),
+        AssetItem(ASSET_TYPE_STOCK, broker2.c_str(), jpy, 
+            // stock2
+            stock2_price * stock2_shares,
+            (stock2_price - stock2_buy_price) * stock2_shares
+        ),
+        AssetItem(ASSET_TYPE_STOCK, broker2.c_str(), usd, 
+            // stock3 + stock4
+            stock3_price * stock3_shares + stock_both_brokers_price * stock_both_brokers_broker2_shares,
+            (stock3_price - stock3_buy_price) * stock3_shares + (stock_both_brokers_price - stock_both_brokers_broker2_buy_price) * stock_both_brokers_broker2_shares
+        ),
     };
+
+    
+    std::set all_ccys = prepare.assets->get_all_ccy();
+    ASSERT_EQ(all_ccys.size(),2);
+    ASSERT_TRUE(all_ccys.find(jpy) != all_ccys.end());
+    ASSERT_TRUE(all_ccys.find(usd) != all_ccys.end());
+    ASSERT_TRUE(all_ccys.find("HKD") == all_ccys.end());
+
+    Strings* all_ccy_strs = static_cast<Strings*>(get_all_ccy(prepare.assets));
+    auto i = all_ccy_strs->begin();
+    ASSERT_TRUE(strcmp(*i , jpy) == 0 ||strcmp(*i , usd) == 0);
+    ++i;
+    ASSERT_TRUE(strcmp(*i , jpy) == 0 ||strcmp(*i , usd) == 0);
+    ASSERT_EQ(++i, all_ccy_strs->end());
+    delete all_ccy_strs;
+
+
+    ASSERT_EQ(items,prepare.assets->items);
 }
+
 
 extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 TEST(TestOverview, overview_group_by_asset_broker)
@@ -772,16 +759,13 @@ TEST(TestOverview, get_latest_quotes)
     }
 }
 
-/*
+
 TEST(TestOverview, get_all_ccy_pairs_quote)
 {
-    auto *quotes = static_cast<Quotes*>(get_all_ccy_pairs_quote(assets));
+    PrepareAssets prepare;
 
-        free_quotes(quotes);
-    }
-
-
-    delete q;
-    delete assets;    
+    auto *quotes = static_cast<Quotes*>(get_all_ccy_pairs_quote(prepare.assets));
+    ASSERT_EQ(quotes->num, 1);
+    assert_quote_eq(quotes->first, usd_jpy.c_str() , usd_jpy_date, usd_jpy_rate);
+    free_quotes(quotes);
 }
-*/
