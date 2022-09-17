@@ -325,7 +325,7 @@ static const timestamp funds3_date = 100;
 static Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
 {
     Quotes *q = nullptr;
-    auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(4, [&q](LatestQuotesBuilder::Alloc *alloc){
+    auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(5, [&q](LatestQuotesBuilder::Alloc *alloc){
         q = new Quotes(alloc->allocated_num(), alloc->head);
     }));
     builder->add_quote(usd_jpy, usd_jpy_date, usd_jpy_rate);
@@ -560,9 +560,9 @@ namespace
         AllBrokers *brokers;
         StockPortfolio* stocks;
         AllAssets *assets;
-        QuoteBySymbol quotes_by_symbol;
 
         PrepareAssets(){
+            QuoteBySymbol quotes_by_symbol;
             q = prepare_quotes(quotes_by_symbol);
             funds = prepare_funds();
             brokers = prepare_brokers();
@@ -583,17 +583,9 @@ namespace
 extern overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group);
 TEST(TestOverview, overview_group_by_asset_broker)
 {
-    //PrepareAssets prepare;
-    QuoteBySymbol quotes_by_symbol;
-    auto * q = prepare_quotes(quotes_by_symbol);
-    auto * funds = prepare_funds();
-    auto * brokers = prepare_brokers();
-    auto * stocks = prepare_stocks();
+    PrepareAssets prepare;
 
-    auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
-
-
-    auto* overview = static_cast<Overview*>(get_overview(assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY));
+    auto* overview = static_cast<Overview*>(get_overview(prepare.assets, jpy, GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY));
 
     std::vector<overview_item> broker1_cash = {
         overview_item{ const_cast<char*>(usd), const_cast<char*>(usd), broker1_usd, broker1_usd * usd_jpy_rate , 0,0 },
@@ -692,27 +684,15 @@ TEST(TestOverview, overview_group_by_asset_broker)
     }
 
     delete overview;
-
-    delete brokers;
-    delete funds;
-    delete stocks;
-    delete q;
-    delete assets;
 }
 
 extern overview_item_list* get_sum_group(AllAssets* assets, const char* main_ccy, GROUP group);
 const char ASSET[] = "Asset";
 TEST(TestOverview, get_sum_group_by_asset)
 {
-    QuoteBySymbol quotes_by_symbol;
-    auto * q = prepare_quotes(quotes_by_symbol);
-    auto * funds = prepare_funds();
-    auto * brokers = prepare_brokers();
-    auto * stocks = prepare_stocks();
+    PrepareAssets prepare;
 
-    auto* assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
-
-    auto *by_asset = static_cast<OverviewItemList*>(get_sum_group(assets, jpy, GROUP_BY_ASSET));
+    auto *by_asset = static_cast<OverviewItemList*>(get_sum_group(prepare.assets, jpy, GROUP_BY_ASSET));
 
     for(auto& item: *by_asset){
         if(cstr_eq(item.name, ASSET_TYPE_CASH)){
@@ -736,12 +716,6 @@ TEST(TestOverview, get_sum_group_by_asset)
 
 
     delete by_asset;
-
-    delete brokers;
-    delete funds;
-    delete stocks;
-    delete q;
-    delete assets;
 }
 
 extern const quote* get_latest_quote(AllAssets*, const char* symbol);
@@ -758,20 +732,18 @@ static void assert_quote_eq(quote* q, const char* sym, timestamp date, double ra
 
 TEST(TestOverview, get_latest_quotes)
 {
-    QuoteBySymbol quotes_by_symbol;
-    auto * q = prepare_quotes(quotes_by_symbol);
-    auto* assets = new AllAssets(std::move(quotes_by_symbol), nullptr, nullptr, nullptr);
+    PrepareAssets prepare;
 
     const char usdjpy[] = "USDJPY";
     const char stock2[] = "Stock2";
 
-    auto * usd_jpy_q = get_latest_quote(assets, usdjpy);
+    auto * usd_jpy_q = get_latest_quote(prepare.assets, usdjpy);
     assert_quote_eq((quote*)usd_jpy_q, usd_jpy.c_str(), usd_jpy_date, usd_jpy_rate);
 
     {
         const char* symbols [] = {usdjpy, stock2};
         Quotes* quotes = const_cast<Quotes*>(
-            static_cast<const Quotes*>(get_latest_quotes(assets, sizeof(symbols)/sizeof(const char*), symbols))
+            static_cast<const Quotes*>(get_latest_quotes(prepare.assets, sizeof(symbols)/sizeof(const char*), symbols))
         );
 
         auto it = quotes->begin();
@@ -783,7 +755,7 @@ TEST(TestOverview, get_latest_quotes)
 
     {
         Quotes* quotes = const_cast<Quotes*>(
-           static_cast<const Quotes*>(get_latest_quotes_delimeter(assets, 2, ",", "USDJPY,Stock2"))
+           static_cast<const Quotes*>(get_latest_quotes_delimeter(prepare.assets, 2, ",", "USDJPY,Stock2"))
         );
 
         auto it = quotes->begin();
