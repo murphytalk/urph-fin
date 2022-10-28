@@ -1,6 +1,6 @@
 set(lib_target urph-fin-core-dart)
 
-set(DART_SDK "/mnt/extra2/apps/flutter/bin/cache/dart-sdk")
+set(DART_SDK "$ENV{FLUTTER_HOME}/bin/cache/dart-sdk")
 
 set(SRC
     ${DART_SDK}/include/dart_api_dl.c
