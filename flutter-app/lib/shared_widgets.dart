@@ -1,3 +1,5 @@
+import 'dart:ffi';
+
 import 'package:flutter/material.dart';
 import 'package:urph_fin/utils.dart';
 
@@ -8,8 +10,8 @@ Widget financeValueText(String ccy, double value,
 }
 
 class AwaitWidget extends StatelessWidget {
-  const AwaitWidget({Key? key, required this.caption}) : super(key: key);
   final String caption;
+  const AwaitWidget({super.key, required this.caption});
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -25,5 +27,16 @@ class AwaitWidget extends StatelessWidget {
               padding: const EdgeInsets.only(top: 16),
               child: Directionality(textDirection: TextDirection.ltr, child: Text(caption))))
     ]);
+  }
+}
+
+class QuoteWidget extends StatelessWidget {
+  final String _symbol;
+  final double _rate;
+  const QuoteWidget(this._symbol, this._rate, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(child: Text(_symbol));
   }
 }

@@ -59,6 +59,20 @@ class Strings extends Struct {
   external Pointer<Pointer<Utf8>> last_str;
 }
 
+class Quote extends Struct {
+  external Pointer<Pointer<Utf8>> symbol;
+  @Int64()
+  external int date;
+  @Double()
+  external double rate;
+}
+
+class Quotes extends Struct {
+  @Int32()
+  external int num;
+  external Pointer<Quote> first;
+}
+
 // asset overview
 class OverviewItem extends Struct {
   external Pointer<Utf8> name;
@@ -173,8 +187,28 @@ final urphFinFreeOverviewItemList =
     dl.lookupFunction<Void Function(Pointer<OverviewItemList>), void Function(Pointer<OverviewItemList>)>(
         'free_overview_item_list');
 
+final urphFinFreeStrings =
+    dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
+
+final urphFinGetAllCcy =
+    dl.lookupFunction<Pointer<Strings> Function(Int32), Pointer<Strings> Function(int)>('get_all_ccy');
+
+final urphFinGetLatestQuotes = dl.lookupFunction<Pointer<Quotes> Function(Int64, Int32, Pointer<Utf8>),
+    Pointer<Quotes> Function(int, int, Pointer<Utf8>)>('get_latest_quotes_delimeter');
+
+final urphFinFreeQuotes =
+    dl.lookupFunction<Void Function(Pointer<Quotes>), void Function(Pointer<Quotes>)>('free_quotes');
+
 typedef GetAllBrokersNameFunc = Pointer<Strings> Function();
 final urphFinGetAllBrokersName =
     dl.lookupFunction<GetAllBrokersNameFunc, GetAllBrokersNameFunc>('get_all_broker_names');
-final urphFinFreeStrings =
-    dl.lookupFunction<Void Function(Pointer<Strings>), void Function(Pointer<Strings>)>('free_strings');
+
+void dumpAllBrokerNames() {
+  final brokerNames = urphFinGetAllBrokersName();
+  print("got ${brokerNames.ref.capacity}");
+  final strs = brokerNames.ref.strs;
+  for (int i = 0; i < brokerNames.ref.capacity; i++) {
+    print("Broker ${strs[i].toDartString()}");
+  }
+  urphFinFreeStrings(brokerNames);
+}

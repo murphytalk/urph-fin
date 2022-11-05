@@ -87,10 +87,16 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _AssetsManager _assetsManager = _AssetsManager();
-
+/*
   List<Widget> _buildFxRates() {
-    return [];
+    final allCcy = urphFinGetAllCcy(_assetsManager.assets);
+    final ccys = allCcy.ref.strs;
+    for (int i = 0; i < allCcy.ref.capacity; ++i) {
+      final ccy = ccys[i];
+    }
+    urphFinFreeStrings(allCcy);
   }
+*/
 
   @override
   void initState() {
@@ -112,7 +118,7 @@ class _MyAppState extends State<MyApp> {
                 primarySwatch: Colors.blue,
               ),
               home: Scaffold(
-                appBar: AppBar(actions: _buildFxRates()),
+                //appBar: AppBar(actions: _buildFxRates()),
                 body: Center(child: OverviewWidget(_assetsManager.assets)),
                 drawer: Drawer(
                   child: ListView(
