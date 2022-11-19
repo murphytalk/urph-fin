@@ -158,7 +158,7 @@ public:
 };
 
 class FundPortfolio: public fund_portfolio{
-public:    
+public:
     FundPortfolio(int n, fund* fund);
     ~FundPortfolio();
     inline Fund* head(default_member_tag) { return static_cast<Fund*>(first_fund); }

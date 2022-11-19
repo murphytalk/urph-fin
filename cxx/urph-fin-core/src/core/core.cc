@@ -58,7 +58,7 @@ char* copy_str(const std::string& str)
 CashBalance::CashBalance(const std::string& n, float v)
 {
     ccy = copy_str(n);
-    balance = v;        
+    balance = v;
 }
 
 CashBalance::~CashBalance()
@@ -70,7 +70,7 @@ CashBalance::~CashBalance()
 Strings::Strings(int n)
 {
     capacity = n;
-    strs = new char* [n];    
+    strs = new char* [n];
     last_str = strs;
 }
 
@@ -170,7 +170,7 @@ Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int
     profit = p;
     ROI = r;
     date = d;
-}    
+}
 
 Fund::~Fund()
 {
@@ -275,16 +275,16 @@ IStorage *storage;
 bool urph_fin_core_init(OnDone onInitDone)
 {
     std::vector<AixLog::log_sink_ptr> sinks;
-    
+
     auto log_file = getenv("LOGFILE");
     auto verbose = getenv("VERBOSE");
     auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
     if(log_file == nullptr)
         sinks.push_back(std::make_shared<AixLog::SinkCout>(log_lvl));
-    else  
-        sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file)); 
+    else
+        sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file));
     AixLog::Log::init(sinks);
-    
+
     LOG(DEBUG) << "urph-fin-core initializing\n";
 
     try{
@@ -305,8 +305,8 @@ void urph_fin_core_close()
 }
 
 #define TRY try{
-#define CATCH(error_ret) }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); return error_ret; }    
-#define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); }    
+#define CATCH(error_ret) }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); return error_ret; }
+#define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
 all_brokers* get_brokers()
@@ -373,7 +373,7 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
         all_brokers = static_cast<AllBrokers*>(get_brokers());
         for(Broker& b: *all_brokers){
             fund_num += b.size(Broker::active_fund_tag());
-            all_broker_pointers.push_back(&b); 
+            all_broker_pointers.push_back(&b);
         }
     }
 
@@ -385,7 +385,7 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
         }
     }
     TRY
-    get_funds(fund_num, ids_head, onFunds, param);       
+    get_funds(fund_num, ids_head, onFunds, param);
     CATCH_NO_RET
 
     delete []ids_head;
@@ -405,9 +405,9 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
 {
     struct fund_sum init = { 0.0, 0.0, 0.0 };
 
-    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum& sum, fund& f){ 
-        sum.capital += f.capital; 
-        sum.market_value += f.market_value; 
+    auto r = std::accumulate(portfolio->first_fund, portfolio->first_fund + portfolio->num, init, [](fund_sum& sum, fund& f){
+        sum.capital += f.capital;
+        sum.market_value += f.market_value;
         sum.profit +=  f.market_value - f.capital;
         return sum;
     });
@@ -429,7 +429,7 @@ void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx ca
 {
     assert(storage != nullptr);
     TRY
-    storage->get_stock_portfolio(broker, symbol,callback, caller_provided_param);  
+    storage->get_stock_portfolio(broker, symbol,callback, caller_provided_param);
     CATCH_NO_RET
 }
 
@@ -463,7 +463,7 @@ quotes* get_quotes(int num, const char **symbols_head)
         try{
             get_quotes_async(num, symbols_head,[](quotes*q, void* arg){
                 quotes** all_quotes_ptr = reinterpret_cast<quotes**>(arg);
-                *all_quotes_ptr = q; 
+                *all_quotes_ptr = q;
                 cv.notify_one();
             }, &all_quotes);
         }
@@ -533,7 +533,7 @@ AllAssets::AllAssets(){
                 AllAssets *me = reinterpret_cast<AllAssets*>(param);
                 me->stocks = static_cast<StockPortfolio*>(p);
                 me->load_stocks(me->stocks);
-                me->cv.notify_one(); 
+                me->cv.notify_one();
             },param);
 
         }, this);
@@ -550,7 +550,7 @@ AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio*
 {
     q = nullptr;
     quotes_by_symbol = quotes;
-    
+
     if(brokers!=nullptr) load_cash(brokers);
     if(fp!=nullptr) load_funds(fp);
     if(sp!=nullptr) load_stocks(sp);
@@ -600,7 +600,7 @@ double AllAssets::to_main_ccy(double value, const char* ccy, const char* main_cc
         return value * fx->second->rate;
     }
     else{
-        // try the other convention 
+        // try the other convention
         auto fx2 = quotes_by_symbol.find(std::string(main_ccy) + ccy);
         if(fx == quotes_by_symbol.end()) return std::nan("");
         return value / fx2->second->rate;
@@ -686,7 +686,7 @@ void AllAssets::load_cash(AllBrokers *brokers)
             items.push_back(AssetItem(ASSET_TYPE_CASH, broker.name, balance.ccy, balance.balance, 0));
         }
     }
-}    
+}
 
 static std::map<AssetHandle, AllAssets*> all_assets_by_handle;
 static AssetHandle next_asset_handle = 0;
@@ -747,7 +747,7 @@ const quotes* get_latest_quotes(AllAssets* assets, int num, const char** symbols
     auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(num, [&quotes](LatestQuotesBuilder::Alloc *alloc){
         quotes = new Quotes(alloc->allocated_num(), alloc->head);
     }));
- 
+
     for(int i = 0; i < num; ++i){
         char* p = const_cast<char*>(symbols[i]);
         auto *q = assets->get_latest_quote(p);
