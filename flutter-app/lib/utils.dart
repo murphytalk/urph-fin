@@ -55,6 +55,20 @@ String formatCcy(String ccy, double num) {
   return (_fmtByCcy[ccy]?.format(num)) ?? '$ccy $num';
 }
 
+final NumberFormat numFormatter = NumberFormat("###.00", "en_US");
+String formatNum(double num) {
+  return numFormatter.format(num);
+}
+
+final dtFormatter = DateFormat('yyyy-MM-dd');
+String formatDate(DateTime dt) {
+  return dtFormatter.format(dt);
+}
+
+String formatTimestamp(int dt) {
+  return formatDate(DateTime.fromMillisecondsSinceEpoch(dt * 1000));
+}
+
 Size calculateTextSize({
   required String text,
   required TextStyle style,

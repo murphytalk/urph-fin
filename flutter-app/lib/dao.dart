@@ -60,7 +60,7 @@ class Strings extends Struct {
 }
 
 class Quote extends Struct {
-  external Pointer<Pointer<Utf8>> symbol;
+  external Pointer<Utf8> symbol;
   @Int64()
   external int date;
   @Double()
@@ -192,6 +192,9 @@ final urphFinFreeStrings =
 
 final urphFinGetAllCcy =
     dl.lookupFunction<Pointer<Strings> Function(Int32), Pointer<Strings> Function(int)>('get_all_ccy');
+
+final urphFinGetAllCcyPairsQuote =
+    dl.lookupFunction<Pointer<Quotes> Function(Int32), Pointer<Quotes> Function(int)>('get_all_ccy_pairs_quote');
 
 final urphFinGetLatestQuotes = dl.lookupFunction<Pointer<Quotes> Function(Int64, Int32, Pointer<Utf8>),
     Pointer<Quotes> Function(int, int, Pointer<Utf8>)>('get_latest_quotes_delimeter');

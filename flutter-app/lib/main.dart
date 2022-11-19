@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:ffi';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:urph_fin/utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:urph_fin/dao.dart' hide Overview;
 import 'package:urph_fin/shared_widgets.dart';
@@ -87,16 +90,30 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _AssetsManager _assetsManager = _AssetsManager();
-/*
+
   List<Widget> _buildFxRates() {
-    final allCcy = urphFinGetAllCcy(_assetsManager.assets);
-    final ccys = allCcy.ref.strs;
-    for (int i = 0; i < allCcy.ref.capacity; ++i) {
-      final ccy = ccys[i];
+    List<Widget> items = [];
+    final all = urphFinGetAllCcyPairsQuote(_assetsManager.assets);
+    final allRef = all.ref;
+
+    for (int i = 0; i < allRef.num; ++i) {
+      final q = allRef.first[i];
+      items.add(Row(
+        children: [
+          Text(q.symbol.toDartString()),
+          Container(
+            margin: const EdgeInsets.only(left: 5.0, right: 10.0),
+            child: Text(formatNum(q.rate)),
+          )
+        ],
+      ));
     }
-    urphFinFreeStrings(allCcy);
+    items.add(Row(children: [
+      Container(margin: const EdgeInsets.only(right: 10.0), child: Text(formatTimestamp(allRef.first[0].date)))
+    ]));
+    urphFinFreeQuotes(all);
+    return items;
   }
-*/
 
   @override
   void initState() {
@@ -118,7 +135,7 @@ class _MyAppState extends State<MyApp> {
                 primarySwatch: Colors.blue,
               ),
               home: Scaffold(
-                //appBar: AppBar(actions: _buildFxRates()),
+                appBar: AppBar(actions: _buildFxRates()),
                 body: Center(child: OverviewWidget(_assetsManager.assets)),
                 drawer: Drawer(
                   child: ListView(
