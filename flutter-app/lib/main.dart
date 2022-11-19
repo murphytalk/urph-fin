@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ffi';
 
+import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:urph_fin/dao.dart' hide Overview;
@@ -87,16 +88,21 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   final _AssetsManager _assetsManager = _AssetsManager();
-/*
+
   List<Widget> _buildFxRates() {
-    final allCcy = urphFinGetAllCcy(_assetsManager.assets);
-    final ccys = allCcy.ref.strs;
-    for (int i = 0; i < allCcy.ref.capacity; ++i) {
-      final ccy = ccys[i];
+    List<Widget> _items = [];
+    final all = urphFinGetAllCcyPairsQuote(_assetsManager.assets);
+    final allRef = all.ref;
+
+    for (int i = 0; i < allRef.num; ++i) {
+      final q = allRef.first[i];
+      _items.add(Row(
+        children: [Text(q.symbol.toDartString()), Text(q.rate.toString())],
+      ));
     }
-    urphFinFreeStrings(allCcy);
+    urphFinFreeQuotes(all);
+    return _items;
   }
-*/
 
   @override
   void initState() {
@@ -118,7 +124,7 @@ class _MyAppState extends State<MyApp> {
                 primarySwatch: Colors.blue,
               ),
               home: Scaffold(
-                //appBar: AppBar(actions: _buildFxRates()),
+                appBar: AppBar(actions: _buildFxRates()),
                 body: Center(child: OverviewWidget(_assetsManager.assets)),
                 drawer: Drawer(
                   child: ListView(
