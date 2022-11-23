@@ -6,6 +6,21 @@
 #include <pwd.h>
 #endif  // _WIN32
 
+#if defined(__ANDROID__)
+#include <android/native_activity.h>
+#include <jni.h>
+
+// Get the JNI environment.
+JNIEnv* GetJniEnv();
+// Get the activity.
+jobject GetActivity();
+
+#elif defined(__APPLE__)
+extern "C" {
+#include <objc/objc.h>
+}  // extern "C"
+#endif  // __ANDROID__
+
 
 
 #ifdef _WIN32

@@ -10,13 +10,13 @@ set(FIREBASE_CPP_BUILD_TESTS OFF)
 add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase-bin/ EXCLUDE_FROM_ALL)
 
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../cxx/CMake/internal_utils.cmake)
-add_src_libs_ (${CMAKE_CURRENT_SOURCE_DIR}/../../cxx/urph-fin-core/src the_SRC)
+include(../../../cxx/CMake/internal_utils.cmake)
+add_src_libs_ (../../../cxx/urph-fin-core/src the_SRC)
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../cxx/3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
+add_subdirectory(../../../cxx/3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
 
 
-add_library (${lib_target} SHARED ${the_SRC})
+add_library (${lib_target} SHARED android.cc ${the_SRC})
 
 add_log_header(${lib_target})
 
