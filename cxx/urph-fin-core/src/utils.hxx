@@ -1,7 +1,7 @@
 #ifndef UTILS_HXX_
 #define UTILS_HXX_
 
-#if defined(GTEST_INCLUDE_GTEST_GTEST_H_) || defined(URPH_FIN_CLI)
+#if defined(GTEST_INCLUDE_GTEST_GTEST_H_) || defined(URPH_FIN_CLI) || defined(__ANDROID__)
 #include <iostream>
 #define LOG(x) std::cout
 #else

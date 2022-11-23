@@ -17,12 +17,12 @@
 #include <algorithm>
 #include <thread>
 
-#include "storage/storage.hxx"
+#include "../storage/storage.hxx"
 #include "urph-fin-core.hxx"
 #include "stock.hxx"
 
+#include "../utils.hxx"
 // 3rd party
-#include "aixlog.hpp"
 #include "yaml-cpp/yaml.h"
 
 static std::string get_home_dir()
@@ -274,6 +274,7 @@ IStorage *storage;
 
 bool urph_fin_core_init(OnDone onInitDone)
 {
+#if !defined(__ANDROID__)
     std::vector<AixLog::log_sink_ptr> sinks;
 
     auto log_file = getenv("LOGFILE");
@@ -284,7 +285,7 @@ bool urph_fin_core_init(OnDone onInitDone)
     else
         sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file));
     AixLog::Log::init(sinks);
-
+#endif
     LOG(DEBUG) << "urph-fin-core initializing\n";
 
     try{
