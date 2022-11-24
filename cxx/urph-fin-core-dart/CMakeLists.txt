@@ -6,12 +6,11 @@ set(SRC
     ${DART_SDK}/include/dart_api_dl.c
     ${CMAKE_CURRENT_SOURCE_DIR}/dart.cc
 )
-set(target urph-fin-cli-dart)
 
 add_library(${lib_target} SHARED ${SRC})
+set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(${lib_target} 
     PRIVATE ${DART_SDK}/include
 )
-
 target_link_libraries(${lib_target} urph-fin-core)

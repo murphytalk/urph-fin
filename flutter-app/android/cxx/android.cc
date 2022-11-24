@@ -1,5 +1,5 @@
 #include <jni.h>
-#include <native_app_glue/android_native_app_glue.h>
+//#include <native_app_glue/android_native_app_glue.h>
 
 // Get the JNI environment.
 JNIEnv* GetJniEnv() {

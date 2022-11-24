@@ -176,12 +176,9 @@ public:
             }
 
         };
-#if defined(__ANDROID__)
-#else
         auto cfg = load_cfg();
         LOG(INFO) << "Log in as " << cfg.email << "\n"; 
         _firebaseAuth->SignInWithEmailAndPassword(cfg.email.c_str(), cfg.password.c_str())
-#endif
         .OnCompletion(c, (void*)onInitDone);
         LOG(DEBUG) << "FirestoreDao created\n";
     }
@@ -223,7 +220,7 @@ public:
         for(const auto& a: active_funds){
             f.add_active_fund(a.string_value());
         }
-                
+
         return f;
     }
 

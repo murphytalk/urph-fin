@@ -2,6 +2,7 @@
 #define URPH_CORE_INTERNAL_HXX_
 
 #include <string>
+#include <set>
 #include <condition_variable>
 #include "urph-fin-core.hxx"
 
