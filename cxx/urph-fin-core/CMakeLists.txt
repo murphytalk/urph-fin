@@ -42,7 +42,7 @@ set(firebase_libs firebase_auth firebase_firestore firebase_app)
 set(MSVC_RUNTIME_MODE MD)
 
 if(APPLE)
-    set(ADDITIONAL_LIBS
+    set(extra_libs
       gssapi_krb5
       pthread
       "-framework CoreFoundation"
@@ -52,7 +52,7 @@ if(APPLE)
       "-framework SystemConfiguration"
 )
 elseif(MSVC)
-    set(ADDITIONAL_LIBS advapi32 ws2_32 crypt32 iphlpapi psapi userenv)
+    set(extra_libs advapi32 ws2_32 crypt32 iphlpapi psapi userenv)
 #else()
 #    set(ADDITIONAL_LIBS pthread)
 endif()
