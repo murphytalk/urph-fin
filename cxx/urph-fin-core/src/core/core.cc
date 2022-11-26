@@ -24,12 +24,18 @@
 #include "../utils.hxx"
 // 3rd party
 #include "yaml-cpp/yaml.h"
+#ifdef _WIN32
+#include <processenv.h>
+#endif
 
 static std::string get_home_dir()
 {
     const char *homedir;
 #ifdef _WIN32
     //HOMEPATH or user profile
+    char buf[128];
+    ExpandEnvironmentStringsA("%HOMEDRIVE%%HOMEPATH%",buf, sizeof(buf));
+    homedir = buf;
 #else
     if ((homedir = getenv("HOME")) == NULL) {
         homedir = getpwuid(getuid())->pw_dir;
@@ -41,9 +47,15 @@ static std::string get_home_dir()
 }
 
 Config load_cfg(){
-    auto cfg = YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
-    auto userCfg = cfg["user"];
-    return Config{userCfg["email"].as<std::string>(), userCfg["password"].as<std::string>()};
+    try {
+        auto cfg = YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
+        auto userCfg = cfg["user"];
+        return Config{ userCfg["email"].as<std::string>(), userCfg["password"].as<std::string>() };
+    }
+    catch (const std::runtime_error& err) {
+        LOG(ERROR) << "Failed to load config file:" << err.what();
+        return Config();
+    }
 }
 
 // dont forget to free
