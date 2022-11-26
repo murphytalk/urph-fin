@@ -270,7 +270,7 @@ Overview::~Overview()
     delete []first;
 }
 
-IStorage *storage;
+IDataStorage *storage;
 
 bool urph_fin_core_init(OnDone onInitDone)
 {
@@ -770,8 +770,11 @@ const quotes* get_latest_quotes_delimeter(AllAssets* assets, int num, const char
     char* input = new char[strlen(symbols) + 1];
     strcpy(input, symbols);
 
+#ifdef _MSC_VER
+    const char** p = new const char*[num];
+#else
     const char* p[num];
-
+#endif
     auto cur = strtok(input, delimiter);
     int idx = 0;
     while(cur != nullptr){
@@ -782,6 +785,9 @@ const quotes* get_latest_quotes_delimeter(AllAssets* assets, int num, const char
     auto *q = get_latest_quotes(assets, num, p);
 
     delete []input;
+#ifdef _MSC_VER
+    delete []p;
+#endif
 
     return q;
 }

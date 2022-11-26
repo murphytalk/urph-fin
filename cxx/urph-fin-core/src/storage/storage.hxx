@@ -61,7 +61,13 @@ public:
     }
     Broker* add_broker(DAO* dao, const BrokerType& b){
         return create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
-            return new (all_brokers++) Broker(n, ccy_num, first_ccy_balance, active_funds);
+#ifdef _MSC_VER
+            void* p = all_brokers++;
+            return new (p)
+#else
+            return new (all_brokers++)
+#endif
+                Broker(n, ccy_num, first_ccy_balance, active_funds);
         });
     }
 };
@@ -219,7 +225,7 @@ public:
         return head;
     } 
 private:
-    int unfinished_stocks = std::numeric_limits<int>::max();
+    int unfinished_stocks = (std::numeric_limits<int>::max)(); //https://stackoverflow.com/questions/1394132/macro-and-member-function-conflict
     TxAllocPointerBySymbol tx;
     OnSuccess onSuccess;
     StockPortfolioBuilder(OnSuccess on_success){ 
@@ -243,9 +249,9 @@ private:
 };
 
 
-class IStorage{
+class IDataStorage{
 public:
-    virtual ~IStorage(){}
+    virtual ~IDataStorage(){}
     virtual Broker* get_broker(const char* name) = 0;
     virtual AllBrokers* get_brokers() = 0;
     virtual strings* get_all_broker_names() = 0;
@@ -258,7 +264,7 @@ public:
 };
 
 template<typename DAO>
-class Storage: public IStorage{
+class Storage: public IDataStorage{
     std::unique_ptr<DAO> dao;
 public:
     Storage(OnDone onInitDone){
@@ -343,6 +349,6 @@ public:
     }
 };
 
-IStorage * create_firestore_instance(OnDone onInitDone);
+IDataStorage * create_firestore_instance(OnDone onInitDone);
 
 #endif
