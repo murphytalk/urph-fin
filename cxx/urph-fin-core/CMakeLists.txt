@@ -6,7 +6,20 @@ set(lib_target urph-fin-core)
 # this is to use -fPIC when build firebase
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(FIREBASE_CPP_SDK_DIR "$ENV{HOME}/work/firebase-cpp-sdk")
+set(FIREBASE_CPP_SDK_DIR "D:/work/firebase_cpp_sdk")
+
+if (NOT "$ENV{FIREBASE_CPP_SDK_DIR}" STREQUAL "")
+  set(DEFAULT_FIREBASE_CPP_SDK_DIR "$ENV{FIREBASE_CPP_SDK_DIR}")
+else()
+  set(DEFAULT_FIREBASE_CPP_SDK_DIR "firebase_cpp_sdk")
+endif()
+if ("${FIREBASE_CPP_SDK_DIR}" STREQUAL "")
+  set(FIREBASE_CPP_SDK_DIR ${DEFAULT_FIREBASE_CPP_SDK_DIR})
+endif()
+if(NOT EXISTS ${FIREBASE_CPP_SDK_DIR})
+  message(FATAL_ERROR "The Firebase C++ SDK directory does not exist: ${FIREBASE_CPP_SDK_DIR}. See the readme.md for more information")
+endif()
+
 set(BUILD_TESTING OFF)
 set(FIREBASE_CPP_BUILD_TESTS OFF)
 set(FIREBASE_LINUX_USE_CXX11_ABI ON)
@@ -22,6 +35,11 @@ add_library (${lib_target} ${the_SRC})
 add_log_header(${lib_target})
 
 set(firebase_libs firebase_auth firebase_firestore firebase_app)
+
+# Windows runtime mode, either MD or MT depending on whether you are using
+# /MD or /MT. For more information see:
+# https://msdn.microsoft.com/en-us/library/2kzt1wy3.aspx
+set(MSVC_RUNTIME_MODE MD)
 
 if(APPLE)
     set(ADDITIONAL_LIBS
