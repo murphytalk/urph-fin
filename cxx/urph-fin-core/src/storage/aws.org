@@ -1,57 +1,57 @@
-* Keys
-** Primary
-*** main (partition key)
-*** sub (sort key)
-** Secondary: TxBroker
-*** main = symbol
-*** broker (only tx item has broker attr)
+* Index
+- Query can only get items lives in the partition defined by the partition key
+- Then it can be narrowed by sort key
+- Items match the specified partition key and the optional sort key are read from disk
+- Filter is applied if there is any, then limit
+- Finally the result is returned to the client.
+** main index
+ name | sub
+** Local Secondary Index
+1. name | broker
+** Global Secondary Index
+1. sub-name-index : sub | name
 * Sample
 ** Brokers
-| main    | sub      | other attributes                                                     | Notes                                            |
+| name    | sub      | other attributes                                                     | Notes                                            |
 |---------+----------+----------------------------------------------------------------------+--------------------------------------------------|
 | broker1 | B#       | cash:{},full_name: 'broker1 full name',funds_update_date: 'yymmdd' } |                                                  |
 | broker1 | B#yymmdd | list                                                                 | list of broker1's active funds IDs on day yymmdd |
 |         |          |                                                                      |                                                  |
 ** Instruments
-| main   | sub | other attributes      |
+| name   | sub | other attributes      |
 |--------+-----+-----------------------|
 | fund1  | I#F | ccy, expense,url,type |
 | fund2  | I#F | ccy, expense,url,type |
 | stock1 | I#S | ccy, expense,url,type |
 | USDJPY | I#X | type                  |
 ** Transactions:
-| main   | sub      | other attributes                              | Notes                                                                       |
+| name   | sub      | other attributes                              | Notes                                                                       |
 |--------+----------+-----------------------------------------------+-----------------------------------------------------------------------------|
 | stock1 | x#yymmdd | broker,date,fee, price, share, type           |                                                                             |
 | fund1  | x#yymmdd | broker,date,amount,price,capital,market_value | ~yymmdd~ is the when data is updated, while ~date~ is the fund's value date |
 |        |          |                                               |                                                                             |
 ** Quotes:
-| main   | sub      | other attributes  | Notes |
+| name   | sub      | other attributes  | Notes |
 |--------+----------+-------------------+-------|
 | stock1 | q#yymmdd | date,price        |       |
 | USDJPY | q#yymmdd | date,rate         |       |
 |        |          |                   |       |
-** Index
-*** Local Secondary Index
-1. main | broker
-*** Global Secondary Index
-1. sub_broker : sub | broker
 *** Get brokers
-Use sub_broker : B# 
+Use sub_name_index : B# 
 *** Query by instrument type
-Use sub_broker
+Use sub_name_index
 - Funds : I#F
 - Stock: I#S
 *** Query all stock/ETFs by broker
-- Use sub_broker
+- Use sub_name_index
   - I#S + broker
 *** Query all stock/ETF tx
- - use sub_broker
+ - use sub_name_index
    - I#S => get stock name
    - can filter by broker
- - use main index, for each name, get name | start with x#
+ - use name index, for each name, get name | start with x#
 *** Query all Funds by broker
-- Use sub_broker
+- Use sub_name_index
   - I#F + broker
     
 
