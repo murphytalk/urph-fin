@@ -509,4 +509,4 @@ const char FirestoreDao::COLLECTION_INSTRUMENTS[] = "Instruments";
 const char FirestoreDao::COLLECTION_TX[] = "tx";
 const char FirestoreDao::COLLECTION_QUOTES[] = "quotes";
 
-IDataStorage * create_firestore_instance(OnDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }
+IDataStorage * create_cloud_instance(OnDone onInitDone) { return new Storage<FirestoreDao>(onInitDone); }

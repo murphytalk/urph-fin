@@ -1,5 +1,8 @@
-cmake_minimum_required (VERSION 3.22.0)
-project(urph-fin)
+cmake_minimum_required (VERSION 2.22.0)
+
+cmake_policy(SET CMP0048 NEW)
+
+project(urph-fin VERSION 1.0)
 set (CMAKE_CXX_STANDARD 17)
 
 #enable the following to turn on verbose compile 

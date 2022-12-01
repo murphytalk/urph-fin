@@ -301,7 +301,7 @@ bool urph_fin_core_init(OnDone onInitDone)
     LOG(DEBUG) << "urph-fin-core initializing\n";
 
     try{
-        storage = create_firestore_instance(onInitDone);
+        storage = create_cloud_instance(onInitDone);
         return true;
     }
     catch(const std::exception& e){

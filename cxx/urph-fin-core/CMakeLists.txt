@@ -1,64 +1,97 @@
 set(lib_target urph-fin-core)
 
-# flutter only supports shared FFI lib now
-# it looks when building shared lib -fPIC is always being used, but the prebuilt firebase SDK is not built with -fPIC
-# causing link error.
-# this is to use -fPIC when build firebase
-set (CMAKE_POSITION_INDEPENDENT_CODE ON)
+if(USE_FIREBASE)
+	# flutter only supports shared FFI lib now
+	# it looks when building shared lib -fPIC is always being used, but the prebuilt firebase SDK is not built with -fPIC
+	# causing link error.
+	# this is to use -fPIC when build firebase
+	set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(FIREBASE_CPP_SDK_DIR "D:/work/firebase_cpp_sdk")
 
-if (NOT "$ENV{FIREBASE_CPP_SDK_DIR}" STREQUAL "")
-  set(DEFAULT_FIREBASE_CPP_SDK_DIR "$ENV{FIREBASE_CPP_SDK_DIR}")
+	if (NOT "$ENV{FIREBASE_CPP_SDK_DIR}" STREQUAL "")
+	  set(DEFAULT_FIREBASE_CPP_SDK_DIR "$ENV{FIREBASE_CPP_SDK_DIR}")
+	else()
+	  set(DEFAULT_FIREBASE_CPP_SDK_DIR "firebase_cpp_sdk")
+	endif()
+	if ("${FIREBASE_CPP_SDK_DIR}" STREQUAL "")
+	  set(FIREBASE_CPP_SDK_DIR ${DEFAULT_FIREBASE_CPP_SDK_DIR})
+	endif()
+	if(NOT EXISTS ${FIREBASE_CPP_SDK_DIR})
+	  message(FATAL_ERROR "The Firebase C++ SDK directory does not exist: ${FIREBASE_CPP_SDK_DIR}. See the readme.md for more information")
+	endif()
+
+	set(BUILD_TESTING OFF)
+	set(FIREBASE_CPP_BUILD_TESTS OFF)
+	set(FIREBASE_LINUX_USE_CXX11_ABI ON)
+	add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase-bin/ EXCLUDE_FROM_ALL)
+
+    add_compile_definitions(USE_FIREBASE)
+    set(cloud_src "cloud_src/firestore.cc")
 else()
-  set(DEFAULT_FIREBASE_CPP_SDK_DIR "firebase_cpp_sdk")
-endif()
-if ("${FIREBASE_CPP_SDK_DIR}" STREQUAL "")
-  set(FIREBASE_CPP_SDK_DIR ${DEFAULT_FIREBASE_CPP_SDK_DIR})
-endif()
-if(NOT EXISTS ${FIREBASE_CPP_SDK_DIR})
-  message(FATAL_ERROR "The Firebase C++ SDK directory does not exist: ${FIREBASE_CPP_SDK_DIR}. See the readme.md for more information")
-endif()
+    # use AWS
+	if (NOT "$ENV{AWS_CPP_SDK_DIR}" STREQUAL "")
+	  set(AWS_CPP_SDK_DIR "$ENV{AWS_CPP_SDK_DIR}")
+	else()
+	  set(AWS_CPP_SDK_DIR "/mnt/extra/apps/aws-sdk")
+	endif()
 
-set(BUILD_TESTING OFF)
-set(FIREBASE_CPP_BUILD_TESTS OFF)
-set(FIREBASE_LINUX_USE_CXX11_ABI ON)
-add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase-bin/ EXCLUDE_FROM_ALL)
+    set(SERVICE_COMPONENTS dynamodb)
+
+    # Find the AWS SDK for C++ package.
+    if(MSVC)
+        string(REPLACE ";" "/aws-cpp-sdk-all;" SYSTEM_MODULE_PATH "${CMAKE_SYSTEM_PREFIX_PATH}/aws-cpp-sdk-all")
+        list(APPEND CMAKE_PREFIX_PATH ${SYSTEM_MODULE_PATH})
+    else()
+        list(APPEND CMAKE_PREFIX_PATH "${AWS_CPP_SDK_DIR}/lib64")
+        list(APPEND CMAKE_PREFIX_PATH "${AWS_CPP_SDK_DIR}/lib64/cmake")
+    endif()
+
+    find_package(AWSSDK REQUIRED COMPONENTS ${SERVICE_COMPONENTS})
+
+    set(cloud_src "cloud_src/dynamodb.cc")
+endif()
 
 add_src_libs_ (src the_SRC)
+list(APPEND the_SRC ${cloud_src})
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
 
 
+set(BUILD_SHARED_LIBS OFF)
 add_library (${lib_target} ${the_SRC})
 
 add_log_header(${lib_target})
 
-set(firebase_libs firebase_auth firebase_firestore firebase_app)
+if(USE_FIREBASE)
+    set(cloud_libs firebase_auth firebase_firestore firebase_app)
 
-# Windows runtime mode, either MD or MT depending on whether you are using
-# /MD or /MT. For more information see:
-# https://msdn.microsoft.com/en-us/library/2kzt1wy3.aspx
-set(MSVC_RUNTIME_MODE MD)
+    if(APPLE)
+        set(extra_libs
+          gssapi_krb5
+          pthread
+          "-framework CoreFoundation"
+          "-framework Foundation"
+          "-framework GSS"
+          "-framework Security"
+          "-framework SystemConfiguration"
+    )
+    elseif(MSVC)
+        set(extra_libs advapi32 ws2_32 crypt32 iphlpapi psapi userenv)
+    #else()
+    #    set(ADDITIONAL_LIBS pthread)
+    endif()
+    set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+else()
+    set(cloud_libs  ${AWSSDK_LINK_LIBRARIES} ${AWSSDK_PLATFORM_DEPS})
 
-if(APPLE)
-    set(extra_libs
-      gssapi_krb5
-      pthread
-      "-framework CoreFoundation"
-      "-framework Foundation"
-      "-framework GSS"
-      "-framework Security"
-      "-framework SystemConfiguration"
-)
-elseif(MSVC)
-    set(extra_libs advapi32 ws2_32 crypt32 iphlpapi psapi userenv)
-#else()
-#    set(ADDITIONAL_LIBS pthread)
+    target_include_directories(${lib_target} PUBLIC 
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+        ${AWSSDK_INCLUDE_DIR}/aws
+    )    
 endif()
 
-set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(${lib_target} yaml-cpp ${extra_libs} ${firebase_libs})
+target_link_libraries(${lib_target} yaml-cpp ${extra_libs} ${cloud_libs})
 
 
 # populate include to project that uses this target

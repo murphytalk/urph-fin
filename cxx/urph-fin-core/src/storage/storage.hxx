@@ -349,6 +349,4 @@ public:
     }
 };
 
-IDataStorage * create_firestore_instance(OnDone onInitDone);
-
-#endif
+IDataStorage* create_cloud_instance(OnDone onInitDone);
