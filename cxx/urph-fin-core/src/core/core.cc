@@ -85,7 +85,7 @@ Strings::Strings(int n)
     strs = new char* [n];
     last_str = strs;
 }
-
+//todo: move
 void Strings::add(const std::string& i)
 {
     if(size() == capacity){
@@ -534,6 +534,7 @@ AllAssets::AllAssets(){
     load_cash(brokers);
     free_brokers(brokers);
 
+
     std::mutex m;
     {
         std::lock_guard<std::mutex> lk(m);
@@ -553,6 +554,7 @@ AllAssets::AllAssets(){
     }
 
     {
+        // todo : make this async !!
         std::unique_lock<std::mutex> lk(m);
         cv.wait(lk);
     }

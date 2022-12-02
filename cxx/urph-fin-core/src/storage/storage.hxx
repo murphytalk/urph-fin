@@ -350,3 +350,5 @@ public:
 };
 
 IDataStorage* create_cloud_instance(OnDone onInitDone);
+
+#endif
