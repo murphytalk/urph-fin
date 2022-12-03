@@ -11,6 +11,7 @@
 #include "../src/core/core_internal.hxx"
 
 namespace{
+    const char log_tag[] = "urph-fin";
     const char dynamo_db_table[] = "urph-fin";
     const char aws_region[] = "ap-northeast-1";
     const char sub_name_idx[] = "sub_name_index";
@@ -24,7 +25,7 @@ namespace{
 class AwsDao{
 private:
     Aws::SDKOptions options;
-    std::unique_ptr<Aws::DynamoDB::DynamoDBClient> db;
+    Aws::DynamoDB::DynamoDBClient* db;
 private:
     const Aws::DynamoDB::Model::QueryOutcome db_query_req(const char* index, const char* key_condition_expr,const char* filter_expr,
                                                           Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue>& expr_attr_values){
@@ -47,13 +48,18 @@ public:
         options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Info;
 #endif        
         Aws::InitAPI(options);
+        auto* logger = Aws::Utils::Logging::GetLogSystem();
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initialized API");        
 
         Aws::Client::ClientConfiguration clientConfig;
         clientConfig.region = aws_region;
-        db = std::make_unique<Aws::DynamoDB::DynamoDBClient>(clientConfig);
-        onInitDone(db.get());
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initializing DB client");        
+        db = new Aws::DynamoDB::DynamoDBClient(clientConfig);
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initialized DB client");        
+        onInitDone(db);
     }
     ~AwsDao(){
+        delete db;
         Aws::ShutdownAPI(options);
     }
 
