@@ -14,12 +14,16 @@ namespace{
     const char log_tag[] = "urph-fin";
     const char dynamo_db_table[] = "urph-fin";
     const char aws_region[] = "ap-northeast-1";
-    const char sub_name_idx[] = "sub_name_index";
+    const char sub_name_idx[] = "sub-name-index";
 
     const char db_sub_broker [] = "B#";
     const char db_name_attr  [] = "name";
     const char db_sub_attr   [] = "sub";
+
+    typedef Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttrValueMap;
+    std::function<void(AttrValueMap&)> NOOP = [](AttrValueMap&){};
 }
+
 
 
 class AwsDao{
@@ -27,21 +31,66 @@ private:
     Aws::SDKOptions options;
     Aws::DynamoDB::DynamoDBClient* db;
 private:
-    const Aws::DynamoDB::Model::QueryOutcome db_query_req(const char* index, const char* key_condition_expr,const char* filter_expr,
-                                                          Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue>& expr_attr_values){
+    const Aws::DynamoDB::Model::QueryOutcome db_query_req(const char* index, 
+                                                          const char* key_condition_expr, Aws::Map<Aws::String, Aws::String>& attr_names,
+                                                          const char* filter_expr,
+                                                          AttrValueMap& expr_attr_values,
+                                                          std::function<void(AttrValueMap&)> add_filter_attr_value = NOOP){
 
         Aws::DynamoDB::Model::QueryRequest q;
         q.SetTableName(dynamo_db_table);
         if(index != nullptr) q.SetIndexName(index);
         
         q.SetKeyConditionExpression(key_condition_expr);
-        q.SetExpressionAttributeValues(std::move(expr_attr_values));
+        q.SetExpressionAttributeNames(std::move(attr_names));
 
         if(filter_expr !=nullptr) q.SetFilterExpression(filter_expr);
+
+        Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
+        q.SetExpressionAttributeValues(std::move(expr_attr_values));
+
+        add_filter_attr_value(expr_attr_values);
 
         return db->Query(q);
     }
 
+    inline const Aws::DynamoDB::Model::QueryOutcome db_query_by_partition_key_req(const char* index_name, 
+                                                                                  const char* key_condition_expr,
+                                                                                  const char* key_name,  const char* key_name_v,
+                                                                                  const char* value_name,const char* value,
+                                                                                  const char* filter_expr, std::function<void(AttrValueMap&)> add_filter_attr_value = NOOP){
+        Aws::Map<Aws::String, Aws::String> attr_names;
+        attr_names.emplace(key_name, key_name_v);
+
+        Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
+        attributeValues.emplace(value_name, value);
+
+        return db_query_req(index_name, key_condition_expr , attr_names, filter_expr, attributeValues, add_filter_attr_value);
+    }
+
+    inline const Aws::DynamoDB::Model::QueryOutcome db_query_by_name_req(const char* name, const char* filter_expr, std::function<void(AttrValueMap&)> add_filter_attr_value = NOOP){
+        return db_query_by_partition_key_req(nullptr, "#name_n = :name_v", "#name_n", db_name_attr, ":name_v", name, filter_expr, add_filter_attr_value);
+    }
+
+    inline const Aws::DynamoDB::Model::QueryOutcome db_query_by_sub_req(const char* sub, const char* filter_expr, std::function<void(AttrValueMap&)> add_filter_attr_value = NOOP){
+        return db_query_by_partition_key_req(sub_name_idx, "#sub_n = :sub_v", "#sub_n", db_sub_attr, ":sub_v", sub, filter_expr, add_filter_attr_value);
+    }
+
+    inline const Aws::DynamoDB::Model::QueryOutcome db_query_by_name_and_sub_req(const char* index_name, const char* key_condition_expr, 
+                                                                                 const Aws::String& name, const Aws::String& sub,
+                                                                                 const char* filter_expr, std::function<void(AttrValueMap&)> add_filter_attr_value = NOOP){
+        Aws::Map<Aws::String, Aws::String> attr_names;
+        attr_names.emplace("#name_n", db_name_attr);
+        attr_names.emplace("#sub_n",  db_sub_attr);
+
+        Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
+        attributeValues.emplace(":name_v", name);
+        attributeValues.emplace(":sub_v",  sub);
+
+        return db_query_req(index_name, 
+                            key_condition_expr == nullptr ? "#name_n = :name_v AND #sub_n = :sub_v" : key_condition_expr, 
+                            attr_names, filter_expr, attributeValues, add_filter_attr_value);
+    }
 public:
     AwsDao(OnDone onInitDone){
 #if !defined(__ANDROID__)
@@ -65,11 +114,7 @@ public:
 
     typedef Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> BrokerType;
     BrokerType get_broker_by_name(const char *name){
-        Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
-        attributeValues.emplace(":sub_v", Aws::String(db_sub_broker));
-        attributeValues.emplace(":name_v", Aws::String(name));
-
-        const auto& result = db_query_req(sub_name_idx, "sub = :sub_v AND name = :name_v", nullptr, attributeValues);
+        const auto& result = db_query_by_name_and_sub_req(sub_name_idx, nullptr, name, db_sub_broker, nullptr);
         if (result.IsSuccess()){
             const auto& items = result.GetResult().GetItems();
             auto num = items.size();
@@ -77,7 +122,7 @@ public:
             if(num > 1) LOG(WARNING) << "more than one result return for broker name=" << name << "\n";
             return items.front(); 
         }
-        else throw std::runtime_error("Cannot get broker: " + result.GetError().GetMessage());
+        else throw std::runtime_error("Cannot get broker by name: " + result.GetError().GetMessage());
     }
 
     std::string get_broker_name(const BrokerType &broker_query_result) {
@@ -108,10 +153,7 @@ public:
             const auto& funds_update_date = pos->second.GetS();
             LOG(DEBUG) << "last funds update date: " << funds_update_date << "\n";
 
-            Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
-            attributeValues.emplace(":name_v", Aws::String(name));
-            attributeValues.emplace(":sub_v", Aws::String( db_sub_broker + funds_update_date));
-            const auto& result = db_query_req(nullptr, "name = :name_v AND sub = :sub_v", nullptr, attributeValues);
+            const auto& result = db_query_by_name_and_sub_req(nullptr, nullptr, name, Aws::String( db_sub_broker + funds_update_date), nullptr);
             if (result.IsSuccess()){
                 const auto& items = result.GetResult().GetItems();
 
@@ -162,10 +204,8 @@ public:
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol){}
 private:
     void get_all_broker_items(std::function<void(int)> totalNum, std::function<void(const BrokerType&)> onBrokerItem){
-        Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
-        attributeValues.emplace(":sub_v", Aws::String(db_sub_broker));
-        const auto& result = db_query_req(sub_name_idx, "sub = :sub_v", nullptr, attributeValues);
-        if(!result.IsSuccess()) throw std::runtime_error("Cannot get broker: " + result.GetError().GetMessage());
+        const auto& result = db_query_by_sub_req(db_sub_broker, nullptr);
+        if(!result.IsSuccess()) throw std::runtime_error("Cannot get all brokers: " + result.GetError().GetMessage());
         const auto& items = result.GetResult().GetItems();
         totalNum(items.size());
         for(const auto& b: items){
