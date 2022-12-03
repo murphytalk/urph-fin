@@ -25,6 +25,8 @@ if(USE_FIREBASE)
 	set(FIREBASE_LINUX_USE_CXX11_ABI ON)
 	add_subdirectory(${FIREBASE_CPP_SDK_DIR} firebase-bin/ EXCLUDE_FROM_ALL)
 
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
+
     add_compile_definitions(USE_FIREBASE)
     set(cloud_src "cloud_src/firestore.cc")
 else()
@@ -54,7 +56,6 @@ endif()
 add_src_libs_ (src the_SRC)
 list(APPEND the_SRC ${cloud_src})
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
 
 
 set(BUILD_SHARED_LIBS OFF)
@@ -64,7 +65,6 @@ add_log_header(${lib_target})
 
 if(USE_FIREBASE)
     set(cloud_libs firebase_auth firebase_firestore firebase_app)
-
     if(APPLE)
         set(extra_libs
           gssapi_krb5
@@ -80,6 +80,7 @@ if(USE_FIREBASE)
     #else()
     #    set(ADDITIONAL_LIBS pthread)
     endif()
+    list(APPEND extra_libs yaml-cpp)
     set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 else()
     set(cloud_libs  ${AWSSDK_LINK_LIBRARIES} ${AWSSDK_PLATFORM_DEPS})
@@ -91,7 +92,7 @@ else()
     )    
 endif()
 
-target_link_libraries(${lib_target} yaml-cpp ${extra_libs} ${cloud_libs})
+target_link_libraries(${lib_target} ${extra_libs} ${cloud_libs})
 
 
 # populate include to project that uses this target

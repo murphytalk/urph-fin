@@ -25,6 +25,7 @@ public:
     Strings* funds;
     BrokerBuilder(int n, int active_fund_num) { 
         ccy_num = n; 
+        // the ownership of the following pointers will be passed to Broker
         funds = new Strings(active_fund_num);
         balances = new cash_balance[ccy_num];
         head = balances;
@@ -34,6 +35,7 @@ public:
         new (balances++) CashBalance(currency, balance);
     }
     void add_active_fund(const std::string& active_fund_id){
+        LOG(DEBUG) << "adding fund " << active_fund_id << "\n";
         funds->add(active_fund_id);
     }
 };
@@ -55,12 +57,14 @@ public:
     int broker_num;
     broker* head;
     AllBrokerBuilder(int n){
+        LOG(DEBUG) << "Total brokers:" << n << "\n";
         broker_num = n;
         all_brokers = new broker [n];
         head = all_brokers;
     }
     Broker* add_broker(DAO* dao, const BrokerType& b){
         return create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
+            LOG(DEBUG) << "creating broker " << n << "\n";
 #ifdef _MSC_VER
             void* p = all_brokers++;
             return new (p)

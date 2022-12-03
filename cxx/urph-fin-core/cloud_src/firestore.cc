@@ -48,6 +48,7 @@ extern "C" {
 #include "firebase/util.h"
 #include "firebase/firestore.h"
 
+#include "yaml-cpp/yaml.h"
 using ::firebase::App;
 using ::firebase::AppOptions;
 using ::firebase::Future;
@@ -70,6 +71,40 @@ using ::firebase::firestore::FieldPath;
 using ::firebase::firestore::Query;
 using ::firebase::firestore::QuerySnapshot;
 using ::firebase::firestore::Error;
+
+#ifdef _WIN32
+#include <processenv.h>
+#endif
+
+static std::string get_home_dir()
+{
+    const char *homedir;
+#ifdef _WIN32
+    //HOMEPATH or user profile
+    char buf[128];
+    ExpandEnvironmentStringsA("%HOMEDRIVE%%HOMEPATH%",buf, sizeof(buf));
+    homedir = buf;
+#else
+    if ((homedir = getenv("HOME")) == NULL) {
+        homedir = getpwuid(getuid())->pw_dir;
+    }
+#endif
+    // compiler is smart enough to either do return-value-optimization or use move
+    //https://stackoverflow.com/questions/4986673/c11-rvalues-and-move-semantics-confusion-return-statement
+    return std::string(homedir);
+}
+
+Config load_cfg(){
+    try {
+        auto cfg = YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
+        auto userCfg = cfg["user"];
+        return Config{ userCfg["email"].as<std::string>(), userCfg["password"].as<std::string>() };
+    }
+    catch (const std::runtime_error& err) {
+        LOG(ERROR) << "Failed to load config file:" << err.what();
+        return Config();
+    }
+}
 
 static bool quit = false;
 

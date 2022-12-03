@@ -126,7 +126,6 @@ public:
     }
 
     std::string get_broker_name(const BrokerType &broker_query_result) {
-        std::map<std::string,int> m;
         const auto& v = broker_query_result.at(Aws::String(db_name_attr));
         const auto& n = v.GetS();
         return n;
@@ -151,36 +150,36 @@ public:
         auto pos = broker_query_result.find(Aws::String("funds_update_date"));
         if(pos != broker_query_result.end()){
             const auto& funds_update_date = pos->second.GetS();
-            LOG(DEBUG) << "last funds update date: " << funds_update_date << "\n";
+            LOG(DEBUG) << " last funds update date: " << funds_update_date << "\n";
 
             const auto& result = db_query_by_name_and_sub_req(nullptr, nullptr, name, Aws::String( db_sub_broker + funds_update_date), nullptr);
             if (result.IsSuccess()){
                 const auto& items = result.GetResult().GetItems();
+                if(!items.empty()){
+                    const auto& funds = items.front().at("active_funds").GetSS();
+                    auto b = BrokerBuilder(all_ccys.size(), funds.size());
 
-                auto b = BrokerBuilder(all_ccys.size(), items.size());
-                addCash(b);
-
-                for(const auto& f: items.front().at("active_funds").GetSS()){
-                    b.add_active_fund(f);                    
+                    addCash(b);
+                    for(const auto& f: funds){
+                        b.add_active_fund(f);                    
+                    }
+                    return b;
                 }
-
-                return b;
             }
             else throw std::runtime_error("Cannot get broker: " + result.GetError().GetMessage());
         }
-        else{
-            LOG(DEBUG) << "no funds update date\n";
-            auto b = BrokerBuilder(all_ccys.size(), 0);
-            addCash(b);
-            return b;
-        }
+
+        LOG(DEBUG) << "no funds update date or the list is empty\n";
+        auto b = BrokerBuilder(all_ccys.size(), 0);
+        addCash(b);
+        return b;
     }
 
 
     AllBrokerBuilder<AwsDao, BrokerType> *get_brokers() {
         AllBrokerBuilder<AwsDao, BrokerType>* all = nullptr;
 
-        get_all_broker_items([&all](int n){ all =  new AllBrokerBuilder<AwsDao, BrokerType>(n); }, [all,this](const BrokerType& item){
+        get_all_broker_items([&all](int n){ all =  new AllBrokerBuilder<AwsDao, BrokerType>(n); }, [&all,this](const BrokerType& item){
             all->add_broker(this, item);
         });
 
@@ -205,7 +204,7 @@ public:
 private:
     void get_all_broker_items(std::function<void(int)> totalNum, std::function<void(const BrokerType&)> onBrokerItem){
         const auto& result = db_query_by_sub_req(db_sub_broker, nullptr);
-        if(!result.IsSuccess()) throw std::runtime_error("Cannot get all brokers: " + result.GetError().GetMessage());
+        if(!result.IsSuccess()) throw std::runtime_error("Cannot get all brokers items: " + result.GetError().GetMessage());
         const auto& items = result.GetResult().GetItems();
         totalNum(items.size());
         for(const auto& b: items){

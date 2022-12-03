@@ -22,41 +22,6 @@
 #include "stock.hxx"
 
 #include "../utils.hxx"
-// 3rd party
-#include "yaml-cpp/yaml.h"
-#ifdef _WIN32
-#include <processenv.h>
-#endif
-
-static std::string get_home_dir()
-{
-    const char *homedir;
-#ifdef _WIN32
-    //HOMEPATH or user profile
-    char buf[128];
-    ExpandEnvironmentStringsA("%HOMEDRIVE%%HOMEPATH%",buf, sizeof(buf));
-    homedir = buf;
-#else
-    if ((homedir = getenv("HOME")) == NULL) {
-        homedir = getpwuid(getuid())->pw_dir;
-    }
-#endif
-    // compiler is smart enough to either do return-value-optimization or use move
-    //https://stackoverflow.com/questions/4986673/c11-rvalues-and-move-semantics-confusion-return-statement
-    return std::string(homedir);
-}
-
-Config load_cfg(){
-    try {
-        auto cfg = YAML::LoadFile(get_home_dir() + "/.finance-credentials/urph-fin.yaml");
-        auto userCfg = cfg["user"];
-        return Config{ userCfg["email"].as<std::string>(), userCfg["password"].as<std::string>() };
-    }
-    catch (const std::runtime_error& err) {
-        LOG(ERROR) << "Failed to load config file:" << err.what();
-        return Config();
-    }
-}
 
 // dont forget to free
 char* copy_str(const std::string& str)
@@ -128,6 +93,7 @@ void free_strings(strings* ss)
 
 Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds)
 {
+    LOG(DEBUG) << "broker constructor " << n<< "\n";
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
