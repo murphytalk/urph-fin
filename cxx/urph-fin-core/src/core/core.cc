@@ -288,10 +288,10 @@ void urph_fin_core_close()
 #define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
-all_brokers* get_brokers()
+void get_brokers(OnAllBrokers onAllBrokers, void* param)
 {
     assert(storage != nullptr);
-    return storage->get_brokers();
+    return storage->get_brokers(onAllBrokers, param);
 }
 
 void free_brokers(all_brokers* b)
@@ -300,27 +300,18 @@ void free_brokers(all_brokers* b)
     delete brokers;
 }
 
-broker* get_broker(const char* name)
+void get_broker(const char* name, OnBroker onBroker, void* param)
 {
     assert(storage != nullptr);
     TRY
-    return storage->get_broker(name);
-    CATCH(nullptr)
+    storage->get_broker(name, onBroker, param);
+    CATCH_NO_RET
 }
 
 void free_broker(broker* b)
 {
     delete static_cast<Broker*>(b);
 }
-
-strings* get_all_broker_names()
-{
-    assert(storage != nullptr);
-    TRY
-    return storage->get_all_broker_names();
-    CATCH(nullptr)
-}
-
 
 void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
 {
@@ -330,47 +321,62 @@ void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
     CATCH_NO_RET
 }
 
-void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
+struct get_active_funds_async_helper
 {
-    Iterator<Broker> *begin, *end;
-    Broker* broker =  nullptr;
-    AllBrokers* all_brokers = nullptr;
-
-    int fund_num = 0;
+    OnFunds onFunds;
+    void* param;
+    int fund_num;
     std::vector<Broker*> all_broker_pointers;
 
-    if(broker_name != nullptr){
-        broker = static_cast<Broker*>(get_broker(broker_name));
-        if(broker == nullptr){
-            onFunds(nullptr, param);
-            return;
-        }
-        fund_num = broker->size(Broker::active_fund_tag());
-        all_broker_pointers.push_back(broker);
-    }
-    else{
-        all_brokers = static_cast<AllBrokers*>(get_brokers());
-        for(Broker& b: *all_brokers){
-            fund_num += b.size(Broker::active_fund_tag());
-            all_broker_pointers.push_back(&b);
-        }
-    }
+    get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx), fund_num(0){}
 
-    const char ** ids = new const char* [fund_num];
-    const char ** ids_head = ids;
-    for(auto* broker: all_broker_pointers){
-        for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
-            *ids++ = *it;
+    void run(){
+        const char ** ids = new const char* [fund_num];
+        const char ** ids_head = ids;
+        for(auto* broker: all_broker_pointers){
+            for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
+                *ids++ = *it;
+            }
         }
+        get_funds(fund_num, ids_head, onFunds, param);
+
+        delete []ids_head;
+
+        delete this;
     }
+};
+
+void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
+{
     TRY
-    get_funds(fund_num, ids_head, onFunds, param);
+
+    // we cannot capture anything in the lambda because of the raw-c callback function signature
+    auto *helper = new get_active_funds_async_helper(onFunds, param);
+
+    if(broker_name != nullptr){
+        get_broker(broker_name, [](broker* b, void* ctx){
+            get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
+            Broker* the_broker = static_cast<Broker*>(b);
+            h->fund_num = the_broker->size(Broker::active_fund_tag());
+            h->all_broker_pointers.push_back(the_broker);
+            h->run();
+            delete the_broker;
+        }, helper);
+    }else{
+        get_brokers([](all_brokers* bks, void* ctx){
+            get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
+            AllBrokers *brokers = static_cast<AllBrokers*>(bks);
+            for(Broker& b: *brokers){
+                h->fund_num += b.size(Broker::active_fund_tag());
+                h->all_broker_pointers.push_back(&b);
+            }
+            h->run();
+            delete brokers;
+        }, helper);
+    }
+
+
     CATCH_NO_RET
-
-    delete []ids_head;
-
-    delete broker;
-    delete all_brokers;
 }
 
 void free_funds(fund_portfolio* f)
@@ -460,15 +466,16 @@ quotes* get_quotes(int num, const char **symbols_head)
     return all_quotes;
 }
 
-quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol)
+void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
 {
-    //todo: the async version is conflicting with get stock portfolio ...
-    auto* all_quotes = get_quotes(0, nullptr);
-    auto* q = static_cast<Quotes*>(all_quotes);
-    for(auto const& quote: *q){
-        quotes_by_symbol[quote.symbol] = &quote;
-    }
-    return all_quotes;
+    get_quotes_async(0, nullptr,[](quotes* all_quotes, void* ctx){
+        QuoteBySymbol* q = reinterpret_cast<QuoteBySymbol*>(ctx);
+        Quotes *all = static_cast<Quotes*>(all_quotes);
+        for(auto const& quote: *all){
+            q->add(quote.symbol, &quote);
+        }
+        q->notify(all_quotes);
+    }, &quotes_by_symbol);
 }
 
 
@@ -493,44 +500,57 @@ const char ASSET_TYPE_STOCK [] = "Stock&ETF";
 const char ASSET_TYPE_FUNDS [] = "Funds";
 const char ASSET_TYPE_CASH  [] = "Cash";
 
-AllAssets::AllAssets(){
-    q = static_cast<Quotes*>(get_all_quotes(quotes_by_symbol));
+AllAssets::AllAssets(std::function<void()> onLoaded){
+    notifyLoaded = onLoaded;
+    load_status = 0;
+    quotes_by_symbol = nullptr;
+}
 
-    AllBrokers *brokers = static_cast<AllBrokers*>(get_brokers());
-    load_cash(brokers);
-    free_brokers(brokers);
+void AllAssets::load(){
+    quotes_by_symbol = new QuoteBySymbol([this](quotes* all_quotes){
+        this->q = static_cast<::Quotes*>(all_quotes);
 
+        this->notify(AllAssets::Loaded::Quotes);
 
-    std::mutex m;
-    {
-        std::lock_guard<std::mutex> lk(m);
+        get_brokers([](all_brokers* b, void* param){
+            // if this lambda captures any closures its signature won't match the raw C function pointer declaration
+            AllAssets *me = reinterpret_cast<AllAssets*>(param);
+            AllBrokers *brokers = static_cast<AllBrokers*>(b);
+            me->load_cash(brokers);
+            free_brokers(brokers);
+            me->notify(AllAssets::Loaded::Brokers);
+        }, this);
+    
         get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
             AllAssets *me = reinterpret_cast<AllAssets*>(param);
             me->funds = static_cast<FundPortfolio*>(fp);
             me->load_funds(me->funds);
-
-            get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
-                AllAssets *me = reinterpret_cast<AllAssets*>(param);
-                me->stocks = static_cast<StockPortfolio*>(p);
-                me->load_stocks(me->stocks);
-                me->cv.notify_one();
-            },param);
-
+            me->notify(AllAssets::Loaded::Funds);
         }, this);
-    }
+    
+        get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+            AllAssets *me = reinterpret_cast<AllAssets*>(param);
+            me->stocks = static_cast<StockPortfolio*>(p);
+            me->load_stocks(me->stocks);
+            me->notify(AllAssets::Loaded::Stocks);
+        },this);
+    });
 
-    {
-        // todo : make this async !!
-        std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk);
+    get_all_quotes(*quotes_by_symbol);
+}
+
+void AllAssets::notify(AllAssets::Loaded loaded){
+    load_status |= loaded;
+    if (load_status == AllAssets::Loaded::Brokers | AllAssets::Loaded::Funds | AllAssets::Loaded::Quotes | AllAssets::Loaded::Stocks){
+        notifyLoaded();
     }
 }
 
 // for unit tests
-AllAssets::AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp)
+AllAssets::AllAssets(QuoteBySymbol& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp)
 {
     q = nullptr;
-    quotes_by_symbol = quotes;
+    quotes_by_symbol = &quotes;
 
     if(brokers!=nullptr) load_cash(brokers);
     if(fp!=nullptr) load_funds(fp);
@@ -561,7 +581,7 @@ std::set<std::string> AllAssets::get_all_ccy()
 std::set<std::string> AllAssets::get_all_ccy_pairs()
 {
     std::set<std::string> all_ccy_pairs;
-    for (auto& [symbol, _]: quotes_by_symbol) {
+    for (auto& [symbol, _]: quotes_by_symbol->mapping) {
         all_ccy_pairs.insert(symbol);
     }
     for(auto& stx: *stocks){
@@ -576,22 +596,22 @@ double AllAssets::to_main_ccy(double value, const char* ccy, const char* main_cc
         return value;
     }
 
-    auto fx = quotes_by_symbol.find(std::string(ccy) + main_ccy);
-    if(fx != quotes_by_symbol.end()){
+    auto fx = quotes_by_symbol->mapping.find(std::string(ccy) + main_ccy);
+    if(fx != quotes_by_symbol->mapping.end()){
         return value * fx->second->rate;
     }
     else{
         // try the other convention
-        auto fx2 = quotes_by_symbol.find(std::string(main_ccy) + ccy);
-        if(fx == quotes_by_symbol.end()) return std::nan("");
+        auto fx2 = quotes_by_symbol->mapping.find(std::string(main_ccy) + ccy);
+        if(fx == quotes_by_symbol->mapping.end()) return std::nan("");
         return value / fx2->second->rate;
     }
 }
 
 double AllAssets::get_price(const char* symbol)
 {
-    auto r = quotes_by_symbol.find(std::string(symbol));
-    return r == quotes_by_symbol.end() ? std::nan("") : r->second->rate;
+    auto r = quotes_by_symbol->mapping.find(std::string(symbol));
+    return r == quotes_by_symbol->mapping.end() ? std::nan("") : r->second->rate;
 }
 
 template<typename RandomAccessIterator,  typename FieldSelectorUnaryFn>
@@ -627,7 +647,7 @@ void AllAssets::load_stocks(StockPortfolio* sp)
 
     AssetItems grouped_by_sym_and_broker;
     for(auto const& stockWithTx: *sp){
-        auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+        StockTxList *tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
         // group tx by broker
         for(auto& by_broker: group_by(tx_list->ptr_begin(),tx_list->ptr_end(), [](const StockTx* tx){ return std::string(tx->broker); })){
             auto& broker = by_broker.first;
@@ -671,29 +691,16 @@ void AllAssets::load_cash(AllBrokers *brokers)
 
 static std::map<AssetHandle, AllAssets*> all_assets_by_handle;
 static AssetHandle next_asset_handle = 0;
-AssetHandle load_assets()
+void load_assets(OnAssetLoaded onLoaded, void* ctx)
 {
     AssetHandle h = ++next_asset_handle;
-    all_assets_by_handle[h] = new AllAssets();
-    return h;
-}
-
-void load_assets_async(OnAssetLoaded onLoaded, void *param)
-{
-    LOG(DEBUG) << "loading asset async\n";
-    std::thread t([param,onLoaded]{
-        auto h = load_assets();
-        LOG(DEBUG) << "asset async loaded, handle=" << h << "\n";
-        onLoaded(param,h);
-    });
-    t.detach();
-    LOG(DEBUG) << "loading asset async returned\n";
+    all_assets_by_handle[h] = new AllAssets([&onLoaded,h, ctx]{ onLoaded(ctx, h); });
 }
 
 const Quote* AllAssets::get_latest_quote(const char* symbol)
 {
-    auto it = quotes_by_symbol.find(std::string(symbol));
-    return it == quotes_by_symbol.end() ? nullptr : it->second;
+    auto it = quotes_by_symbol->mapping.find(std::string(symbol));
+    return it == quotes_by_symbol->mapping.end() ? nullptr : it->second;
 }
 
 static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
@@ -726,7 +733,7 @@ const quotes* get_latest_quotes(AllAssets* assets, int num, const char** symbols
 
     Quotes *quotes = nullptr;
     auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(num, [&quotes](LatestQuotesBuilder::Alloc *alloc){
-        quotes = new Quotes(alloc->allocated_num(), alloc->head);
+        quotes = new Quotes(alloc->allocated_num(), alloc->head());
     }));
 
     for(int i = 0; i < num; ++i){
@@ -794,7 +801,7 @@ quotes* get_all_ccy_pairs_quote(AllAssets* assets)
     auto all_pairs = assets->get_all_ccy_pairs();
 
     auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(all_pairs.size(), [&quotes](LatestQuotesBuilder::Alloc *alloc){
-        quotes = new Quotes(alloc->allocated_num(), alloc->head);
+        quotes = new Quotes(alloc->allocated_num(), alloc->head());
     }));
 
     for(auto& pair: all_pairs) {
@@ -883,21 +890,21 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
             for(auto&& l3: l2.second){
                 double main_ccy_value  = assets->to_main_ccy(l3.value, l3.currency.c_str(), main_ccy);
                 double main_ccy_profit = assets->to_main_ccy(l3.profit,l3.currency.c_str(), main_ccy);
-                new (item_alloc.current++) OverviewItem(lvl3.key(l3),l3.currency, l3.value, main_ccy_value,l3.profit, main_ccy_profit);
+                new (item_alloc.next()) OverviewItem(lvl3.key(l3),l3.currency, l3.value, main_ccy_value,l3.profit, main_ccy_profit);
                 sum += main_ccy_value;
                 sum_profit += main_ccy_profit;
             }
-            new (container_alloc.current++) OverviewItemContainer(l2_name, lvl3.group_name, sum, sum_profit, item_alloc.allocated_num(), item_alloc.head);
+            new (container_alloc.next()) OverviewItemContainer(l2_name, lvl3.group_name, sum, sum_profit, item_alloc.allocated_num(), item_alloc.head());
             lvl2_sum += sum;
             lvl2_sum_profit += sum_profit;
         }
 
-        new (container_container_alloc.current++) OverviewItemContainerContainer(l1_name, lvl2.group_name, lvl2_sum, lvl2_sum_profit, container_alloc.allocated_num(), container_alloc.head);
+        new (container_container_alloc.next()) OverviewItemContainerContainer(l1_name, lvl2.group_name, lvl2_sum, lvl2_sum_profit, container_alloc.allocated_num(), container_alloc.head());
         lvl1_sum += lvl2_sum;
         lvl1_sum_profit += lvl2_sum_profit;
     }
 
-    return new Overview(lvl1.group_name, lvl1_sum, lvl1_sum_profit, container_container_alloc.allocated_num(), container_container_alloc.head);
+    return new Overview(lvl1.group_name, lvl1_sum, lvl1_sum_profit, container_container_alloc.allocated_num(), container_container_alloc.head());
 }
 
 overview* get_overview(AssetHandle asset_handle, const char* main_ccy, GROUP level1_group, GROUP level2_group, GROUP level3_group)
@@ -920,9 +927,9 @@ overview_item_list* get_sum_group(AllAssets* assets, const char* main_ccy, GROUP
             s.first += assets->to_main_ccy(a.value, a.currency.c_str(), main_ccy);
             s.second+= assets->to_main_ccy(a.profit, a.currency.c_str(), main_ccy);
         };
-        new (item_alloc.current++) OverviewItem(data.first, dummyCcy, 0.0, s.first, 0.0, s.second);
+        new (item_alloc.next()) OverviewItem(data.first, dummyCcy, 0.0, s.first, 0.0, s.second);
     }
-    return new OverviewItemList(item_alloc.allocated_num(), item_alloc.head);
+    return new OverviewItemList(item_alloc.allocated_num(), item_alloc.head());
 }
 
 overview_item_list* get_sum_group_by_asset(AssetHandle asset_handle, const char* main_ccy)

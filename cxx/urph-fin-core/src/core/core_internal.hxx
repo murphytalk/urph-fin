@@ -53,11 +53,22 @@ typedef std::vector<AssetItem> AssetItems;
 
 class AllAssets
 {
+    std::function<void()> notifyLoaded;
+    char load_status;
 public:
-    AllAssets();
+    enum Loaded{
+        Quotes = 1,
+        Brokers = 2,
+        Stocks = 4,
+        Funds = 8
+    };
+    AllAssets(std::function<void()> onLoaded);
     // for unit tests
-    AllAssets(QuoteBySymbol&& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp);
+    AllAssets(QuoteBySymbol& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp);
     ~AllAssets();
+
+    void load();
+    void notify(Loaded loadedData);
 
     double to_main_ccy(double value, const char* ccy, const char* main_ccy);
 
@@ -72,9 +83,9 @@ private:
     void load_stocks(StockPortfolio* sp);
     void load_cash(AllBrokers *brokers);
     std::condition_variable cv;
-    QuoteBySymbol quotes_by_symbol;
+    QuoteBySymbol* quotes_by_symbol;
 
-    Quotes* q;
+    ::Quotes* q;
     StockPortfolio *stocks;
     FundPortfolio *funds;
 

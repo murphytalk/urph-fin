@@ -17,83 +17,13 @@
 #include "../core/urph-fin-core.hxx"
 #include "../core/stock.hxx"
 
-class BrokerBuilder{
-    cash_balance* balances;
-public:
-    int ccy_num;
-    cash_balance* head;
-    Strings* funds;
-    BrokerBuilder(int n, int active_fund_num) { 
-        ccy_num = n; 
-        // the ownership of the following pointers will be passed to Broker
-        funds = new Strings(active_fund_num);
-        balances = new cash_balance[ccy_num];
-        head = balances;
-    }
-    void add_cash_balance(const std::string& currency, double balance){
-        LOG(DEBUG) << "  " << currency << " " << balance << " \n";
-        new (balances++) CashBalance(currency, balance);
-    }
-    void add_active_fund(const std::string& active_fund_id){
-        LOG(DEBUG) << "adding fund " << active_fund_id << "\n";
-        funds->add(active_fund_id);
-    }
-};
-
-template<typename DAO, typename BrokerType>
-static Broker* create_broker(
-    DAO* dao,
-    const BrokerType& broker, 
-    std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, strings* /*active_fund_ids*/)> create_func)
-{
-    const BrokerBuilder& f = dao->get_broker_cash_balance_and_active_funds(broker);
-    return create_func(dao->get_broker_name(broker), f.ccy_num, f.head, f.funds);
-}
-
-template<typename DAO, typename BrokerType>
-class AllBrokerBuilder{
-    broker* all_brokers;
-public:
-    int broker_num;
-    broker* head;
-    AllBrokerBuilder(int n){
-        LOG(DEBUG) << "Total brokers:" << n << "\n";
-        broker_num = n;
-        all_brokers = new broker [n];
-        head = all_brokers;
-    }
-    Broker* add_broker(DAO* dao, const BrokerType& b){
-        return create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
-            LOG(DEBUG) << "creating broker " << n << "\n";
-#ifdef _MSC_VER
-            void* p = all_brokers++;
-            return new (p)
-#else
-            return new (all_brokers++)
-#endif
-                Broker(n, ccy_num, first_ccy_balance, active_funds);
-        });
-    }
-};
-
-class StringsBuilder{
-public:
-    Strings *strings;
-    StringsBuilder(int n){
-        strings = new Strings(n);
-    }
-    void add(const std::string& str){
-        strings->add(str);
-    }        
-};
-
 template <typename T>
-class Builder{
+class Builder : public NonCopyableMoveable{
 public:
     typedef PlacementNew<T> Alloc;
     Alloc* alloc;
 
-    static Builder<T>* create(int num,std::function<void(Alloc*)> called_when_succeed){
+    static Builder<T>* create(int num, std::function<void(Alloc*)> called_when_succeed){
         return new Builder<T>(num, called_when_succeed);
     }
 
@@ -109,19 +39,95 @@ public:
         LOG(DEBUG) << "Builder failed\n";
         delete this;
     }
-private:    
+protected: 
+    std::vector<T> v;
     std::function<void(Alloc*)> onSuccess;
     // ensure this cannot be allocated in stack
-    Builder(int num,std::function<void(Alloc*)> called_when_succeed){
+    Builder(int num, std::function<void(Alloc*)> called_when_succeed){
         alloc = new PlacementNew<T>(num);
         onSuccess = called_when_succeed;
     }
- };
+};
+
+class StringsBuilder{
+public:
+    Strings *strings;
+    StringsBuilder(int n){
+        strings = new Strings(n);
+    }
+    void add(const std::string& str){
+        strings->add(str);
+    }        
+};
+
+class BrokerBuilder{
+public:
+    typedef PlacementNew<cash_balance> CashBalanceAlloc;
+    CashBalanceAlloc * balances;
+    StringsBuilder *funds;
+    BrokerBuilder(int n, int active_fund_num){ 
+        balances = new CashBalanceAlloc(n);
+        funds = new StringsBuilder(active_fund_num);
+    }
+    ~BrokerBuilder(){
+        delete balances;
+        delete funds;
+    }
+    void add_cash_balance(const std::string& currency, double balance){
+        LOG(DEBUG) << "  " << currency << " " << balance << " \n";
+        new (balances->next()) CashBalance(currency, balance);
+    }
+    void add_active_fund(const std::string& active_fund_id){
+        LOG(DEBUG) << "adding fund " << active_fund_id << "\n";
+        funds->add(active_fund_id);
+    }
+};
+
+// before JavaScript alike future/promise is available, I would rather to deal with callback hells instead of using the current STL's future/promise.
+template<typename DAO, typename BrokerType>
+static void create_broker(
+    DAO* dao,
+    const BrokerType& brokerQueryResult,
+    std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, strings* /*active_fund_ids*/)> create_func,
+    std::function<void(Broker*)> onBrokerCreated)
+{
+    dao->get_broker_cash_balance_and_active_funds(brokerQueryResult,
+        [dao,&brokerQueryResult, &create_func, &onBrokerCreated](const BrokerBuilder& builder){
+            onBrokerCreated(create_func(dao->get_broker_name(brokerQueryResult), builder.balances->allocated_num(), builder.balances->head(), builder.funds->strings));
+        }
+    );
+}
+
+template<typename DAO, typename BrokerType>
+class AllBrokerBuilder{
+public:
+    typedef PlacementNew<broker> BrokerAlloc;
+    BrokerAlloc *alloc;
+    AllBrokerBuilder(int n){
+        LOG(DEBUG) << "Total brokers:" << n << "\n";
+        alloc = new BrokerAlloc(n);
+    }
+    ~AllBrokerBuilder(){
+        delete alloc;
+    }
+    void add_broker(DAO* dao, const BrokerType& b){
+        create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
+            LOG(DEBUG) << "creating broker " << n << "\n";
+#ifdef _MSC_VER
+            void* p = all_brokers++;
+            return new (p)
+#else
+            return new (alloc->next())
+#endif
+                Broker(n, ccy_num, first_ccy_balance, active_funds);
+        }, [](Broker* broker){ /*already created inside alloc*/ });
+    }
+};
 
 class FundsBuilder: public Builder<fund>{
 public:
     Fund* add_fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
-        return new (alloc->current++) Fund(broker, name, id,
+        return new (alloc->next()) Fund(broker, name, id,
                                            amount,
                                            capital,
                                            market_value,
@@ -137,7 +143,7 @@ class LatestQuotesBuilder: public Builder<quote>{
 public:
     Quote* add_quote(const std::string& symbol, timestamp date, double rate){
         LOG(DEBUG) << "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate <<"\n";
-        return new (alloc->current++) Quote(symbol, date, rate);
+        return new (alloc->next()) Quote(symbol, date, rate);
     }
 };
 
@@ -161,7 +167,7 @@ public:
     StockAlloc* stock_alloc; 
     Stock* add_stock(const std::string& symbol, const std::string& ccy){
         LOG(DEBUG) << "adding stock " << symbol << "@" << ccy << "\n";
-        return new (stock_alloc->current++) Stock(symbol, ccy);
+        return new (stock_alloc->next()) Stock(symbol, ccy);
     }
     void prepare_stock_alloc(int n) {
         LOG(DEBUG) << "Got " << n << " stocks\n";
@@ -188,7 +194,7 @@ public:
         const auto s = tx.find(symbol);
         if(s != tx.end()){
             const auto& tx_alloc = s->second;
-            new (tx_alloc->current++) StockTx(broker, shares, price, fee, type, date);
+            new (tx_alloc->next()) StockTx(broker, shares, price, fee, type, date);
             LOG(DEBUG) << "Added tx@" << date << " for " << symbol << " broker=" << broker << "\n";
             check_completion(tx_alloc);
         }
@@ -212,7 +218,7 @@ public:
         stock_with_tx* head = new stock_with_tx[stock_num];
         memset(head, 0, sizeof(stock_with_tx) * stock_num);
         stock_with_tx* current = head;
-        for(auto* b = stock_alloc->head; b != stock_alloc->end(); ++b){
+        for(auto* b = stock_alloc->head(); b != stock_alloc->end(); ++b){
             auto tx_iter = tx.find(b->symbol);      
             int tx_num;
             stock_tx* first;
@@ -222,7 +228,7 @@ public:
             }
             else{
                 tx_num = tx_iter->second->allocated_num();
-                first = tx_iter->second->head;
+                first = tx_iter->second->head();
             }    
             new (current++) StockWithTx(b, new StockTxList(tx_num, first));
         }
@@ -238,7 +244,7 @@ private:
     }
     void check_completion(const TxAlloc* alloc){
         if(alloc!=nullptr){
-            LOG(DEBUG) << "Checking completion: cur =" << alloc->counter << ", max=" << alloc->max_counter << "\n";
+            LOG(DEBUG) << "Checking completion: cur =" << alloc->counter() << ", max=" << alloc->max_counter() << "\n";
         }
         if(alloc == nullptr || alloc->has_enough_counter()){
             --unfinished_stocks;
@@ -256,9 +262,8 @@ private:
 class IDataStorage{
 public:
     virtual ~IDataStorage(){}
-    virtual Broker* get_broker(const char* name) = 0;
-    virtual AllBrokers* get_brokers() = 0;
-    virtual strings* get_all_broker_names() = 0;
+    virtual void get_broker(const char* name, OnBroker onBroker, void*param) = 0;
+    virtual void get_brokers(OnAllBrokers onAllBrokers, void* param) = 0;
     virtual void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual strings* get_known_stocks() = 0;
@@ -282,58 +287,63 @@ public:
         LOG(DEBUG) << "Storage instance freed\n";
     }
 
-    Broker* get_broker(const char* name)
+    void get_broker(const char* name, OnBroker onBroker, void*param)
     {
-        return create_broker(dao.get(), dao->get_broker_by_name(name), [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
-            return new Broker(n, ccy_num, first_ccy_balance, active_funds);
+        dao->get_broker_by_name(
+            name, 
+            [this, &onBroker, param](const auto& brokerQueryResult) {
+                create_broker(dao.get(), 
+                    brokerQueryResult,  
+                    [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){ 
+                        return new Broker(n, ccy_num, first_ccy_balance, active_funds);
+                    },
+                    [&onBroker,param](Broker* b){ onBroker(b, param);}
+                );
+            }
+        );
+    }
+
+    void get_brokers(OnAllBrokers onAllBrokers, void* param){
+        dao->get_brokers([&](auto *p){
+            AllBrokers * b = new AllBrokers(p->alloc->allocated_num(), p->alloc->head());
+            delete p;
+            onAllBrokers(b, param);
         });
-    }
-
-    AllBrokers* get_brokers(){
-        auto* p = dao->get_brokers();
-        AllBrokers * b = new AllBrokers(p->broker_num, p->head);
-        delete p;    
-        return b;
-    }
-
-    strings* get_all_broker_names() { 
-        std::unique_ptr<StringsBuilder> builder(dao->get_all_broker_names());
-        return builder->strings;
     }
 
     void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
         // self delete upon finish
         auto *p = static_cast<FundsBuilder*>(FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::Alloc* fund_alloc){
-            std::sort(fund_alloc->head, fund_alloc->head + fund_alloc->allocated_num(),[](fund& f1, fund& f2){ 
+            std::sort(fund_alloc->head(), fund_alloc->head() + fund_alloc->allocated_num(),[](fund& f1, fund& f2){
                 auto byBroker = strcmp(f1.broker,f2.broker);
                 auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;
-                return v < 0; 
+                return v < 0;
             });
-            onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head), onFundsCallerProvidedParam);
+            onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head()), onFundsCallerProvidedParam);
         }));
         dao->get_funds(p, funds_num, fund_ids_head);
     }
 
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param){
         // self delete upon finish
-        auto *builder = 
+        auto *builder =
             StockPortfolioBuilder::create([onAllStockTx, caller_provided_param](StockPortfolioBuilder::StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx){
                 const auto stock_num = stock_alloc->allocated_num();
                 auto *stock_with_tx_head = StockPortfolioBuilder::create_stock_with_tx(stock_alloc, tx);
-                onAllStockTx(new StockPortfolio(stock_num, stock_alloc->head, stock_with_tx_head), caller_provided_param);
+                onAllStockTx(new StockPortfolio(stock_num, stock_alloc->head(), stock_with_tx_head), caller_provided_param);
             });
         dao->get_stock_portfolio(builder, broker, symbol);
     }
-    strings* get_known_stocks() { 
+    strings* get_known_stocks() {
         const auto& builder = dao->get_known_stocks();
-        return builder.strings; 
+        return builder.strings;
     }
     void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param){
         if (symbols_head == nullptr){
             dao->get_non_fund_symbols([onQuotes, caller_provided_param, this](Strings* symbols){
                 char** sym_head = symbols->to_str_array();
                 auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(symbols->size(),[sym_head, onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
-                    onQuotes(new Quotes(alloc->allocated_num(), alloc->head), caller_provided_param);
+                    onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
                     delete []sym_head;
                 }));
                 dao->get_latest_quotes(builder, symbols->size(), const_cast<const char**>(sym_head));
@@ -342,7 +352,7 @@ public:
         }
         else{
             auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(num,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
-                onQuotes(new Quotes(alloc->allocated_num(), alloc->head), caller_provided_param);
+                onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
             }));
             dao->get_latest_quotes(builder, num, symbols_head);
         }

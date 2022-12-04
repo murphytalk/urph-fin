@@ -6,43 +6,71 @@
 #include <vector>
 #include <unordered_map>
 #include <iterator> 
+#include <functional>
+#include <memory>
+#include <cmath>
 
 // C++ extensions to make life (much more) easier
-
+#ifdef USE_FIREBASE
 struct Config{
     std::string email;
     std::string password;       
 };
 
 Config load_cfg();
+#endif
+
 char* copy_str(const std::string& str);
 
-template<typename T > struct PlacementNew{
-    T* head;
-    T* current;
-    int counter;
-    int max_counter;
-    PlacementNew(int max_num)
-    {
-        max_counter = max_num;
-        counter = 0;
-        head = new T[max_num];
-        current = head;
-    }
-    int allocated_num() const
-    {
-        return current - head;
-    }
-    T* end()
-    {
-        return current;
-    }
-    bool has_enough_counter() const
-    {
-        return counter >= max_counter;
-    }
-    inline int inc_counter() { return ++counter; }
+struct NonCopyableMoveable {
+    NonCopyableMoveable & operator=(const NonCopyableMoveable&) = delete;
+    NonCopyableMoveable(const NonCopyableMoveable&) = delete;
+    NonCopyableMoveable(NonCopyableMoveable&&) = delete;
+    NonCopyableMoveable() = default;
 };
+
+template<typename T> 
+class PlacementNew: public NonCopyableMoveable{
+    T* _head;
+    T* _current;
+    int _counter;
+    int _max_counter;
+    float _ratio;
+public:    
+    PlacementNew(int max_num, float increment_ratio = 0.5)
+    {
+        _max_counter = max_num;
+        _counter = 0;
+        _head = new T[max_num];
+        _current = _head;
+        _ratio = 1 + increment_ratio;
+    }
+
+    inline int allocated_num() const { return _current - _head;}
+    inline T* end() const{ return _current;}
+    inline bool has_enough_counter() const { return _counter >= _max_counter;}
+    inline int inc_counter() { return ++_counter; }
+    inline T* head() const { return _head; }
+    inline int counter() const { return _counter; }
+    inline int max_counter() const { return _max_counter; }
+    T* next(){
+        if(allocated_num() >= _max_counter){
+            //resize
+            int new_max = std::ceil(_max_counter * _ratio);
+            T* p = new T[new_max];
+            memcpy(p, _head, sizeof(T) * _max_counter);
+            
+            delete []_head;
+            _head = p;
+            _current = p + _max_counter;
+            _max_counter = new_max;
+
+            return _current;
+        }
+        else return _current++;
+    }
+};
+
 
 template<typename T> struct Iterator
 {
@@ -192,8 +220,14 @@ public:
     Iterator<Quote> end()   { return Iterator(head(default_member_tag()) + num); }
 };
 
-typedef std::unordered_map<std::string, const Quote*> QuoteBySymbol;
-quotes* get_all_quotes(QuoteBySymbol& quotes_by_symbol);
+class QuoteBySymbol{
+public:
+    QuoteBySymbol(std::function<void(quotes*)> onLoaded):notify(onLoaded){}
+    std::function<void(quotes*)> notify;
+    std::unordered_map<std::string, const Quote*> mapping;
+    inline void add(const std::string& sym, const Quote* q) {  mapping[sym] = q; }
+};
+void get_all_quotes(QuoteBySymbol& quotes_by_symbol);
 
 class OverviewItem : public overview_item{
 public:

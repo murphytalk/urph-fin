@@ -38,13 +38,14 @@ struct all_brokers{
     int num;
 };
 
-broker* get_broker(const char* name);
+typedef void (*OnBroker)(broker*, void* param);
+void get_broker(const char* name, OnBroker onBroker, void* param);
 void free_broker(broker*);
 
-all_brokers* get_brokers();
+typedef void (*OnAllBrokers)(all_brokers*, void* param);
+void get_brokers(OnAllBrokers onAllBrokers, void* param);
 void free_brokers(all_brokers*);
 
-strings* get_all_broker_names();
 
 // seconds since epoch
 typedef int64_t timestamp;
@@ -253,7 +254,8 @@ struct overview{
 };
 
 typedef int AssetHandle;
-AssetHandle load_assets();
+typedef void (*OnAssetLoaded)(void*param, AssetHandle h);
+void load_assets(OnAssetLoaded onLoaded, void* ctx);
 
 strings* get_all_ccy(AssetHandle handle);
 
@@ -266,8 +268,6 @@ const quotes* get_all_ccy_pairs_quote(AssetHandle handle);
 const quotes* get_latest_quotes(AssetHandle handle, int num, const char** symbols);
 const quotes* get_latest_quotes_delimeter(AssetHandle handle, int num, const char* delimiter, const char* symbols);
 
-typedef void (*OnAssetLoaded)(void*param, AssetHandle h);
-void load_assets_async(OnAssetLoaded onLoaded, void *param);
 void free_assets(AssetHandle handle);
 
 const unsigned char GROUP_BY_ASSET  = 0;

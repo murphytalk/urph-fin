@@ -71,14 +71,10 @@ class MockedStocksDao
 public:
     MockedStocksDao(std::vector<stock_test_data> &s, std::vector<stock_tx_test_data> **tx) : stocks(s), all_tx(tx) {}
     typedef int BrokerType;
-    BrokerType get_broker_by_name(const char *) { return 0; }
-    std::string get_broker_name(const BrokerType &) { return std::string(""); }
-    BrokerBuilder get_broker_cash_balance_and_active_funds(const BrokerType &)
-    {
-        return BrokerBuilder(0, 0);
-    }
-    AllBrokerBuilder<MockedStocksDao, BrokerType> *get_brokers() { return nullptr; }
-    StringsBuilder *get_all_broker_names() { return nullptr; }
+    void get_broker_by_name(const char *, std::function<void(const BrokerType&)> onBrokerData) {}
+    std::string get_broker_name(const BrokerType&) { return std::string("");}
+    void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){}
+    void get_brokers(std::function<void(AllBrokerBuilder<MockedStocksDao, BrokerType>*)>){}
     void get_funds(FundsBuilder *, int, const char **) {}
     StringsBuilder get_known_stocks() { return StringsBuilder(0); }
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
@@ -332,7 +328,7 @@ Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
 {
     Quotes *q = nullptr;
     auto *builder = static_cast<LatestQuotesBuilder *>(LatestQuotesBuilder::create(5, [&q](LatestQuotesBuilder::Alloc *alloc){
-        q = new Quotes(alloc->allocated_num(), alloc->head);
+        q = new Quotes(alloc->allocated_num(), alloc->head());
     }));
     builder->add_quote(usd_jpy, usd_jpy_date, usd_jpy_rate);
     builder->add_quote(stock1, stock1_date, stock1_price);
@@ -342,7 +338,7 @@ Quotes* prepare_quotes(QuoteBySymbol& quotes_by_symbol)
     builder->succeed();
 
     for(auto const& quote: *q){
-        quotes_by_symbol[quote.symbol] = &quote;
+        quotes_by_symbol.mapping[quote.symbol] = &quote;
     }
  
     return q;
@@ -355,7 +351,7 @@ StockPortfolio* prepare_stocks()
     auto *builder = StockPortfolioBuilder::create([&stocks](StockPortfolioBuilder::StockAlloc* stock_alloc, const StockPortfolioBuilder::TxAllocPointerBySymbol& tx){
         const auto stock_num = stock_alloc->allocated_num();
         auto *stock_with_tx_head = StockPortfolioBuilder::create_stock_with_tx(stock_alloc, tx);
-        stocks = new StockPortfolio(stock_num, stock_alloc->head, stock_with_tx_head);
+        stocks = new StockPortfolio(stock_num, stock_alloc->head(), stock_with_tx_head);
     });
 
     builder->prepare_stock_alloc(4);
@@ -392,7 +388,7 @@ FundPortfolio* prepare_funds()
 {
     FundPortfolio* funds;
     auto *builder = static_cast<FundsBuilder*>(FundsBuilder::create(3,[&funds](FundsBuilder::Alloc* fund_alloc){
-        funds = new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head);
+        funds = new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head());
     }));
 
     builder->add_fund(funds1_broker, funds1, funds1_id, funds1_amt, funds1_capital, funds1_value, funds1_price, funds1_profit, funds1_roi, funds1_date);
@@ -410,7 +406,7 @@ public:
     std::string get_broker_name(const BrokerType& broker){
         return *brokers[broker];
     }
-    BrokerBuilder get_broker_cash_balance_and_active_funds(const BrokerType& broker){
+    void get_broker_cash_balance_and_active_funds(const BrokerType &broker, std::function<void(const BrokerBuilder &)> onBrokerBuilder){
         BrokerBuilder builder(2, broker == 0 ? 2:1);
         if(broker == 0){
             //broker1       
@@ -425,7 +421,7 @@ public:
             builder.add_cash_balance(usd, broker2_usd);
             builder.add_cash_balance(jpy, broker2_jpy);
         }
-        return builder;
+        onBrokerBuilder(builder);
     }
 };
 
@@ -435,7 +431,7 @@ AllBrokers* prepare_brokers()
     auto *builder = new AllBrokerBuilder<BrokerDao, BrokerType>(2);
     builder->add_broker(&dao, 0);
     builder->add_broker(&dao, 1);
-    AllBrokers * b = new AllBrokers(builder->broker_num, builder->head);
+    AllBrokers * b = new AllBrokers(builder->alloc->allocated_num(), builder->alloc->head());
     delete builder;
     return b;
 }
@@ -500,21 +496,23 @@ struct PrepareAssets
         AllBrokers *brokers;
         StockPortfolio* stocks;
         AllAssets *assets;
+        QuoteBySymbol *quotes_by_symbol;
 
         PrepareAssets(){
-            QuoteBySymbol quotes_by_symbol;
-            q = prepare_quotes(quotes_by_symbol);
+            quotes_by_symbol = new QuoteBySymbol([](quotes*){});
+            q = prepare_quotes(*quotes_by_symbol);
             brokers = prepare_brokers();
             // AllAssets will own the following two pointers and free them
             funds = prepare_funds();
             stocks = prepare_stocks();
-            assets = new AllAssets(std::move(quotes_by_symbol), brokers, funds, stocks);
+            assets = new AllAssets(*quotes_by_symbol, brokers, funds, stocks);
         }
 
         ~PrepareAssets(){
             delete brokers;
             delete q;
             delete assets;
+            delete quotes_by_symbol;
         }       
 };
 

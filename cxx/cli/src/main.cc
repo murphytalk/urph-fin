@@ -51,12 +51,16 @@ template<typename T> static std::string percentage(T value)
     return ss.str();
 }
 
-static std::unordered_map<std::string, const Quote*> quotes_by_symbol;
+static QuoteBySymbol *quotes_by_symbol = nullptr;
 static quotes* all_quotes = nullptr;
-static inline void get_quotes()
+static void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if(all_quotes == nullptr){
-        all_quotes = get_all_quotes(quotes_by_symbol);
+        quotes_by_symbol = new QuoteBySymbol([&onQuotesLoaded](quotes* aq){ 
+            all_quotes = aq; 
+            onQuotesLoaded();
+        });
+        get_all_quotes(*quotes_by_symbol);
     }
 }
 
@@ -67,8 +71,8 @@ static inline double to_jpy(double fx_rate, double value)
 }
 static std::pair<double,timestamp> get_rate(const std::string& symbol)
 {
-    auto it = quotes_by_symbol.find(symbol);
-    return it == quotes_by_symbol.end() ? std::make_pair(std::nan(""),0L) : std::make_pair(it->second->rate, it->second->date);
+    auto it = quotes_by_symbol->mapping.find(symbol);
+    return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""),0L) : std::make_pair(it->second->rate, it->second->date);
 }
 
 static void print_stock_list(ostream& out, stock_portfolio*p)
@@ -246,7 +250,7 @@ static void main_menu()
             "ls",
             [](ostream& out){
                 if(ah == 0){
-                    load_assets_async([](void *p, AssetHandle h){
+                    load_assets([](void *p, AssetHandle h){
                         ostream* o = reinterpret_cast<ostream*>(p);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
@@ -271,36 +275,41 @@ static void main_menu()
 
         rootMenu->Insert(
             "bk",
-            [](ostream& out){
-                Table table;
-                table.add_row({"Broker", "Currency", "Balance"});
-                auto brokers = static_cast<AllBrokers*>(get_brokers());
-                for(Broker& broker: *brokers){
-                    if(broker.size(default_member_tag()) == 0){
-                        table.add_row({broker.name, "", ""});
-                        continue;
-                    }
-                    bool broker_name_printed = false;
-                    for(const CashBalance& balance: broker){
-                        if (broker_name_printed)
-                            table.add_row(
-                                {"", balance.ccy, format_with_commas(balance.balance)}
-                            );
-                        else{
-                            table.add_row(
-                                {broker.name, balance.ccy, format_with_commas(balance.balance)}
-                            );
-                            broker_name_printed = true;
+            [](ostream& os){
+                get_brokers([](auto* bks, void* ctx){
+                    ostream* out = reinterpret_cast<ostream*>(ctx);
+                    AllBrokers *brokers = static_cast<AllBrokers*>(bks);
+    
+                    Table table;
+                    table.add_row({"Broker", "Currency", "Balance"});
+    
+                    for(Broker& broker: *brokers){
+                        if(broker.size(default_member_tag()) == 0){
+                            table.add_row({broker.name, "", ""});
+                            continue;
                         }
-                    }    
-                }
-                free_brokers(brokers);
-                table.column(1).format().font_align(FontAlign::center);
-                table.column(2).format().font_align(FontAlign::right);
-                table[0].format()
-                    .font_style({FontStyle::bold})
-                    .font_align(FontAlign::center);
-                out << "\n" << table << endl;
+                        bool broker_name_printed = false;
+                        for(const CashBalance& balance: broker){
+                            if (broker_name_printed)
+                                table.add_row(
+                                    {"", balance.ccy, format_with_commas(balance.balance)}
+                                );
+                            else{
+                                table.add_row(
+                                    {broker.name, balance.ccy, format_with_commas(balance.balance)}
+                                );
+                                broker_name_printed = true;
+                            }
+                        }    
+                    }
+                    delete brokers;
+                    table.column(1).format().font_align(FontAlign::center);
+                    table.column(2).format().font_align(FontAlign::right);
+                    table[0].format()
+                        .font_style({FontStyle::bold})
+                        .font_align(FontAlign::center);
+                    *out << "\n" << table << endl;
+                }, &os);
             },
             "List broker summary"
         );
@@ -367,22 +376,24 @@ static void main_menu()
         stockMenu->Insert(
             "ls",
             [](ostream& out){
-                get_quotes();
-                get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
-                    ostream* out = reinterpret_cast<ostream*>(param);
-                    print_stock_list(*out, p);
-               }, &out);
+                get_quotes([&out](){
+                    get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+                        ostream* out = reinterpret_cast<ostream*>(param);
+                        print_stock_list(*out, p);
+                   }, &out);}
+                );
             },
             "List stock balance"
         );
         stockMenu->Insert(
             "sym",
             [](ostream& out, string symbol){
-                get_quotes();
-                get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
-                    ostream* out = reinterpret_cast<ostream*>(param);
-                    print_stock_list(*out, p);
-               }, &out);
+                get_quotes([&out,&symbol](){
+                    get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
+                        ostream* out = reinterpret_cast<ostream*>(param);
+                        print_stock_list(*out, p);
+                    }, &out);}
+                );
             },
             "List specified stock's balance"
         );
