@@ -266,7 +266,7 @@ public:
 
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
         const std::string& key = std::string(db_sub_tx_prefix) + fund_update_date;
-        db_query_by_sub(key.c_str(), nullptr,
+        db_query_by_sub(key.c_str(), "attribute_exists(capital)",
             [builder, fund_names_head, funds_num](bool is_last, const auto &item){
                     const auto& name = item.at("name").GetS();
                     if(find_match_str(fund_names_head, funds_num, name.c_str())) return true;
