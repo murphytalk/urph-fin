@@ -131,15 +131,16 @@ public:
 
 class FundsBuilder: public Builder<fund>{
 public:
-    Fund* add_fund(const std::string& broker,  const std::string& name,  const std::string& id, int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
-        return new (alloc->next()) Fund(broker, name, id,
-                                           amount,
-                                           capital,
-                                           market_value,
-                                           price,
-                                           profit,
-                                           roi,
-                                           date
+    Fund* add_fund(const std::string& broker,  const std::string& name,  int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
+        alloc->inc_counter();
+        return new (alloc->next()) Fund(broker, name,
+                                        amount,
+                                        capital,
+                                        market_value,
+                                        price,
+                                        profit,
+                                        roi,
+                                        date
         );
     }
 };
@@ -269,7 +270,7 @@ public:
     virtual ~IDataStorage(){}
     virtual void get_broker(const char* name, OnBroker onBroker, void*param) = 0;
     virtual void get_brokers(OnAllBrokers onAllBrokers, void* param) = 0;
-    virtual void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
+    virtual void get_funds(int funds_num,char* fund_update_date, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual strings* get_known_stocks() = 0;
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
@@ -316,7 +317,7 @@ public:
         });
     }
 
-    void get_funds(int funds_num, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
+    void get_funds(int funds_num, char* fund_update_date,const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
         // self delete upon finish
         auto *p = static_cast<FundsBuilder*>(FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::Alloc* fund_alloc){
             std::sort(fund_alloc->head(), fund_alloc->head() + fund_alloc->allocated_num(),[](fund& f1, fund& f2){
@@ -326,7 +327,7 @@ public:
             });
             onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head()), onFundsCallerProvidedParam);
         }));
-        dao->get_funds(p, funds_num, fund_ids_head);
+        dao->get_funds(p, funds_num, fund_update_date, fund_ids_head);
     }
 
     void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param){

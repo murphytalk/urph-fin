@@ -139,11 +139,10 @@ FundPortfolio::~FundPortfolio()
     delete []first_fund;
 }
 
-Fund::Fund(const std::string& b,  const std::string&n,  const std::string&i, int a, double c, double m, double prc, double p, double r, timestamp d)
+Fund::Fund(const std::string& b,  const std::string&n, int a, double c, double m, double prc, double p, double r, timestamp d)
 {
     broker = copy_str(b);
     name = copy_str(n);
-    id = copy_str(i);
     amount = a;
     capital = c;
     market_value = m;
@@ -157,7 +156,6 @@ Fund::~Fund()
 {
     delete []broker;
     delete []name;
-    delete []id;
 }
 
 Quote::Quote(const std::string& s, timestamp t, double r)
@@ -316,11 +314,11 @@ void free_broker(broker* b)
     delete static_cast<Broker*>(b);
 }
 
-void get_funds(int num, const char **fund_ids, OnFunds onFunds, void*param)
+void get_funds(int num, char* fund_update_date,const char **fund_ids, OnFunds onFunds, void*param)
 {
     assert(storage != nullptr);
     TRY
-    storage->get_funds(num, fund_ids, onFunds, param);
+    storage->get_funds(num, fund_update_date,fund_ids, onFunds, param);
     CATCH_NO_RET
 }
 
@@ -329,6 +327,7 @@ struct get_active_funds_async_helper
     OnFunds onFunds;
     void* param;
     int fund_num;
+    char* fund_update_date;
     std::vector<Broker*> all_broker_pointers;
 
     get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx), fund_num(0){}
@@ -341,7 +340,7 @@ struct get_active_funds_async_helper
                 *ids++ = *it;
             }
         }
-        get_funds(fund_num, ids_head, onFunds, param);
+        get_funds(fund_num, fund_update_date, ids_head, onFunds, param);
 
         delete []ids_head;
 
@@ -361,6 +360,7 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
             get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
             Broker* the_broker = static_cast<Broker*>(b);
             h->fund_num = the_broker->size(Broker::active_fund_tag());
+            h->fund_update_date = the_broker->funds_update_date;
             h->all_broker_pointers.push_back(the_broker);
             h->run();
             delete the_broker;
@@ -369,6 +369,8 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
         get_brokers([](all_brokers* bks, void* ctx){
             get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
             AllBrokers *brokers = static_cast<AllBrokers*>(bks);
+            // prerequisite: all brokers have their funds updated on the same day
+            h->fund_update_date = brokers->begin()->funds_update_date;
             for(Broker& b: *brokers){
                 h->fund_num += b.size(Broker::active_fund_tag());
                 h->all_broker_pointers.push_back(&b);

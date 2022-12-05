@@ -144,7 +144,7 @@ public:
     std::string get_broker_name(const BrokerType&) { return std::string("");}
     void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){}
     void get_brokers(std::function<void(AllBrokerBuilder<MockedStocksDao, BrokerType>*)>){}
-    void get_funds(FundsBuilder *, int, const char **) {}
+    void get_funds(FundsBuilder *, int, char* ,const char **) {}
     StringsBuilder get_known_stocks() { return StringsBuilder(0); }
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
@@ -360,7 +360,7 @@ const timestamp stock3_date = 100;
 
 
 const std::string funds1 = {"Funds1"};
-const std::string funds1_id = {"id1"};
+const std::string funds1_id = funds1;
 const std::string& funds1_broker = broker2;
 const double funds1_amt = 1;
 const double funds1_price = 1000;
@@ -371,7 +371,7 @@ const double funds1_roi = 100 * funds1_profit/funds1_capital;
 const timestamp funds1_date = 100;
 
 const std::string funds2 = {"Funds2"};
-const std::string funds2_id = {"id2"};
+const std::string funds2_id = funds2;
 const std::string& funds2_broker = broker1;
 const double funds2_amt = 2;
 const double funds2_price = 900;
@@ -382,7 +382,7 @@ const double funds2_roi = 100 * funds2_profit/funds2_capital;
 const timestamp funds2_date = 100;
 
 const std::string funds3 = {"Funds3"};
-const std::string funds3_id = {"id3"};
+const std::string funds3_id = funds3;
 const std::string& funds3_broker = broker1;
 const double funds3_amt = 3;
 const double funds3_price = 900;
@@ -460,9 +460,9 @@ FundPortfolio* prepare_funds()
         funds = new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head());
     }));
 
-    builder->add_fund(funds1_broker, funds1, funds1_id, funds1_amt, funds1_capital, funds1_value, funds1_price, funds1_profit, funds1_roi, funds1_date);
-    builder->add_fund(funds2_broker, funds2, funds2_id, funds2_amt, funds2_capital, funds2_value, funds2_price, funds2_profit, funds2_roi, funds2_date);
-    builder->add_fund(funds3_broker, funds3, funds3_id, funds3_amt, funds3_capital, funds3_value, funds3_price, funds3_profit, funds3_roi, funds3_date);
+    builder->add_fund(funds1_broker, funds1, funds1_amt, funds1_capital, funds1_value, funds1_price, funds1_profit, funds1_roi, funds1_date);
+    builder->add_fund(funds2_broker, funds2, funds2_amt, funds2_capital, funds2_value, funds2_price, funds2_profit, funds2_roi, funds2_date);
+    builder->add_fund(funds3_broker, funds3, funds3_amt, funds3_capital, funds3_value, funds3_price, funds3_profit, funds3_roi, funds3_date);
     builder->succeed();
     return funds;
 }

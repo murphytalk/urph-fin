@@ -4,6 +4,9 @@
 #include <aws/dynamodb/model/QueryRequest.h>
 
 #include <memory>
+#include <set>
+#include <algorithm>
+#include <string>
 
 #include "../src/utils.hxx"
 #include "../src/storage/storage.hxx"
@@ -18,6 +21,7 @@ namespace
     const char sub_name_idx[] = "sub-name-index";
 
     const char db_sub_broker[] = "B#";
+    const char db_sub_tx_prefix[] = "x#";
     const char db_name_attr[] = "name";
     const char db_sub_attr[] = "sub";
 
@@ -26,6 +30,14 @@ namespace
 
     typedef std::function<bool(bool /*if this is the last one*/, const AttrValueMap &)> OnItem;
     typedef std::function<void(int)> OnItemCount;
+
+    bool find_match_str(const char** head, int num, const char* find){
+        char **p = const_cast<char**>(head);
+        for(int i ; i < num ;++i, ++p){
+            if(strcmp(*p, find) == 0) return true;
+        }
+        return false;
+    }
 }
 
 class AwsDao
@@ -91,7 +103,8 @@ private:
             lastKey = const_cast<AttrValueMap*>(&lk);
             log_attrs(Aws::Utils::Logging::LogLevel::Info, "result has last key", lk);
         }
-    }
+
+        }
 
     inline void db_query_by_partition_key(const char *index_name,
                                           const char *key_condition_expr,
@@ -117,7 +130,7 @@ private:
         db_query_by_partition_key(nullptr, "#name_n = :name_v", "#name_n", db_name_attr, ":name_v", name, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
 
-    inline void db_query_by_sub_req(const char *sub, const char *filter_expr, OnItem onItem, OnItemCount onItemCount, std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
+    inline void db_query_by_sub(const char *sub, const char *filter_expr, OnItem onItem, OnItemCount onItemCount, std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
     {
         db_query_by_partition_key(sub_name_idx, "#sub_n = :sub_v", "#sub_n", db_sub_attr, ":sub_v", sub, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
@@ -251,8 +264,45 @@ public:
                              });
     }
 
-    void get_funds(FundsBuilder *builder, int funds_num, const char ** fund_names_head) {
+    void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
+        //std::set<std::string> fund_names;
+        //std::transform(fund_names_head, fund_names_head + funds_num , std::inserter(fund_names, [](const char* n){return std::string(n);}));
 
+        const std::string& key = std::string(db_sub_tx_prefix) + fund_update_date;
+        db_query_by_sub(key.c_str(), nullptr,
+            [builder, fund_names_head, funds_num](bool is_last, const auto &item){
+                    const auto& name = item.at("name").GetS();
+                    //if(fund_names.find(name) == fund_names.end()) return true;
+                    if(find_match_str(fund_names_head, funds_num, name.c_str())) return true;
+
+                    const auto& broker = item.at("broker").GetS();
+                    const auto amt = std::stod(item.at("amount").GetN());
+                    double capital = std::stod(item.at("capital").GetN());
+                    double market_value = std::stod(item.at("market_value").GetN());
+                    double price = std::stod(item.at("price").GetN());
+                    double profit = market_value - capital;
+                    double roi = profit / capital;
+                    timestamp date = std::stol(item.at("date").GetN());
+                    LOG(DEBUG) << "got tx of broker " << broker << ".fund="<<name << "\n";
+                    builder->add_fund(
+                        broker, name,
+                        (int)amt,
+                        capital,
+                        market_value,
+                        price,
+                        profit,
+                        roi,
+                        date
+                    );
+
+                if(builder->alloc->has_enough_counter()){
+                    builder->succeed();
+                    return false;
+                }
+                else return true; 
+            },
+            [](int){ }
+        );
     }
 
     StringsBuilder get_known_stocks() { return StringsBuilder(0); }
@@ -265,13 +315,13 @@ public:
 private:
     void get_all_broker_items(std::function<void(int)> totalNum, std::function<void(bool, const BrokerType &)> onBrokerItem)
     {
-        db_query_by_sub_req(
-            db_sub_broker, nullptr, [&onBrokerItem](bool is_last, const auto &item)
-            {
-            onBrokerItem(is_last, item);
-            return true; },
-            [&totalNum](int count)
-            { totalNum(count); });
+        db_query_by_sub(
+            db_sub_broker, nullptr, 
+            [&onBrokerItem](bool is_last, const auto &item){
+                onBrokerItem(is_last, item);
+                return true; 
+            },
+            [&totalNum](int count){ totalNum(count); });
     }
 };
 
