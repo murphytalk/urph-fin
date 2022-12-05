@@ -74,9 +74,8 @@ private:
         if (filter_expr != nullptr)
             q.SetFilterExpression(filter_expr);
 
-        q.SetExpressionAttributeValues(std::move(expr_attr_values));
-
         add_filter_attr_value(expr_attr_values);
+        q.SetExpressionAttributeValues(std::move(expr_attr_values));
 
         AttrValueMap* lastKey = nullptr;
 
