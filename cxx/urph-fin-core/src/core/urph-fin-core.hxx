@@ -65,7 +65,7 @@ public:
             _current = p + _max_counter;
             _max_counter = new_max;
 
-            return _current;
+            return _current++;
         }
         else return _current++;
     }

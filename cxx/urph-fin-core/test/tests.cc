@@ -47,6 +47,75 @@ TEST(TestStock, MoveAssignment)
     ASSERT_EQ(s1.currency, nullptr);
 }
 
+TEST(TestPlacementNew, Basic)
+{
+    const int size = 2;
+    PlacementNew<stock> pn(size);
+
+    stock* head = pn.head();
+
+    ASSERT_EQ(pn.max_counter(), size);
+    ASSERT_EQ(pn.counter() , 0);
+    ASSERT_EQ(pn.head(), pn.end());
+
+    const char *names[] = {"b1"  ,"b2"};
+    const char *ccys[]  = {"USD" ,"JPY"};
+
+    stock *stocks[size];
+    for(int i = 0; i < size; ++i){
+        stocks[i] = new (pn.next()) Stock(names[i], ccys[i]);
+    }
+
+    ASSERT_EQ(size, pn.allocated_num());
+    ASSERT_EQ(pn.head() + size, pn.end());
+
+    stock* p = pn.head();
+    ASSERT_EQ(p, head); // resizing didn't happen
+    for(int i = 0; i < size; ++i, ++p){
+        ASSERT_EQ(stocks[i], p);
+        Stock* s = static_cast<Stock*>(stocks[i]);
+        ASSERT_STREQ(names[i], s->symbol);
+        ASSERT_STREQ(ccys[i] , s->currency);
+        s->~Stock();
+    }
+    delete []head;
+}
+
+TEST(TestPlacementNew, Resize)
+{
+    const int init_size = 2;
+    const int actual_size = 3;
+    PlacementNew<stock> pn(init_size);
+
+    stock* head = pn.head();
+
+    ASSERT_EQ(pn.max_counter(), init_size);
+    ASSERT_EQ(pn.counter() , 0);
+    ASSERT_EQ(pn.head(), pn.end());
+
+    const char *names[] = {"b1"  ,"b2", "b3"};
+    const char *ccys[]  = {"USD" ,"JPY", "HKD"};
+
+    for(int i = 0; i < actual_size; ++i){
+        new (pn.next()) Stock(names[i], ccys[i]);
+    }
+
+    ASSERT_EQ(actual_size, pn.allocated_num());
+    ASSERT_EQ(pn.head() + actual_size, pn.end());
+
+    stock* p = pn.head();
+    stock* new_head = p;
+    ASSERT_NE(p, head); // resizing did happen
+    for(int i = 0; i < actual_size; ++i, ++p){
+        Stock* s = static_cast<Stock*>(p);
+        ASSERT_STREQ(names[i], s->symbol);
+        ASSERT_STREQ(ccys[i] , s->currency);
+        s->~Stock();
+    }
+    delete []new_head;
+}
+
+
 struct stock_test_data
 {
     std::string symbol;
