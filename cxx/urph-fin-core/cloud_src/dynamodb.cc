@@ -33,8 +33,14 @@ class AwsDao
 private:
     Aws::SDKOptions options;
     Aws::DynamoDB::DynamoDBClient *db;
-
+    Aws::Utils::Logging::LogSystemInterface* logger;
 private:
+    void log_attrs(Aws::Utils::Logging::LogLevel lvl, const char *msg, const AttrValueMap& attrs) const{
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, msg);
+        for(const auto& i : attrs){
+            logger->Log(lvl,log_tag, "key=%s value=%s", i.first.c_str(), i.second.GetS().c_str());
+        }
+    }
     const void db_query(const char *index,
                         const char *key_condition_expr, Aws::Map<Aws::String, Aws::String> &attr_names,
                         const char *filter_expr,
@@ -55,22 +61,35 @@ private:
         if (filter_expr != nullptr)
             q.SetFilterExpression(filter_expr);
 
-        Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> attributeValues;
         q.SetExpressionAttributeValues(std::move(expr_attr_values));
 
         add_filter_attr_value(expr_attr_values);
 
-        const auto &res = db->Query(q);
-        if (!res.IsSuccess())
-            throw std::runtime_error(res.GetError().GetMessage());
-        const auto &result = res.GetResult();
+        AttrValueMap* lastKey = nullptr;
 
-        onItemCount(result.GetCount());
-        int itemIdx = 0;
-        for (const auto &item : result.GetItems())
-        {
-            if (!onItem(++itemIdx == result.GetCount(), item))
-                break;
+        while(true){
+            if(lastKey != nullptr){
+                log_attrs(Aws::Utils::Logging::LogLevel::Info, "querying with last key", *lastKey);
+                q.SetExclusiveStartKey(std::move(*lastKey));
+            }
+ 
+            const auto &res = db->Query(q);
+            if (!res.IsSuccess())
+                throw std::runtime_error(res.GetError().GetMessage());
+            const auto &result = res.GetResult();
+            const auto& lk = result.GetLastEvaluatedKey();
+    
+    
+            onItemCount(result.GetCount());
+            int itemIdx = 0;
+            for (const auto &item : result.GetItems())
+            {
+                if (!onItem(lk.empty() && (++itemIdx == result.GetCount()), item))
+                    break;
+            }
+            if(lk.empty()) break;
+            lastKey = const_cast<AttrValueMap*>(&lk);
+            log_attrs(Aws::Utils::Logging::LogLevel::Info, "result has last key", lk);
         }
     }
 
@@ -129,7 +148,7 @@ public:
         options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Info;
 #endif
         Aws::InitAPI(options);
-        auto *logger = Aws::Utils::Logging::GetLogSystem();
+        logger = Aws::Utils::Logging::GetLogSystem();
         logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initialized API");
 
         Aws::Client::ClientConfiguration clientConfig;
