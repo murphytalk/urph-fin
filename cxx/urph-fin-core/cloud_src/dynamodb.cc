@@ -84,14 +84,14 @@ private:
                 log_attrs(Aws::Utils::Logging::LogLevel::Info, "querying with last key", *lastKey);
                 q.SetExclusiveStartKey(std::move(*lastKey));
             }
- 
+
             const auto &res = db->Query(q);
             if (!res.IsSuccess())
                 throw std::runtime_error(res.GetError().GetMessage());
             const auto &result = res.GetResult();
             const auto& lk = result.GetLastEvaluatedKey();
-    
-    
+
+
             onItemCount(result.GetCount());
             int itemIdx = 0;
             for (const auto &item : result.GetItems())
@@ -258,7 +258,7 @@ public:
                              { all = new AllBrokerBuilder<AwsDao, BrokerType>(n); },
                              [&all, this, &onAllBrokersBuilder](bool is_last, const BrokerType &item)
                              {
-                                LOG(DEBUG) << "adding broker , is last=" << is_last << "\n";                                
+                                LOG(DEBUG) << "adding broker , is last=" << is_last << "\n";
                                 all->add_broker(this, item);
                                 if(is_last) onAllBrokersBuilder(all);
                              });
@@ -276,17 +276,17 @@ public:
                     if(find_match_str(fund_names_head, funds_num, name.c_str())) return true;
 
                     const auto& broker = item.at("broker").GetS();
-                    const auto amt = std::stod(item.at("amount").GetN());
-                    double capital = std::stod(item.at("capital").GetN());
-                    double market_value = std::stod(item.at("market_value").GetN());
-                    double price = std::stod(item.at("price").GetN());
-                    double profit = market_value - capital;
-                    double roi = profit / capital;
-                    timestamp date = std::stol(item.at("date").GetN());
+                    const int amt = std::stoi(item.at("amount").GetN());
+                    const double capital = std::stod(item.at("capital").GetN());
+                    const double market_value = std::stod(item.at("market_value").GetN());
+                    const double price = std::stod(item.at("price").GetN());
+                    const double profit = market_value - capital;
+                    const double roi = profit / capital;
+                    const timestamp date = std::stol(item.at("date").GetN());
                     LOG(DEBUG) << "got tx of broker " << broker << ".fund="<<name << "\n";
                     builder->add_fund(
                         broker, name,
-                        (int)amt,
+                        amt,
                         capital,
                         market_value,
                         price,
