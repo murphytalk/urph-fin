@@ -546,7 +546,7 @@ void AllAssets::load(){
 
 void AllAssets::notify(AllAssets::Loaded loaded){
     load_status |= loaded;
-    if (load_status == AllAssets::Loaded::Brokers | AllAssets::Loaded::Funds | AllAssets::Loaded::Quotes | AllAssets::Loaded::Stocks){
+    if (all_loaded(load_status)){
         notifyLoaded();
     }
 }

@@ -89,6 +89,10 @@ private:
     StockPortfolio *stocks;
     FundPortfolio *funds;
 
+    constexpr bool all_loaded(char status){
+        return status == (AllAssets::Loaded::Brokers | AllAssets::Loaded::Funds | AllAssets::Loaded::Quotes | AllAssets::Loaded::Stocks);
+    }
+
     AllAssets(const AllAssets&) = delete;
     AllAssets(AllAssets&) = delete;
     AllAssets(const AllAssets&&) = delete;
