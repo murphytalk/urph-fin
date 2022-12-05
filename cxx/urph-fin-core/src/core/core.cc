@@ -91,18 +91,21 @@ void free_strings(strings* ss)
     delete static_cast<Strings*>(ss);
 }
 
-Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds)
+Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
     LOG(DEBUG) << "broker constructor " << n<< "\n";
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
+    funds_update_date = yyyymmdd;
     active_fund_ids = active_funds;
 }
 
 Broker::~Broker(){
     LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
     delete[] name;
+
+    delete[] funds_update_date;
 
     free_placement_allocated_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;

@@ -154,7 +154,7 @@ public:
 
 class Broker: public broker{
 public:
-    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds);
+    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds);
     ~Broker();
 
     inline CashBalance* head(default_member_tag) { return static_cast<CashBalance*>(first_cash_balance); }

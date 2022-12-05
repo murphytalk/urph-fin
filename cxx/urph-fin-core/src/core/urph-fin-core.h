@@ -31,6 +31,7 @@ struct broker{
     char* name;
     int num;
     cash_balance* first_cash_balance;
+    char* funds_update_date;
     strings* active_fund_ids;
 };
 struct all_brokers{

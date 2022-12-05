@@ -63,23 +63,28 @@ public:
 class BrokerBuilder{
 public:
     typedef PlacementNew<cash_balance> CashBalanceAlloc;
-    CashBalanceAlloc * balances;
-    StringsBuilder *funds;
+    CashBalanceAlloc * balances_alloc;
+    StringsBuilder *funds_name_builder;
+    char* fund_update_date;
     BrokerBuilder(int n, int active_fund_num){ 
-        balances = new CashBalanceAlloc(n);
-        funds = new StringsBuilder(active_fund_num);
+        balances_alloc = new CashBalanceAlloc(n);
+        funds_name_builder = new StringsBuilder(active_fund_num);
+        fund_update_date = nullptr;
     }
     ~BrokerBuilder(){
-        delete balances;
-        delete funds;
+        delete balances_alloc;
+        delete funds_name_builder;
+    }
+    void set_fund_update_date(const std::string& yyyymmdd){
+        fund_update_date = copy_str(yyyymmdd);
     }
     void add_cash_balance(const std::string& currency, double balance){
         LOG(DEBUG) << "  " << currency << " " << balance << " \n";
-        new (balances->next()) CashBalance(currency, balance);
+        new (balances_alloc->next()) CashBalance(currency, balance);
     }
     void add_active_fund(const std::string& active_fund_id){
         LOG(DEBUG) << "adding fund " << active_fund_id << "\n";
-        funds->add(active_fund_id);
+        funds_name_builder->add(active_fund_id);
     }
 };
 
@@ -88,12 +93,12 @@ template<typename DAO, typename BrokerType>
 static void create_broker(
     DAO* dao,
     const BrokerType& brokerQueryResult,
-    std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, strings* /*active_fund_ids*/)> create_func,
+    std::function<Broker*(const std::string&/*name*/, int/*ccy_num*/, cash_balance* /*first_ccy_balance*/, char* /*yyyymmdd: fund update date*/, strings* /*active_fund_ids*/)> create_func,
     std::function<void(Broker*)> onBrokerCreated)
 {
     dao->get_broker_cash_balance_and_active_funds(brokerQueryResult,
         [dao,&brokerQueryResult, &create_func, &onBrokerCreated](const BrokerBuilder& builder){
-            onBrokerCreated(create_func(dao->get_broker_name(brokerQueryResult), builder.balances->allocated_num(), builder.balances->head(), builder.funds->strings));
+            onBrokerCreated(create_func(dao->get_broker_name(brokerQueryResult), builder.balances_alloc->allocated_num(), builder.balances_alloc->head(), builder.fund_update_date, builder.funds_name_builder->strings));
         }
     );
 }
@@ -111,7 +116,7 @@ public:
         delete alloc;
     }
     void add_broker(DAO* dao, const BrokerType& b){
-        create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){
+        create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){
             LOG(DEBUG) << "creating broker " << n << "\n";
 #ifdef _MSC_VER
             void* p = all_brokers++;
@@ -119,7 +124,7 @@ public:
 #else
             return new (alloc->next())
 #endif
-                Broker(n, ccy_num, first_ccy_balance, active_funds);
+                Broker(n, ccy_num, first_ccy_balance, fund_update_date, active_funds);
         }, [](Broker* broker){ /*already created inside alloc*/ });
     }
 };
@@ -294,8 +299,8 @@ public:
             [this, &onBroker, param](const auto& brokerQueryResult) {
                 create_broker(dao.get(), 
                     brokerQueryResult,  
-                    [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, strings* active_funds){ 
-                        return new Broker(n, ccy_num, first_ccy_balance, active_funds);
+                    [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){ 
+                        return new Broker(n, ccy_num, first_ccy_balance, fund_update_date, active_funds);
                     },
                     [&onBroker,param](Broker* b){ onBroker(b, param);}
                 );

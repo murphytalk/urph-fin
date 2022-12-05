@@ -215,10 +215,11 @@ public:
 
             db_query_by_name_and_sub_req(
                 nullptr, nullptr, name, Aws::String(db_sub_broker + funds_update_date), nullptr,
-                [&onBrokerBuilder, &all_ccys, &addCash](bool last_item, const auto &item)
+                [&onBrokerBuilder, &all_ccys, &addCash, &funds_update_date](bool last_item, const auto &item)
                 {
                     const auto &funds = item.at("active_funds").GetSS();
                     auto b = BrokerBuilder(all_ccys.size(), funds.size());
+                    b.set_fund_update_date(funds_update_date);
                     addCash(b);
                     for (const auto &f : funds)
                     {
@@ -250,7 +251,10 @@ public:
                              });
     }
 
-    void get_funds(FundsBuilder *, int, const char **) {}
+    void get_funds(FundsBuilder *builder, int funds_num, const char ** fund_names_head) {
+
+    }
+
     StringsBuilder get_known_stocks() { return StringsBuilder(0); }
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
