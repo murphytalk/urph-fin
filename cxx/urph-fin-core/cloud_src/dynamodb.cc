@@ -31,6 +31,7 @@ namespace
     typedef std::function<bool(bool /*if this is the last one*/, const AttrValueMap &)> OnItem;
     typedef std::function<void(int)> OnItemCount;
 
+    // the strings are not sorted so binary search is not an option, but good enough given the small size of the string array
     bool find_match_str(const char** head, int num, const char* find){
         char **p = const_cast<char**>(head);
         for(int i ; i < num ;++i, ++p){
@@ -103,10 +104,9 @@ private:
             lastKey = const_cast<AttrValueMap*>(&lk);
             log_attrs(Aws::Utils::Logging::LogLevel::Info, "result has last key", lk);
         }
+    }
 
-        }
-
-    inline void db_query_by_partition_key(const char *index_name,
+    void db_query_by_partition_key(const char *index_name,
                                           const char *key_condition_expr,
                                           const char *key_name, const char *key_name_v,
                                           const char *value_name, const char *value,
@@ -135,7 +135,7 @@ private:
         db_query_by_partition_key(sub_name_idx, "#sub_n = :sub_v", "#sub_n", db_sub_attr, ":sub_v", sub, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
 
-    inline void db_query_by_name_and_sub_req(const char *index_name, const char *key_condition_expr,
+    void db_query_by_name_and_sub_req(const char *index_name, const char *key_condition_expr,
                                              const Aws::String &name, const Aws::String &sub,
                                              const char *filter_expr,
                                              OnItem onItem, OnItemCount onItemCount,
@@ -265,14 +265,10 @@ public:
     }
 
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
-        //std::set<std::string> fund_names;
-        //std::transform(fund_names_head, fund_names_head + funds_num , std::inserter(fund_names, [](const char* n){return std::string(n);}));
-
         const std::string& key = std::string(db_sub_tx_prefix) + fund_update_date;
         db_query_by_sub(key.c_str(), nullptr,
             [builder, fund_names_head, funds_num](bool is_last, const auto &item){
                     const auto& name = item.at("name").GetS();
-                    //if(fund_names.find(name) == fund_names.end()) return true;
                     if(find_match_str(fund_names_head, funds_num, name.c_str())) return true;
 
                     const auto& broker = item.at("broker").GetS();
@@ -283,7 +279,7 @@ public:
                     const double profit = market_value - capital;
                     const double roi = profit / capital;
                     const timestamp date = std::stol(item.at("date").GetN());
-                    LOG(DEBUG) << "got tx of broker " << broker << ".fund="<<name << "\n";
+                    LOG(DEBUG) << "got tx of broker " << broker << " on epoch=" << date << " fund="<<name << "\n";
                     builder->add_fund(
                         broker, name,
                         amt,
