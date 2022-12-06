@@ -21,6 +21,8 @@ namespace
     const char sub_name_idx[] = "sub-name-index";
 
     const char db_sub_broker[] = "B#";
+    const char db_sub_stock [] = "I#S";
+    const char db_sub_fund  [] = "I#F";
     const char db_sub_tx_prefix[] = "x#";
     const char db_name_attr[] = "name";
     const char db_sub_attr[] = "sub";
@@ -28,8 +30,10 @@ namespace
     typedef Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> AttrValueMap;
     std::function<void(AttrValueMap &)> NOOP = [](AttrValueMap &) {};
 
-    typedef std::function<bool(bool /*if this is the last one*/, const AttrValueMap &)> OnItem;
+    typedef std::function<bool/*return true to continue to retrieve the next row*/(bool /*if this is the last one*/, const AttrValueMap &)> OnItem;
     typedef std::function<void(int)> OnItemCount;
+
+    typedef std::function<void(AttrValueMap &)> AddAttrValue;
 
     // the strings are not sorted so binary search is not an option, but good enough given the small size of the string array
     bool find_match_str(const char** head, int num, const char* find){
@@ -60,7 +64,7 @@ private:
                         AttrValueMap &expr_attr_values,
                         OnItem onItem,
                         OnItemCount onItemCount,
-                        std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
+                        AddAttrValue add_filter_attr_value = NOOP)
     {
 
         Aws::DynamoDB::Model::QueryRequest q;
@@ -106,13 +110,13 @@ private:
     }
 
     void db_query_by_partition_key(const char *index_name,
-                                          const char *key_condition_expr,
-                                          const char *key_name, const char *key_name_v,
-                                          const char *value_name, const char *value,
-                                          const char *filter_expr,
-                                          OnItem onItem,
-                                          OnItemCount onItemCount,
-                                          std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
+                                   const char *key_condition_expr,
+                                   const char *key_name, const char *key_name_v,
+                                   const char *value_name, const char *value,
+                                   const char *filter_expr,
+                                   OnItem onItem,
+                                   OnItemCount onItemCount,
+                                   AddAttrValue add_filter_attr_value = NOOP)
     {
 
         Aws::Map<Aws::String, Aws::String> attr_names;
@@ -124,21 +128,21 @@ private:
         db_query(index_name, key_condition_expr, attr_names, filter_expr, attributeValues, onItem, onItemCount, add_filter_attr_value);
     }
 
-    inline void db_query_by_name(const char *name, const char *filter_expr, OnItem onItem, OnItemCount onItemCount, std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
+    inline void db_query_by_name(const char *name, const char *filter_expr, OnItem onItem, OnItemCount onItemCount, AddAttrValue add_filter_attr_value = NOOP)
     {
         db_query_by_partition_key(nullptr, "#name_n = :name_v", "#name_n", db_name_attr, ":name_v", name, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
 
-    inline void db_query_by_sub(const char *sub, const char *filter_expr, OnItem onItem, OnItemCount onItemCount, std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
+    inline void db_query_by_sub(const char *sub, const char *filter_expr, OnItem onItem, OnItemCount onItemCount, AddAttrValue add_filter_attr_value = NOOP)
     {
         db_query_by_partition_key(sub_name_idx, "#sub_n = :sub_v", "#sub_n", db_sub_attr, ":sub_v", sub, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
 
-    void db_query_by_name_and_sub_req(const char *index_name, const char *key_condition_expr,
-                                             const Aws::String &name, const Aws::String &sub,
-                                             const char *filter_expr,
-                                             OnItem onItem, OnItemCount onItemCount,
-                                             std::function<void(AttrValueMap &)> add_filter_attr_value = NOOP)
+    void db_query_by_name_and_sub(const char *index_name, const char *key_condition_expr,
+                                  const Aws::String &name, const Aws::String &sub,
+                                  const char *filter_expr,
+                                  OnItem onItem, OnItemCount onItemCount,
+                                  AddAttrValue add_filter_attr_value = NOOP)
     {
         Aws::Map<Aws::String, Aws::String> attr_names;
         attr_names.emplace("#name_n", db_name_attr);
@@ -176,14 +180,12 @@ public:
         Aws::ShutdownAPI(options);
     }
 
-    typedef Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> BrokerType;
+    typedef AttrValueMap BrokerType;
     void get_broker_by_name(const char *name, std::function<void(const BrokerType &)> onBrokerData)
     {
-        db_query_by_name_and_sub_req(
+        db_query_by_name_and_sub(
             sub_name_idx, nullptr, name, db_sub_broker, nullptr, [&onBrokerData](bool is_last, const auto &item)
-            {
-            onBrokerData(item);
-            return false; },
+            { onBrokerData(item);return false; },
             [](int count)
             { if(count == 0) throw std::runtime_error("no such broker"); });
     }
@@ -225,7 +227,7 @@ public:
             const auto &funds_update_date = pos->second.GetS();
             LOG(DEBUG) << " last funds update date: " << funds_update_date << "\n";
 
-            db_query_by_name_and_sub_req(
+            db_query_by_name_and_sub(
                 nullptr, nullptr, name, Aws::String(db_sub_broker + funds_update_date), nullptr,
                 [&onBrokerBuilder, &all_ccys, &addCash, &funds_update_date](bool last_item, const auto &item)
                 {
@@ -260,12 +262,13 @@ public:
                                 LOG(DEBUG) << "adding broker , is last=" << is_last << "\n";
                                 all->add_broker(this, item);
                                 if(is_last) onAllBrokersBuilder(all);
+                                return true;
                              });
     }
 
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
         const std::string& key = std::string(db_sub_tx_prefix) + fund_update_date;
-        db_query_by_sub(key.c_str(), "attribute_exists(capital)",
+        db_query_by_sub(key.c_str(), "attribute_exists(capital)", // only fund tx has capital attr
             [builder, fund_names_head, funds_num](bool is_last, const auto &item){
                     const auto& name = item.at("name").GetS();
                     if(find_match_str(fund_names_head, funds_num, name.c_str())) return true;
@@ -308,16 +311,19 @@ public:
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol) {}
 
 private:
-    void get_all_broker_items(std::function<void(int)> totalNum, std::function<void(bool, const BrokerType &)> onBrokerItem)
-    {
+   void get_items_by_sub_key(const char* sub_key_value, const char *filter_expr, OnItemCount totalNum, OnItem onItem, AddAttrValue add_filter_attr_value = NOOP){
         db_query_by_sub(
-            db_sub_broker, nullptr, 
-            [&onBrokerItem](bool is_last, const auto &item){
-                onBrokerItem(is_last, item);
+            sub_key_value, filter_expr, 
+            [&onItem](bool is_last, const auto &item){
+                onItem(is_last, item);
                 return true; 
             },
             [&totalNum](int count){ totalNum(count); });
     }
-};
+    inline void get_all_broker_items(OnItemCount totalNum, OnItem onBrokerItem)
+    {
+        get_items_by_sub_key(db_sub_broker, nullptr, totalNum, onBrokerItem);
+    }
+ };
 
 IDataStorage *create_cloud_instance(OnDone onInitDone) { return new Storage<AwsDao>(onInitDone); }
