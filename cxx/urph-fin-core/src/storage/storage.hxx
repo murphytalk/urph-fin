@@ -272,7 +272,7 @@ public:
     virtual void get_brokers(OnAllBrokers onAllBrokers, void* param) = 0;
     virtual void get_funds(int funds_num,char* fund_update_date, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
-    virtual strings* get_known_stocks() = 0;
+    virtual void get_known_stocks(OnStrings onStrings, void *ctx) = 0;
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
     virtual void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
                 OnDone onDone,void* caller_provided_param) = 0;
@@ -340,10 +340,11 @@ public:
             });
         dao->get_stock_portfolio(builder, broker, symbol);
     }
-    strings* get_known_stocks() {
-        const auto& builder = dao->get_known_stocks();
-        return builder.strings;
+
+    void get_known_stocks(OnStrings onStrings, void *ctx) {
+        dao->get_known_stocks(onStrings, ctx);
     }
+
     void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param){
         if (symbols_head == nullptr){
             dao->get_non_fund_symbols([onQuotes, caller_provided_param, this](Strings* symbols){

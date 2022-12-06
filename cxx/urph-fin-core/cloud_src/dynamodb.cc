@@ -138,6 +138,16 @@ private:
         db_query_by_partition_key(sub_name_idx, "#sub_n = :sub_v", "#sub_n", db_sub_attr, ":sub_v", sub, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
 
+    inline  void get_items_by_sub_key(const char* sub_key_value, const char *filter_expr, OnItemCount totalNum, OnItem onItem, AddAttrValue add_filter_attr_value = NOOP){
+        db_query_by_sub(
+            sub_key_value, filter_expr, 
+            [&onItem](bool is_last, const auto &item){
+                onItem(is_last, item);
+                return true; 
+            },
+            [&totalNum](int count){ totalNum(count); });
+    }
+
     void db_query_by_name_and_sub(const char *index_name, const char *key_condition_expr,
                                   const Aws::String &name, const Aws::String &sub,
                                   const char *filter_expr,
@@ -303,23 +313,29 @@ public:
         );
     }
 
-    StringsBuilder get_known_stocks() { return StringsBuilder(0); }
-    void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
+    inline void get_known_stocks(OnStrings onStrings, void *ctx) {
+        get_non_fund_symbols([onStrings, ctx](auto* str){ onStrings(str, ctx);});
+    }
+    void get_non_fund_symbols(std::function<void(Strings *)> onResult) {
+        StringsBuilder *sb = nullptr;
+        get_items_by_sub_key(db_sub_stock, nullptr, 
+            [&sb](int num) { sb = new StringsBuilder(num); },
+            [&sb, &onResult](bool is_last, auto const& item){
+                sb->add(item.at(db_name_attr).GetS());
+                if(is_last){
+                    onResult(sb->strings);
+                    delete sb;
+                }
+                return true;
+            }
+        );
+    }
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
                 OnDone onDone, void *caller_provided_param) {}
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol) {}
 
 private:
-   void get_items_by_sub_key(const char* sub_key_value, const char *filter_expr, OnItemCount totalNum, OnItem onItem, AddAttrValue add_filter_attr_value = NOOP){
-        db_query_by_sub(
-            sub_key_value, filter_expr, 
-            [&onItem](bool is_last, const auto &item){
-                onItem(is_last, item);
-                return true; 
-            },
-            [&totalNum](int count){ totalNum(count); });
-    }
     inline void get_all_broker_items(OnItemCount totalNum, OnItem onBrokerItem)
     {
         get_items_by_sub_key(db_sub_broker, nullptr, totalNum, onBrokerItem);

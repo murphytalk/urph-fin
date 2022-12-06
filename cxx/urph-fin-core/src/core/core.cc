@@ -407,12 +407,12 @@ fund_sum calc_fund_sum(fund_portfolio* portfolio)
     return r;
 }
 
-strings* get_known_stocks()
+void get_known_stocks(OnStrings onStrings, void *ctx)
 {
     assert(storage != nullptr);
     TRY
-    return storage->get_known_stocks();
-    CATCH(nullptr)
+    storage->get_known_stocks(onStrings, ctx);
+    CATCH_NO_RET
 }
 
 void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx callback, void* caller_provided_param)

@@ -359,17 +359,19 @@ static void main_menu()
         auto stockMenu = make_unique<cli::Menu >( "stock" );
         stockMenu->Insert(
             "known",
-            [](ostream& out){
-                auto stocks = get_known_stocks();
-                Table table;
-                table.add_row({"Symbol"});
-                table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-                Strings* stock_names = static_cast<Strings*>(stocks);
-                for(char* n: *stock_names){
-                    table.add_row({n});
-                }
-                free_strings(stocks);
-                out << "\n" << table << endl;
+            [](ostream& o){
+                get_known_stocks([](auto* stocks, void* ctx){
+                    ostream* out = reinterpret_cast<ostream*>(ctx);
+                    Table table;
+                    table.add_row({"Symbol"});
+                    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
+                    Strings* stock_names = static_cast<Strings*>(stocks);
+                    for(char* n: *stock_names){
+                        table.add_row({n});
+                    }
+                    free_strings(stocks);
+                    *out << "\n" << table << endl;
+                }, &o);
             },
             "List all known stocks"
         );

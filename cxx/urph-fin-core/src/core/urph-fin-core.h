@@ -9,7 +9,7 @@
 extern "C"
 {
 
-typedef void (*OnDone)(void*param);
+typedef void (*OnDone)(void*);
 
 bool urph_fin_core_init(OnDone);
 void urph_fin_core_close();
@@ -26,6 +26,7 @@ struct strings{
     char** last_str;
 };
 void free_strings(strings*);
+typedef void (*OnStrings)(strings*, void*);
 
 struct broker{
     char* name;
@@ -84,7 +85,7 @@ struct fund_sum
 fund_sum calc_fund_sum(fund_portfolio* portfolio);
 
 // Stocks & ETF
-strings* get_known_stocks();
+void get_known_stocks(OnStrings onStrings, void *ctx);
 
 struct stock
 {
