@@ -348,6 +348,26 @@ struct get_active_funds_async_helper
     }
 };
 
+
+void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_async_helper* h)
+{
+    // prerequisite: all brokers have their funds updated on the same day
+    h->fund_update_date = brokers->begin()->funds_update_date;
+    for(Broker& b: *brokers){
+        h->fund_num += b.size(Broker::active_fund_tag());
+        h->all_broker_pointers.push_back(&b);
+    }
+    h->run();
+}
+
+void get_active_funds_from_all_brokers(all_brokers *bks, bool free_the_brokers, OnFunds onFunds, void*param)
+{
+    auto *helper = new get_active_funds_async_helper(onFunds, param);
+    AllBrokers *brokers = static_cast<AllBrokers*>(bks);
+    do_get_active_funds_from_all_brokers(brokers, helper);
+    if(free_the_brokers) delete brokers;
+}
+
 void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
 {
     TRY
@@ -367,19 +387,12 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
         }, helper);
     }else{
         get_brokers([](all_brokers* bks, void* ctx){
-            get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
             AllBrokers *brokers = static_cast<AllBrokers*>(bks);
-            // prerequisite: all brokers have their funds updated on the same day
-            h->fund_update_date = brokers->begin()->funds_update_date;
-            for(Broker& b: *brokers){
-                h->fund_num += b.size(Broker::active_fund_tag());
-                h->all_broker_pointers.push_back(&b);
-            }
-            h->run();
+            get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
+            do_get_active_funds_from_all_brokers(brokers, h);
             delete brokers;
         }, helper);
     }
-
 
     CATCH_NO_RET
 }
@@ -514,25 +527,8 @@ AllAssets::AllAssets(std::function<void()> onLoaded){
 void AllAssets::load(){
     quotes_by_symbol = new QuoteBySymbol([this](quotes* all_quotes){
         this->q = static_cast<::Quotes*>(all_quotes);
-
         this->notify(AllAssets::Loaded::Quotes);
-
-        get_brokers([](all_brokers* b, void* param){
-            // if this lambda captures any closures its signature won't match the raw C function pointer declaration
-            AllAssets *me = reinterpret_cast<AllAssets*>(param);
-            AllBrokers *brokers = static_cast<AllBrokers*>(b);
-            me->load_cash(brokers);
-            free_brokers(brokers);
-            me->notify(AllAssets::Loaded::Brokers);
-        }, this);
-    
-        get_active_funds( nullptr ,[](fund_portfolio* fp, void *param){
-            AllAssets *me = reinterpret_cast<AllAssets*>(param);
-            me->funds = static_cast<FundPortfolio*>(fp);
-            me->load_funds(me->funds);
-            me->notify(AllAssets::Loaded::Funds);
-        }, this);
-    
+        // stock portfolio value calculation needs quotes to be loaded first 
         get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
             AllAssets *me = reinterpret_cast<AllAssets*>(param);
             me->stocks = static_cast<StockPortfolio*>(p);
@@ -540,6 +536,22 @@ void AllAssets::load(){
             me->notify(AllAssets::Loaded::Stocks);
         },this);
     });
+
+    get_brokers([](all_brokers* b, void* param){
+            // if this lambda captures any closures its signature won't match the raw C function pointer declaration
+            AllAssets *me = reinterpret_cast<AllAssets*>(param);
+            AllBrokers *brokers = static_cast<AllBrokers*>(b);
+            me->load_cash(brokers);
+
+            get_active_funds_from_all_brokers(brokers,true, [](fund_portfolio* fp, void *param){
+                AllAssets *me = reinterpret_cast<AllAssets*>(param);
+                me->funds = static_cast<FundPortfolio*>(fp);
+                me->load_funds(me->funds);
+                me->notify(AllAssets::Loaded::Funds);
+            }, me);
+
+            me->notify(AllAssets::Loaded::Brokers);
+    }, this);
 
     get_all_quotes(*quotes_by_symbol);
 }

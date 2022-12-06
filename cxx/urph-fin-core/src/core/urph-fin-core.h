@@ -73,6 +73,7 @@ typedef void (*OnFunds)(fund_portfolio*, void* param);
 // return all funds if broker == nullptr
 void get_funds(int num, char* fund_update_date, const char **fund_ids, OnFunds, void*param);
 void get_active_funds(const char* broker, OnFunds, void*param);
+void get_active_funds_from_all_brokers(all_brokers *bks, bool free_the_brokers,OnFunds onFunds, void*param);
 void free_funds(fund_portfolio*);
 
 struct fund_sum
