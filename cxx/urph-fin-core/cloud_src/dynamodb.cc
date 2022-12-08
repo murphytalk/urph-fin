@@ -138,6 +138,23 @@ private:
         db_query_by_partition_key(sub_name_idx, "#sub_n = :sub_v", "#sub_n", db_sub_attr, ":sub_v", sub, filter_expr, onItem, onItemCount, add_filter_attr_value);
     }
 
+    template <typename T>
+    inline void db_query_by_sub_with_total_num_aware_builder(const char *sub, const char *filter_expr, Builder<T>* builder, std::function<bool(const AttrValueMap&)> onItem,  
+                                                             AddAttrValue add_filter_attr_value = NOOP){
+         db_query_by_sub(sub, filter_expr, [builder, &onItem](bool, const auto &item){ 
+                if(!onItem(item)) return true;
+
+                builder->alloc->inc_counter();
+                if(builder->alloc->has_enough_counter()){
+                    builder->succeed();
+                    return false;
+                }
+                else return true; 
+            },
+            [](int){}, add_filter_attr_value
+        );
+    }
+
     inline  void get_items_by_sub_key(const char* sub_key_value, const char *filter_expr, OnItemCount totalNum, OnItem onItem, AddAttrValue add_filter_attr_value = NOOP){
         db_query_by_sub(
             sub_key_value, filter_expr, 
@@ -278,10 +295,11 @@ public:
 
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
         const std::string& key = std::string(db_sub_tx_prefix) + fund_update_date;
-        db_query_by_sub(key.c_str(), "attribute_exists(capital)", // only fund tx has capital attr
-            [builder, fund_names_head, funds_num](bool is_last, const auto &item){
+        db_query_by_sub_with_total_num_aware_builder(key.c_str(), "attribute_exists(capital)", // only fund tx has capital attr
+            builder,
+            [builder, fund_names_head, funds_num](const auto &item){
                     const auto& name = item.at("name").GetS();
-                    if(find_match_str(fund_names_head, funds_num, name.c_str())) return true;
+                    if(find_match_str(fund_names_head, funds_num, name.c_str())) return false;
 
                     const auto& broker = item.at("broker").GetS();
                     const int amt = std::stoi(item.at("amount").GetN());
@@ -302,15 +320,8 @@ public:
                         roi,
                         date
                     );
-
-                if(builder->alloc->has_enough_counter()){
-                    builder->succeed();
-                    return false;
-                }
-                else return true; 
-            },
-            [](int){ }
-        );
+                    return true;
+            });
     }
 
     inline void get_known_stocks(OnStrings onStrings, void *ctx) {
@@ -330,7 +341,20 @@ public:
             }
         );
     }
-    void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
+    void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {
+        db_query_by_sub_with_total_num_aware_builder(db_sub_stock, "attribute_exists(last_price)", 
+            builder,
+            [symbols_head, num, builder](const auto &item){
+                const auto& name = item.at("name").GetS();
+                if(find_match_str(symbols_head, num, name.c_str())) return false;
+                
+                const double price = std::stod(item.at("last_price").GetN());
+                const timestamp dt = std::stol(item.at("last_price_time").GetN());
+                builder->add_quote(name, dt, price);
+                return true;
+            }
+        );
+    }
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
                 OnDone onDone, void *caller_provided_param) {}
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol) {}
