@@ -91,8 +91,6 @@ private:
 
             const auto &res = db->Query(q);
             if (!res.IsSuccess()){
-                LOG(ERROR) << "query " << key_condition_expr << " failed \n";
-                LOG(ERROR) << res.GetError().GetMessage() << "\n";
                 throw std::runtime_error(res.GetError().GetMessage());
             }
             const auto &result = res.GetResult();
@@ -370,31 +368,32 @@ public:
         Aws::Map<Aws::String, Aws::String> names  = {{"#sub_n", db_sub_attr}};
         AttrValueMap values = {{":sub_v",  Aws::DynamoDB::Model::AttributeValue(db_sub_stock)}};
         const char* key_expr = "#sub_n = :sub_v";
-        const char* filter_expr = "attribute_exists(last_price)" ;
         if(symbol!=nullptr){
             names.emplace("#name_n", db_name_attr);
             values.emplace(":name_v", symbol);
             key_expr = "#sub_n = :sub_v AND #name_n = :name_v";
         }
-        if(broker!=nullptr){
-            names.emplace("#broker_n", "broker");
-            values.emplace(":broker_v", broker);
-            filter_expr = "attribute_exists(last_price) AND #broker_n = :broker_v";
-        }
-
-        db_query(sub_name_idx, key_expr, names, filter_expr, values,
-            [this, builder](bool is_last, const AttrValueMap &item){
+        db_query(sub_name_idx, key_expr, names, "attribute_exists(last_price)", values,
+            [this, builder, broker](bool is_last, const AttrValueMap &item){
                 const auto& name = item.at("name").GetS();
                 const auto& ccy  = item.at("ccy").GetS();
                 builder->add_stock(name, ccy);
+                
+                const char* filter_expr = nullptr;
 
                 Aws::Map<Aws::String, Aws::String> n = {{"#name_n", db_name_attr}, {"#sub_n", db_sub_attr}};
                 AttrValueMap v = {
                     {":name_v", Aws::DynamoDB::Model::AttributeValue(name)}, 
                     {":sub_v", Aws::DynamoDB::Model::AttributeValue(db_sub_tx_prefix)}
                     };
+                if(broker!=nullptr){
+                    n.emplace("#broker_n", "broker");
+                    v.emplace(":broker_v", broker);
+                    filter_expr = "#broker_n = :broker_v";
+                }
+
                 db_query(nullptr, "#name_n = :name_v and begins_with(#sub_n, :sub_v)", 
-                    n, nullptr, v,
+                    n, filter_expr, v,
                     [builder, &name](bool tx_is_last, const AttrValueMap &tx){
                         builder->incr_counter(name);
                         const timestamp date = std::stol(tx.at("date").GetN());
