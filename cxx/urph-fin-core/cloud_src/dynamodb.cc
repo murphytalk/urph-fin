@@ -36,7 +36,7 @@ namespace
     typedef std::function<void(AttrValueMap &)> AddAttrValue;
 
     // the strings are not sorted so binary search is not an option, but good enough given the small size of the string array
-    bool find_match_str(const char** head, int num, const char* find){
+    bool find_matched_str(const char** head, int num, const char* find){
         char **p = const_cast<char**>(head);
         for(int i ; i < num ;++i, ++p){
             if(strcmp(*p, find) == 0) return true;
@@ -145,6 +145,7 @@ private:
                 if(!onItem(item)) return true;
 
                 builder->alloc->inc_counter();
+                LOG(DEBUG) << "counter updated to " << builder->alloc->counter() << ", expecting total counter " << builder->alloc->max_counter() << "\n";
                 if(builder->alloc->has_enough_counter()){
                     builder->succeed();
                     return false;
@@ -299,12 +300,14 @@ public:
             builder,
             [builder, fund_names_head, funds_num](const auto &item){
                     const auto& name = item.at("name").GetS();
-                    if(find_match_str(fund_names_head, funds_num, name.c_str())) return false;
-
+                    if(!find_matched_str(fund_names_head, funds_num, name.c_str())) {
+                        LOG(WARNING) << "unexpected fund " << name.c_str() << "\n";
+                        return false;
+                    } 
                     const auto& broker = item.at("broker").GetS();
                     const int amt = std::stoi(item.at("amount").GetN());
                     const double capital = std::stod(item.at("capital").GetN());
-                    const double market_value = std::stod(item.at("market_value").GetN());
+                    const double market_value = std::stod(item.at("market_value").GetN()); 
                     const double price = std::stod(item.at("price").GetN());
                     const double profit = market_value - capital;
                     const double roi = profit / capital;
@@ -346,7 +349,7 @@ public:
             builder,
             [symbols_head, num, builder](const auto &item){
                 const auto& name = item.at("name").GetS();
-                if(find_match_str(symbols_head, num, name.c_str())) return false;
+                if(!find_matched_str(symbols_head, num, name.c_str())) return false;
                 
                 const double price = std::stod(item.at("last_price").GetN());
                 const timestamp dt = std::stol(item.at("last_price_time").GetN());
@@ -356,8 +359,12 @@ public:
         );
     }
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
-                OnDone onDone, void *caller_provided_param) {}
-    void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol) {}
+                OnDone onDone, void *caller_provided_param) {
+    }
+
+    void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol) {
+        
+    }
 
 private:
     inline void get_all_broker_items(OnItemCount totalNum, OnItem onBrokerItem)
