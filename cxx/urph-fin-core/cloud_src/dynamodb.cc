@@ -90,8 +90,11 @@ private:
             }
 
             const auto &res = db->Query(q);
-            if (!res.IsSuccess())
+            if (!res.IsSuccess()){
+                LOG(ERROR) << "query " << key_condition_expr << " failed \n";
+                LOG(ERROR) << res.GetError().GetMessage() << "\n";
                 throw std::runtime_error(res.GetError().GetMessage());
+            }
             const auto &result = res.GetResult();
             const auto& lk = result.GetLastEvaluatedKey();
 
@@ -100,6 +103,7 @@ private:
             int itemIdx = 0;
             for (const auto &item : result.GetItems())
             {
+                LOG(DEBUG) << "query " << key_condition_expr << " item #" << itemIdx << "\n";
                 if (!onItem(lk.empty() && (++itemIdx == result.GetCount()), item))
                     break;
             }
@@ -349,7 +353,7 @@ public:
             builder,
             [symbols_head, num, builder](const auto &item){
                 const auto& name = item.at("name").GetS();
-                if(!find_matched_str(symbols_head, num, name.c_str())) return false;
+                if(!find_matched_str(symbols_head, num, name.c_str())) return true;
                 
                 const double price = std::stod(item.at("last_price").GetN());
                 const timestamp dt = std::stol(item.at("last_price_time").GetN());
@@ -363,7 +367,56 @@ public:
     }
 
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol) {
-        
+        Aws::Map<Aws::String, Aws::String> names  = {{"#sub_n", db_sub_attr}};
+        AttrValueMap values = {{":sub_v",  Aws::DynamoDB::Model::AttributeValue(db_sub_stock)}};
+        const char* key_expr = "#sub_n = :sub_v";
+        const char* filter_expr = "attribute_exists(last_price)" ;
+        if(symbol!=nullptr){
+            names.emplace("#name_n", db_name_attr);
+            values.emplace(":name_v", symbol);
+            key_expr = "#sub_n = :sub_v AND #name_n = :name_v";
+        }
+        if(broker!=nullptr){
+            names.emplace("#broker_n", "broker");
+            values.emplace(":broker_v", broker);
+            filter_expr = "attribute_exists(last_price) AND #broker_n = :broker_v";
+        }
+
+        db_query(sub_name_idx, key_expr, names, filter_expr, values,
+            [this, builder](bool is_last, const AttrValueMap &item){
+                const auto& name = item.at("name").GetS();
+                const auto& ccy  = item.at("ccy").GetS();
+                builder->add_stock(name, ccy);
+
+                Aws::Map<Aws::String, Aws::String> n = {{"#name_n", db_name_attr}, {"#sub_n", db_sub_attr}};
+                AttrValueMap v = {
+                    {":name_v", Aws::DynamoDB::Model::AttributeValue(name)}, 
+                    {":sub_v", Aws::DynamoDB::Model::AttributeValue(db_sub_tx_prefix)}
+                    };
+                db_query(nullptr, "#name_n = :name_v and begins_with(#sub_n, :sub_v)", 
+                    n, nullptr, v,
+                    [builder, &name](bool tx_is_last, const AttrValueMap &tx){
+                        builder->incr_counter(name);
+                        const timestamp date = std::stol(tx.at("date").GetN());
+                        const auto& type = tx.at("type").GetS();
+                        bool is_split = type == "SPLIT";
+                        const double price = is_split ? 0.0 : std::stod(tx.at("price").GetN());
+                        const double fee = is_split ? 0.0 : std::stod(tx.at("fee").GetN()); 
+                        const double shares = is_split ? 0.0 : std::stod(tx.at("shares").GetN()); 
+                        const auto& my_broker = tx.at("broker").GetS();
+                        builder->addTx(my_broker, name, type, price, shares, fee, date);
+ 
+                        return true;
+                    },
+                    [builder,&name](int tx_count){ builder->prepare_tx_alloc(name, tx_count); },
+                    NOOP
+                );
+
+                return true;
+            }, 
+            [builder](int count){ builder->prepare_stock_alloc(count); },
+            NOOP 
+        );
     }
 
 private:
