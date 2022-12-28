@@ -37,9 +37,11 @@ namespace
 
     // the strings are not sorted so binary search is not an option, but good enough given the small size of the string array
     bool find_matched_str(const char** head, int num, const char* find){
+        //LOG(DEBUG) << "finding matching str [" << find << "] , num = " << num << ", head is [" << *head << "]\n";
         char **p = const_cast<char**>(head);
-        for(int i ; i < num ;++i, ++p){
+        for(int i = 0; i < num ;++i, ++p){
             if(strcmp(*p, find) == 0) return true;
+            //LOG(DEBUG) << "[" << *p << "] != [" << find << "]\n";
         }
         return false;
     }
