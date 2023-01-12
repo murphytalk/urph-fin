@@ -361,11 +361,11 @@ static void main_menu()
             "known",
             [](ostream& o){
                 get_known_stocks([](auto* stocks, void* ctx){
-                    ostream* out = reinterpret_cast<ostream*>(ctx);
+                    auto* out = reinterpret_cast<ostream*>(ctx);
                     Table table;
                     table.add_row({"Symbol"});
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-                    Strings* stock_names = static_cast<Strings*>(stocks);
+                    auto* stock_names = static_cast<Strings*>(stocks);
                     for(char* n: *stock_names){
                         table.add_row({n});
                     }
@@ -380,8 +380,8 @@ static void main_menu()
             [](ostream& out){
                 get_quotes([&out](){
                     get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
-                        ostream* out = reinterpret_cast<ostream*>(param);
-                        print_stock_list(*out, p);
+                        auto* o = reinterpret_cast<ostream*>(param);
+                        print_stock_list(*o, p);
                    }, &out);}
                 );
             },
@@ -389,11 +389,11 @@ static void main_menu()
         );
         stockMenu->Insert(
             "sym",
-            [](ostream& out, string symbol){
+            [](ostream& out, string const& symbol){
                 get_quotes([&out,&symbol](){
                     get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
-                        ostream* out = reinterpret_cast<ostream*>(param);
-                        print_stock_list(*out, p);
+                        auto* o = reinterpret_cast<ostream*>(param);
+                        print_stock_list(*o, p);
                     }, &out);}
                 );
             },

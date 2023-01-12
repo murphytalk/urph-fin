@@ -22,11 +22,12 @@
 #include "stock.hxx"
 
 #include "../utils.hxx"
+#include "core_internal.hxx"
 
 // dont forget to free
 char* copy_str(const std::string& str)
 {
-    char* p = new char[str.size() + 1];
+    auto* p = new char[str.size() + 1];
     strncpy(p, str.c_str(), str.size());
     p[str.size()] = 0;
     return p;
@@ -61,14 +62,14 @@ void Strings::add(const std::string& i)
     *last_str++ = copy_str(i);
 }
 
-int Strings::size()
+int Strings::size() const
 {
     return last_str - strs;
 }
 
 char** Strings::to_str_array()
 {
-    char ** ids = new char*[size()];
+    auto ** ids = new char*[size()];
     char ** pp = ids;
     for(char* p: *this){
         *pp++ = p;
@@ -249,7 +250,9 @@ Overview::~Overview()
     delete []first;
 }
 
-IDataStorage *storage;
+namespace{
+    IDataStorage *storage = nullptr;
+}
 
 bool urph_fin_core_init(OnDone onInitDone)
 {
@@ -297,7 +300,7 @@ void get_brokers(OnAllBrokers onAllBrokers, void* param)
 
 void free_brokers(all_brokers* b)
 {
-    AllBrokers* brokers = static_cast<AllBrokers*>(b);
+    auto* brokers = static_cast<AllBrokers*>(b);
     delete brokers;
 }
 
@@ -326,14 +329,14 @@ struct get_active_funds_async_helper
 {
     OnFunds onFunds;
     void* param;
-    int fund_num;
+    int fund_num = 0;
     char* fund_update_date;
     std::vector<Broker*> all_broker_pointers;
 
-    get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx), fund_num(0){}
+    get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx){}
 
     void run(){
-        const char ** ids = new const char* [fund_num];
+        const auto ** ids = new const char* [fund_num];
         const char ** ids_head = ids;
         for(auto* broker: all_broker_pointers){
             for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
@@ -363,7 +366,7 @@ void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_
 void get_active_funds_from_all_brokers(all_brokers *bks, bool free_the_brokers, OnFunds onFunds, void*param)
 {
     auto *helper = new get_active_funds_async_helper(onFunds, param);
-    AllBrokers *brokers = static_cast<AllBrokers*>(bks);
+    auto *brokers = static_cast<AllBrokers*>(bks);
     do_get_active_funds_from_all_brokers(brokers, helper);
     if(free_the_brokers) delete brokers;
 }
@@ -377,8 +380,8 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
 
     if(broker_name != nullptr){
         get_broker(broker_name, [](broker* b, void* ctx){
-            get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
-            Broker* the_broker = static_cast<Broker*>(b);
+            auto *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
+            auto* the_broker = static_cast<Broker*>(b);
             h->fund_num = the_broker->size(Broker::active_fund_tag());
             h->fund_update_date = the_broker->funds_update_date;
             h->all_broker_pointers.push_back(the_broker);
@@ -387,8 +390,8 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
         }, helper);
     }else{
         get_brokers([](all_brokers* bks, void* ctx){
-            AllBrokers *brokers = static_cast<AllBrokers*>(bks);
-            get_active_funds_async_helper *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
+            auto *brokers = static_cast<AllBrokers*>(bks);
+            auto *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
             do_get_active_funds_from_all_brokers(brokers, h);
             delete brokers;
         }, helper);
@@ -456,16 +459,16 @@ void get_quotes_async(int num, const char **symbols_head, OnQuotes onQuotes, voi
     CATCH_NO_RET
 }
 
-static std::condition_variable cv;
+namespace { std::condition_variable cv;}
 quotes* get_quotes(int num, const char **symbols_head)
 {
     quotes* all_quotes;
     std::mutex m;
     {
-        std::lock_guard<std::mutex> lk(m);
+        std::lock_guard lk(m);
         try{
             get_quotes_async(num, symbols_head,[](quotes*q, void* arg){
-                quotes** all_quotes_ptr = reinterpret_cast<quotes**>(arg);
+                auto** all_quotes_ptr = reinterpret_cast<quotes**>(arg);
                 *all_quotes_ptr = q;
                 cv.notify_one();
             }, &all_quotes);
@@ -478,7 +481,7 @@ quotes* get_quotes(int num, const char **symbols_head)
         }
     }
     {
-        std::unique_lock<std::mutex> lk(m);
+        std::unique_lock lk(m);
         cv.wait(lk);
     }
     return all_quotes;
@@ -487,8 +490,8 @@ quotes* get_quotes(int num, const char **symbols_head)
 void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
 {
     get_quotes_async(0, nullptr,[](quotes* all_quotes, void* ctx){
-        QuoteBySymbol* q = reinterpret_cast<QuoteBySymbol*>(ctx);
-        Quotes *all = static_cast<Quotes*>(all_quotes);
+        auto* q = reinterpret_cast<QuoteBySymbol*>(ctx);
+        auto *all = static_cast<Quotes*>(all_quotes);
         for(auto const& quote: *all){
             q->add(quote.symbol, &quote);
         }
@@ -512,7 +515,6 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
 }
 
 //// Overview calculation Start
-#include "core_internal.hxx"
 
 const char ASSET_TYPE_STOCK [] = "Stock&ETF";
 const char ASSET_TYPE_FUNDS [] = "Funds";
@@ -520,7 +522,6 @@ const char ASSET_TYPE_CASH  [] = "Cash";
 
 AllAssets::AllAssets(std::function<void()> onLoaded){
     notifyLoaded = onLoaded;
-    load_status = 0;
     quotes_by_symbol = nullptr;
 }
 
@@ -706,8 +707,11 @@ void AllAssets::load_cash(AllBrokers *brokers)
     }
 }
 
-static std::map<AssetHandle, AllAssets*> all_assets_by_handle;
-static AssetHandle next_asset_handle = 0;
+namespace{
+std::map<AssetHandle, AllAssets*> all_assets_by_handle;
+AssetHandle next_asset_handle = 0;
+}
+
 void load_assets(OnAssetLoaded onLoaded, void* ctx)
 {
     AssetHandle h = ++next_asset_handle;

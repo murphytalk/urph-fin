@@ -49,20 +49,20 @@ public:
     double value;
     double profit;
 };
-typedef std::vector<AssetItem> AssetItems;
+
+using AssetItems = std::vector<AssetItem>;
 
 class AllAssets
 {
-    std::function<void()> notifyLoaded;
-    char load_status;
 public:
     enum Loaded{
+        None = 0,
         Quotes = 1,
         Brokers = 2,
         Stocks = 4,
         Funds = 8
     };
-    AllAssets(std::function<void()> onLoaded);
+    explicit AllAssets(std::function<void()> onLoaded);
     // for unit tests
     AllAssets(QuoteBySymbol& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp);
     ~AllAssets();
@@ -78,6 +78,9 @@ public:
 
     AssetItems items;
 private:
+    std::function<void()> notifyLoaded;
+    char load_status = Loaded::None;
+
     double get_price(const char* symbol);
     void load_funds(FundPortfolio* fp);
     void load_stocks(StockPortfolio* sp);
@@ -89,7 +92,7 @@ private:
     StockPortfolio *stocks;
     FundPortfolio *funds;
 
-    constexpr bool all_loaded(char status){
+    constexpr bool all_loaded(char status) const{
         return status == (AllAssets::Loaded::Brokers | AllAssets::Loaded::Funds | AllAssets::Loaded::Quotes | AllAssets::Loaded::Stocks);
     }
 
