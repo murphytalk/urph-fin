@@ -585,7 +585,7 @@ AllAssets::~AllAssets(){
 }
 
 
-std::set<std::string> AllAssets::get_all_ccy()
+std::set<std::string> AllAssets::get_all_ccy() const
 {
     std::set<std::string> all_ccy;
     for(auto& i: this->items){
@@ -596,7 +596,7 @@ std::set<std::string> AllAssets::get_all_ccy()
 
 
 // stock and FX pairs have quotes, so if we exclude all stocks from quotes what's left is FX pairs
-std::set<std::string> AllAssets::get_all_ccy_pairs()
+std::set<std::string> AllAssets::get_all_ccy_pairs() const
 {
     std::set<std::string> all_ccy_pairs;
     for (auto& [symbol, _]: quotes_by_symbol->mapping) {
@@ -626,7 +626,7 @@ double AllAssets::to_main_ccy(double value, const char* ccy, const char* main_cc
     }
 }
 
-double AllAssets::get_price(const char* symbol)
+double AllAssets::get_price(const char* symbol) const
 {
     auto r = quotes_by_symbol->mapping.find(std::string(symbol));
     return r == quotes_by_symbol->mapping.end() ? std::nan("") : r->second->rate;
@@ -718,7 +718,7 @@ void load_assets(OnAssetLoaded onLoaded, void* ctx)
     all_assets_by_handle[h] = new AllAssets([&onLoaded,h, ctx]{ onLoaded(ctx, h); });
 }
 
-const Quote* AllAssets::get_latest_quote(const char* symbol)
+const Quote* AllAssets::get_latest_quote(const char* symbol) const
 {
     auto it = quotes_by_symbol->mapping.find(std::string(symbol));
     return it == quotes_by_symbol->mapping.end() ? nullptr : it->second;
