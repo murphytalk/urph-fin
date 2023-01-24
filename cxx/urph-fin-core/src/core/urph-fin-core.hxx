@@ -45,10 +45,10 @@ public:
 
     inline long allocated_num() const { return _current - _head;}
     inline T* end() const{ return _current;}
-    inline bool has_enough_counter() const { return _counter >= _max_counter;}
-    inline int inc_counter() { return ++_counter; }
+    inline bool has_enough_counter() const { return allocated_num() >= _max_counter;}
+    inline int inc_counter() { return allocated_num(); }
     inline T* head() const { return _head; }
-    inline int counter() const { return _counter; }
+    inline int counter() const { return allocated_num(); }
     inline int max_counter() const { return _max_counter; }
     T* next(){
         if(allocated_num() >= _max_counter){
