@@ -348,6 +348,21 @@ public:
             }
         );
     }
+    void get_latest_quotes(LatestQuotesBuilder *builder) {
+        get_items_by_sub_key(db_sub_stock, "attribute_exists(last_price)", 
+            [](int num) { },
+            [&builder](bool is_last, auto const& item){
+                const auto& name = item.at("name").GetS();
+                const double price = std::stod(item.at("last_price").GetN());
+                const timestamp dt = std::stol(item.at("last_price_time").GetN());
+                builder->add_quote(name, dt, price);
+                if(is_last){
+                    builder->succeed();
+                }
+                return true;
+            }
+        );
+    }
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {
         db_query_by_sub_with_total_num_aware_builder(db_sub_stock, "attribute_exists(last_price)", 
             builder,

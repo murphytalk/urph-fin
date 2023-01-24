@@ -346,15 +346,10 @@ public:
 
     void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param){
         if (symbols_head == nullptr){
-            dao->get_non_fund_symbols([onQuotes, caller_provided_param, this](Strings* symbols){
-                char** sym_head = symbols->to_str_array();
-                auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(symbols->size(),[sym_head, onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
+                auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(10,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
                     onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
-                    delete []sym_head;
                 }));
-                dao->get_latest_quotes(builder, symbols->size(), const_cast<const char**>(sym_head));
-                delete symbols;
-            });
+                dao->get_latest_quotes(builder);
         }
         else{
             auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(num,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
