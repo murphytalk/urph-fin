@@ -62,6 +62,7 @@ static void get_quotes(std::function<void()> onQuotesLoaded)
         });
         get_all_quotes(*quotes_by_symbol);
     }
+    else onQuotesLoaded();
 }
 
 static const char jpy[] = "JPY";
