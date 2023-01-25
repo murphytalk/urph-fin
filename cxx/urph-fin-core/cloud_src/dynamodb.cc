@@ -69,6 +69,15 @@ private:
                         AddAttrValue add_filter_attr_value = NOOP)
     {
 
+#ifdef DEBUG_BUILD
+        LOG(DEBUG) << "query " << key_condition_expr << "\n";
+        for (auto const& [key, val] : attr_names){
+            LOG(DEBUG) << "attr name " << key << " = " << val <<"\n";
+        }
+        for (auto const& [key, val] : expr_attr_values){
+            LOG(DEBUG) << "attr value" << key << " = " << val.GetS() <<"\n";
+        }
+#endif                
         Aws::DynamoDB::Model::QueryRequest q;
         q.SetTableName(dynamo_db_table);
         if (index != nullptr)
@@ -103,7 +112,9 @@ private:
             int itemIdx = 0;
             for (const auto &item : result.GetItems())
             {
+#ifdef DEBUG_BUILD
                 LOG(DEBUG) << "query " << key_condition_expr << " item #" << itemIdx << "\n";
+#endif                
                 if (!onItem(lk.empty() && (++itemIdx == result.GetCount()), item))
                     break;
             }
