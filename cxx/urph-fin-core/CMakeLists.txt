@@ -92,6 +92,11 @@ else()
     )    
 endif()
 
+# If the debug configuration pass the DEBUG define to the compiler 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_definitions(-DDEBUG_BUILD)
+endif()
+
 target_link_libraries(${lib_target} ${extra_libs} ${cloud_libs})
 
 
