@@ -416,7 +416,7 @@ public:
                         const timestamp date = std::stol(tx.at("date").GetN());
                         const auto& type = tx.at("type").GetS();
                         bool is_split = type == "SPLIT";
-                        const double price = is_split ? 0.0 : std::stod(tx.at("price").GetN());
+                        const double price = std::stod(tx.at("price").GetN());
                         const double fee = is_split ? 0.0 : std::stod(tx.at("fee").GetN()); 
                         const double shares = is_split ? 0.0 : std::stod(tx.at("shares").GetN()); 
                         const auto& my_broker = tx.at("broker").GetS();
