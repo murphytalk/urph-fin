@@ -269,6 +269,9 @@ bool urph_fin_core_init(OnDone onInitDone)
     AixLog::Log::init(sinks);
 #endif
     LOG(DEBUG) << "urph-fin-core initializing\n";
+#ifdef DEBUG_BUILD
+    LOG(INFO) << "this is debug build\n";
+#endif
 
     try{
         storage = create_cloud_instance(onInitDone);

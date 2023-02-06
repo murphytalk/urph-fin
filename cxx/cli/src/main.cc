@@ -107,6 +107,9 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
             market_value_sum_jpy += fx_rate * market_value;
             profit_sum_jpy += profit_jpy;
         }
+        else{
+            LOG(ERROR) << "no quote found for " << stockWithTx.instrument->symbol << "\n";
+        }
         table.add_row({
             stockWithTx.instrument->symbol,
             stockWithTx.instrument->currency,

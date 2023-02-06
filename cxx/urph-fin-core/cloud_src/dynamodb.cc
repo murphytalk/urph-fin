@@ -70,6 +70,7 @@ private:
     {
 
 #ifdef DEBUG_BUILD
+        /*
         LOG(DEBUG) << "query " << key_condition_expr << "\n";
         for (auto const& [key, val] : attr_names){
             LOG(DEBUG) << "attr name " << key << " = " << val <<"\n";
@@ -77,7 +78,15 @@ private:
         for (auto const& [key, val] : expr_attr_values){
             LOG(DEBUG) << "attr value" << key << " = " << val.GetS() <<"\n";
         }
-#endif                
+        */
+        logger->Log(Aws::Utils::Logging::LogLevel::Debug, log_tag, "query %s", key_condition_expr);
+        for (auto const& [key, val] : attr_names){
+            logger->Log(Aws::Utils::Logging::LogLevel::Debug, log_tag, "attr name %s = %s" ,key.c_str(), val.c_str());
+        }
+        for (auto const& [key, val] : expr_attr_values){
+            logger->Log(Aws::Utils::Logging::LogLevel::Debug, log_tag, "attr value %s = %s" ,key.c_str(), val.GetS().c_str());
+        }
+ #endif                
         Aws::DynamoDB::Model::QueryRequest q;
         q.SetTableName(dynamo_db_table);
         if (index != nullptr)

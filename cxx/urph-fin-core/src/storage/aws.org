@@ -32,7 +32,7 @@
 |        |          |                                               |                                                                             |
 ** Quotes:
 | name   | sub      | other attributes  | Notes |
-|--------+----------+-------------------+-------|
+|------t df --+----------+-------------------+-------|
 | stock1 | q#yymmdd | date,price        |       |
 | USDJPY | q#yymmdd | date,rate         |       |
 |        |          |                   |       |
