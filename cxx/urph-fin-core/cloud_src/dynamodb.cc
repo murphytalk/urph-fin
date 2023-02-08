@@ -14,10 +14,6 @@
 #include "../src/core/stock.hxx"
 #include "../src/core/core_internal.hxx"
 
-#if !defined(__ANDROID__)
-#include <fstream>
-#endif
-
 namespace
 {
     const char dao_log_tag[] = "urph-fin-dao";
@@ -84,12 +80,19 @@ private:
             LOG(DEBUG) << "attr value" << key << " = " << val.GetS() <<"\n";
         }
         */
-        logger->Log(Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, "query %s", key_condition_expr);
-        for (auto const& [key, val] : attr_names){
-            logger->Log(Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, "attr name %s = %s" ,key.c_str(), val.c_str());
-        }
-        for (auto const& [key, val] : expr_attr_values){
-            logger->Log(Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, "attr value %s = %s" ,key.c_str(), val.GetS().c_str());
+        {
+            Aws::Utils::Logging::LogSystemInterface* logSystem = Aws::Utils::Logging::GetLogSystem(); 
+            if ( logSystem && logSystem->GetLogLevel() >= Aws::Utils::Logging::LogLevel::Debug ){
+                Aws::OStringStream logStream;
+                logStream << "query " << key_condition_expr << "\n";
+                for (auto const& [key, val] : attr_names){
+                    logStream << "attr name " << key.c_str() << " = " << val.c_str() << "\n";
+                }
+                for (auto const& [key, val] : expr_attr_values){
+                    logStream << "attr value " << key.c_str() << " = " << val.GetS().c_str() << "\n";
+                }
+                logSystem->LogStream( Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, logStream );
+            }
         }
  #endif                
         Aws::DynamoDB::Model::QueryRequest q;
@@ -223,7 +226,7 @@ public:
 #else        
         setenv("AWS_DISABLE_LOGGING", "1", 1);
         auto verbose = getenv("VERBOSE");
-        options.loggingOptions.logLevel = verbose == nullptr ? Aws::Utils::Logging::LogLevel::Debug : Aws::Utils::Logging::LogLevel::Info;
+        options.loggingOptions.logLevel = verbose == nullptr ? Aws::Utils::Logging::LogLevel::Info: Aws::Utils::Logging::LogLevel::Debug;
         options.loggingOptions.defaultLogPrefix = "urphin_";
 #endif        
         Aws::InitAPI(options);
