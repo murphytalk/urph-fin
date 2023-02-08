@@ -8,6 +8,10 @@
 #include <execution>
 #include <numeric>
 
+namespace{
+    const char log_tag[] = "urph-fin-storage";
+}
+
 class Stock: public stock{
 public:
     Stock(){
@@ -81,7 +85,7 @@ public:
                     auto first_unclosed_pos = unclosed_positions.front().shares;
                     for(auto shares = tx->shares; shares > 0;){
                         if(unclosed_positions.empty()){
-                            LOG(ERROR) << "Not enough unclosed position: still have " << shares << " shares to sell";
+                            LOG_ERROR(log_tag, "Not enough unclosed position: still have " << shares << " shares to sell");
                             const double& n = std::nan("");
                             return {n, n, n, n};                        }
                         else if (first_unclosed_pos > shares){

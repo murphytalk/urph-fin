@@ -3,6 +3,7 @@
 #include <aws/dynamodb/model/AttributeDefinition.h>
 #include <aws/dynamodb/model/QueryRequest.h>
 
+#include <cstdlib>
 #include <memory>
 #include <set>
 #include <algorithm>
@@ -13,9 +14,13 @@
 #include "../src/core/stock.hxx"
 #include "../src/core/core_internal.hxx"
 
+#if !defined(__ANDROID__)
+#include <fstream>
+#endif
+
 namespace
 {
-    const char log_tag[] = "urph-fin";
+    const char dao_log_tag[] = "urph-fin-dao";
     const char dynamo_db_table[] = "urph-fin";
     const char aws_region[] = "ap-northeast-1";
     const char sub_name_idx[] = "sub-name-index";
@@ -55,9 +60,9 @@ private:
     Aws::Utils::Logging::LogSystemInterface* logger;
 private:
     void log_attrs(Aws::Utils::Logging::LogLevel lvl, const char *msg, const AttrValueMap& attrs) const{
-        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, msg);
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, dao_log_tag, msg);
         for(const auto& i : attrs){
-            logger->Log(lvl,log_tag, "key=%s value=%s", i.first.c_str(), i.second.GetS().c_str());
+            logger->Log(lvl,dao_log_tag, "key=%s value=%s", i.first.c_str(), i.second.GetS().c_str());
         }
     }
     const void db_query(const char *index,
@@ -79,12 +84,12 @@ private:
             LOG(DEBUG) << "attr value" << key << " = " << val.GetS() <<"\n";
         }
         */
-        logger->Log(Aws::Utils::Logging::LogLevel::Debug, log_tag, "query %s", key_condition_expr);
+        logger->Log(Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, "query %s", key_condition_expr);
         for (auto const& [key, val] : attr_names){
-            logger->Log(Aws::Utils::Logging::LogLevel::Debug, log_tag, "attr name %s = %s" ,key.c_str(), val.c_str());
+            logger->Log(Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, "attr name %s = %s" ,key.c_str(), val.c_str());
         }
         for (auto const& [key, val] : expr_attr_values){
-            logger->Log(Aws::Utils::Logging::LogLevel::Debug, log_tag, "attr value %s = %s" ,key.c_str(), val.GetS().c_str());
+            logger->Log(Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, "attr value %s = %s" ,key.c_str(), val.GetS().c_str());
         }
  #endif                
         Aws::DynamoDB::Model::QueryRequest q;
@@ -122,7 +127,7 @@ private:
             for (const auto &item : result.GetItems())
             {
 #ifdef DEBUG_BUILD
-                LOG(DEBUG) << "query " << key_condition_expr << " item #" << itemIdx << "\n";
+                LOG_DEBUG(dao_log_tag, "query " << key_condition_expr << " item #" << itemIdx);
 #endif                
                 if (!onItem(lk.empty() && (++itemIdx == result.GetCount()), item))
                     break;
@@ -169,7 +174,7 @@ private:
                 if(!onItem(item)) return true;
 
                 builder->alloc->inc_counter();
-                LOG(DEBUG) << "counter updated to " << builder->alloc->counter() << ", expecting total counter " << builder->alloc->max_counter() << "\n";
+                LOG_DEBUG(dao_log_tag, "counter updated to " << builder->alloc->counter() << ", expecting total counter " << builder->alloc->max_counter());
                 if(builder->alloc->has_enough_counter()){
                     builder->succeed();
                     return false;
@@ -212,18 +217,24 @@ private:
 public:
     AwsDao(OnDone onInitDone)
     {
-#if !defined(__ANDROID__)
-        options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Info;
-#endif
+#if defined(__ANDROID__)
+        //todo: redirect logging to stdout or null device
+        setenv("AWS_CPP_SDK_LOG_STREAM", "cout", 1);
+#else        
+        setenv("AWS_DISABLE_LOGGING", "1", 1);
+        auto verbose = getenv("VERBOSE");
+        options.loggingOptions.logLevel = verbose == nullptr ? Aws::Utils::Logging::LogLevel::Debug : Aws::Utils::Logging::LogLevel::Info;
+        options.loggingOptions.defaultLogPrefix = "urphin_";
+#endif        
         Aws::InitAPI(options);
         logger = Aws::Utils::Logging::GetLogSystem();
-        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initialized API");
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, dao_log_tag, "Initialized API");
 
         Aws::Client::ClientConfiguration clientConfig;
         clientConfig.region = aws_region;
-        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initializing DB client");
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, dao_log_tag, "Initializing DB client");
         db = new Aws::DynamoDB::DynamoDBClient(clientConfig);
-        logger->Log(Aws::Utils::Logging::LogLevel::Info, log_tag, "Initialized DB client");
+        logger->Log(Aws::Utils::Logging::LogLevel::Info, dao_log_tag, "Initialized DB client");
         onInitDone(db);
     }
     ~AwsDao()
@@ -252,7 +263,7 @@ public:
     void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder &)> onBrokerBuilder)
     {
         const auto &name = get_broker_name(broker_query_result);
-        LOG(DEBUG) << "Broker " << name;
+        LOG_DEBUG(dao_log_tag, "Broker " << name);
 
         const auto &cash = broker_query_result.at(Aws::String("cash"));
         const auto &all_ccys = cash.GetM();
@@ -262,7 +273,7 @@ public:
             for (const auto &c : all_ccys)
             {
                 auto balance = std::stod(c.second->GetN());
-                LOG(DEBUG) << "  " << c.first << " " << balance << "\n";
+                LOG_DEBUG(dao_log_tag, "  " << c.first << " " << balance );
                 b.add_cash_balance(c.first, balance);
             }
         };
@@ -277,7 +288,7 @@ public:
         if (pos != broker_query_result.end())
         {
             const auto &funds_update_date = pos->second.GetS();
-            LOG(DEBUG) << " last funds update date: " << funds_update_date << "\n";
+            LOG_DEBUG(dao_log_tag, " last funds update date: " << funds_update_date );
 
             db_query_by_name_and_sub(
                 nullptr, nullptr, name, Aws::String(db_sub_broker + funds_update_date), nullptr,
@@ -298,7 +309,7 @@ public:
         }
         else
         {
-            LOG(DEBUG) << " no funds update date or the list is empty\n";
+            LOG_DEBUG(dao_log_tag, " no funds update date or the list is empty");
             onlyAddCash();
         }
     }
@@ -311,7 +322,7 @@ public:
                              { all = new AllBrokerBuilder<AwsDao, BrokerType>(n); },
                              [&all, this, &onAllBrokersBuilder](bool is_last, const BrokerType &item)
                              {
-                                LOG(DEBUG) << "adding broker , is last=" << is_last << "\n";
+                                LOG_DEBUG(dao_log_tag, "adding broker , is last=" << is_last << "\n");
                                 all->add_broker(this, item);
                                 if(is_last) onAllBrokersBuilder(all);
                                 return true;
@@ -325,7 +336,7 @@ public:
             [builder, fund_names_head, funds_num](const auto &item){
                     const auto& name = item.at("name").GetS();
                     if(!find_matched_str(fund_names_head, funds_num, name.c_str())) {
-                        LOG(WARNING) << "unexpected fund " << name.c_str() << "\n";
+                        LOG_WARNING(dao_log_tag, "unexpected fund " << name.c_str());
                         return false;
                     } 
                     const auto& broker = item.at("broker").GetS();
@@ -336,7 +347,7 @@ public:
                     const double profit = market_value - capital;
                     const double roi = profit / capital;
                     const timestamp date = std::stol(item.at("date").GetN());
-                    LOG(DEBUG) << "got tx of broker " << broker << " on epoch=" << date << " fund="<<name << "\n";
+                    LOG_DEBUG(dao_log_tag, "got tx of broker " << broker << " on epoch=" << date << " fund="<<name << "\n");
                     builder->add_fund(
                         broker, name,
                         amt,

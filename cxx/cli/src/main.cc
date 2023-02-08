@@ -108,7 +108,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
             profit_sum_jpy += profit_jpy;
         }
         else{
-            LOG(ERROR) << "no quote found for " << stockWithTx.instrument->symbol << "\n";
+            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
         }
         table.add_row({
             stockWithTx.instrument->symbol,

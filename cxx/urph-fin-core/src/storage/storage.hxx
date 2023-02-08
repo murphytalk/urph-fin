@@ -31,12 +31,12 @@ public:
         delete alloc;
     }
     inline void succeed() { 
-        LOG(DEBUG) << "Builder succeeded\n";
+        LOG_DEBUG("storage", "Builder succeeded");
         onSuccess(alloc); 
         delete this;
     }
     inline void failed(){
-        LOG(DEBUG) << "Builder failed\n";
+        LOG_DEBUG("storage", "Builder failed");
         delete this;
     }
 protected: 
@@ -79,11 +79,11 @@ public:
         fund_update_date = copy_str(yyyymmdd);
     }
     void add_cash_balance(const std::string& currency, double balance){
-        LOG(DEBUG) << "  " << currency << " " << balance << " \n";
+        LOG_DEBUG("storage", "  " << currency << " " << balance << " \n");
         new (balances_alloc->next()) CashBalance(currency, balance);
     }
     void add_active_fund(const std::string& active_fund_id){
-        LOG(DEBUG) << "adding fund " << active_fund_id << "\n";
+        LOG_DEBUG("storage", "adding fund " << active_fund_id << "\n");
         funds_name_builder->add(active_fund_id);
     }
 };
@@ -109,7 +109,7 @@ public:
     typedef PlacementNew<broker> BrokerAlloc;
     BrokerAlloc *alloc;
     AllBrokerBuilder(int n){
-        LOG(DEBUG) << "Total brokers:" << n << "\n";
+        LOG_DEBUG("storage", "Total brokers:" << n << "\n");
         alloc = new BrokerAlloc(n);
     }
     ~AllBrokerBuilder(){
@@ -117,7 +117,7 @@ public:
     }
     void add_broker(DAO* dao, const BrokerType& b){
         create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){
-            LOG(DEBUG) << "creating broker " << n << "\n";
+            LOG_DEBUG("storage", "creating broker " << n << "\n");
 #ifdef _MSC_VER
             void* p = all_brokers++;
             return new (p)
@@ -147,7 +147,7 @@ public:
 class LatestQuotesBuilder: public Builder<quote>{
 public:
     Quote* add_quote(const std::string& symbol, timestamp date, double rate){
-        LOG(DEBUG) << "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate <<"\n";
+        LOG_DEBUG("storage", "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate <<"\n");
         return new (alloc->next()) Quote(symbol, date, rate);
     }
 };
@@ -171,16 +171,16 @@ public:
 
     StockAlloc* stock_alloc; 
     Stock* add_stock(const std::string& symbol, const std::string& ccy){
-        LOG(DEBUG) << "adding stock " << symbol << "@" << ccy << "\n";
+        LOG_DEBUG("storage", "adding stock " << symbol << "@" << ccy << "\n");
         return new (stock_alloc->next()) Stock(symbol, ccy);
     }
     void prepare_stock_alloc(int n) {
-        LOG(DEBUG) << "Got " << n << " stocks\n";
+        LOG_DEBUG("storage", "Got " << n << " stocks\n");
         unfinished_stocks = n;
         stock_alloc = new StockAlloc(n);
     }
     void prepare_tx_alloc(const std::string& symbol, int num){
-        LOG(DEBUG) << "Got " << num << " tx for " << symbol << "\n";
+        LOG_DEBUG("storage", "Got " << num << " tx for " << symbol << "\n");
         if(num == 0){
             check_completion(nullptr);
         }
@@ -195,22 +195,22 @@ public:
         --unfinished_stocks;
     }
     void addTx(const std::string& broker,const std::string& symbol, const std::string& type, const double price, const double shares, const double fee, const timestamp date){
-        LOG(DEBUG) << "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares << "\n";
+        LOG_DEBUG("storage", "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares);
         const auto s = tx.find(symbol);
         if(s != tx.end()){
             const auto& tx_alloc = s->second;
             new (tx_alloc->next()) StockTx(broker, shares, price, fee, type, date);
-            LOG(DEBUG) << "Added tx@" << date << " for " << symbol << " broker=" << broker << "\n";
+            LOG_DEBUG("storage", "Added tx@" << date << " for " << symbol << " broker=" << broker << "\n");
             check_completion(tx_alloc);
         }
         else throw std::runtime_error("Cannot find tx for stock " + symbol);
     }
     void incr_counter(const std::string& symbol){
-        LOG(DEBUG) << "Increasing counter for " << symbol << "\n";
+        LOG_DEBUG("storage", "Increasing counter for " << symbol << "\n");
         const auto s = tx.find(symbol);
         if(s != tx.end()){
             auto counter = s->second->inc_counter();
-            LOG(DEBUG) << "Increased counter for " << symbol << " to " << counter  << "\n";
+            LOG_DEBUG("storage", "Increased counter for " << symbol << " to " << counter  << "\n");
         }
     }
     inline void failed(){
@@ -249,11 +249,11 @@ private:
     }
     void check_completion(const TxAlloc* alloc){
         if(alloc!=nullptr){
-            LOG(DEBUG) << "Checking completion: cur =" << alloc->counter() << ", max=" << alloc->max_counter() << "\n";
+            LOG_DEBUG("storage", "Checking completion: cur =" << alloc->counter() << ", max=" << alloc->max_counter());
         }
         if(alloc == nullptr || alloc->has_enough_counter()){
             --unfinished_stocks;
-            LOG(DEBUG) << "Enough tx , remaining stocks = " << unfinished_stocks << "\n";
+            LOG_DEBUG("storage", "Enough tx , remaining stocks = " << unfinished_stocks << "\n");
             if(unfinished_stocks == 0){
                 // no more pending
                 onSuccess(stock_alloc, tx);
@@ -283,13 +283,13 @@ class Storage: public IDataStorage{
 public:
     Storage(OnDone onInitDone){
         dao = std::make_unique<DAO>(onInitDone);
-        LOG(DEBUG) << "Storage instance created\n";
+        LOG_DEBUG("storage", "Storage instance created\n");
     };
     Storage(DAO *p): dao(std::unique_ptr<DAO>(p)){
-        LOG(DEBUG) << "Storage instance created\n";
+        LOG_DEBUG("storage", "Storage instance created\n");
     };
     virtual ~Storage(){
-        LOG(DEBUG) << "Storage instance freed\n";
+        LOG_DEBUG("storage", "Storage instance freed\n");
     }
 
     void get_broker(const char* name, OnBroker onBroker, void*param)

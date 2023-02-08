@@ -61,8 +61,6 @@ list(APPEND the_SRC ${cloud_src})
 set(BUILD_SHARED_LIBS OFF)
 add_library (${lib_target} ${the_SRC})
 
-add_log_header(${lib_target})
-
 if(USE_FIREBASE)
     set(cloud_libs firebase_auth firebase_firestore firebase_app)
     if(APPLE)

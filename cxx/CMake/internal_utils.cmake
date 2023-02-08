@@ -25,7 +25,3 @@ macro(add_src_libs_ dir)
     )
   #filter_items(the_SRC "\.cquery_cached_index")
 endmacro()
-
-function(add_log_header t)
-  target_include_directories(${t} PRIVATE ${project_root}/3rd-party/aixlog/include)
-endfunction(add_log_header)

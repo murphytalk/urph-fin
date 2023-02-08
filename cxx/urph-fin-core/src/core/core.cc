@@ -7,7 +7,6 @@
 #include <pwd.h>
 #endif  // _WIN32
 
-#include <cstdlib>
 #include <cstring>
 #include <cassert>
 #include <numeric>
@@ -24,6 +23,9 @@
 #include "../utils.hxx"
 #include "core_internal.hxx"
 
+namespace{
+    const char core_log_tag[] = "urph-fin-core";
+}
 // dont forget to free
 char* copy_str(const std::string& str)
 {
@@ -41,7 +43,7 @@ CashBalance::CashBalance(const std::string& n, float v)
 
 CashBalance::~CashBalance()
 {
-    LOG(DEBUG) << " ccy= " << ccy << " ";
+    LOG_DEBUG(core_log_tag, " ccy= " << ccy);
     delete[] ccy;
 }
 
@@ -80,10 +82,10 @@ char** Strings::to_str_array()
 Strings::~Strings()
 {
     for(char** p=strs; p!=last_str; ++p){
-        LOG(DEBUG) << *p << ",";
+        LOG_DEBUG(core_log_tag, *p << ",");
         delete []*p;
     }
-    LOG(DEBUG)<<" deleted\n";
+    LOG_DEBUG(core_log_tag," deleted");
     delete []strs;
 }
 
@@ -94,7 +96,7 @@ void free_strings(strings* ss)
 
 Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
-    LOG(DEBUG) << "broker constructor " << n<< "\n";
+    LOG_DEBUG(core_log_tag, "broker constructor");
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
@@ -103,7 +105,7 @@ Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance
 }
 
 Broker::~Broker(){
-    LOG(DEBUG) << "freeing broker " << name << " : cash balances: [";
+    LOG_DEBUG(core_log_tag, "freeing broker " << name << " : cash balances:");
     delete[] name;
 
     delete[] funds_update_date;
@@ -111,9 +113,9 @@ Broker::~Broker(){
     free_placement_allocated_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;
 
-    LOG(DEBUG) << "] - active funds [";
+    LOG_DEBUG(core_log_tag, " - active funds");
     free_strings(active_fund_ids);
-    LOG(DEBUG) << "] - freed!\n";
+    LOG_DEBUG(core_log_tag, " - active funds freed!");
 }
 
 AllBrokers::AllBrokers(int n, broker* broker)
@@ -124,7 +126,7 @@ AllBrokers::AllBrokers(int n, broker* broker)
 
 AllBrokers::~AllBrokers()
 {
-    LOG(DEBUG) << "freeing " << num << " brokers \n";
+    LOG_DEBUG(core_log_tag, "freeing " << num << " brokers");
     free_placement_allocated_structs<AllBrokers, Broker>(this);
     delete []first_broker;
 }
@@ -256,43 +258,28 @@ namespace{
 
 bool urph_fin_core_init(OnDone onInitDone)
 {
-#if !defined(__ANDROID__)
-    std::vector<AixLog::log_sink_ptr> sinks;
-
-    auto log_file = getenv("LOGFILE");
-    auto verbose = getenv("VERBOSE");
-    auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
-    if(log_file == nullptr)
-        sinks.push_back(std::make_shared<AixLog::SinkCout>(log_lvl));
-    else
-        sinks.push_back(std::make_shared<AixLog::SinkFile>(log_lvl, log_file));
-    AixLog::Log::init(sinks);
-#endif
-    LOG(DEBUG) << "urph-fin-core initializing\n";
-#ifdef DEBUG_BUILD
-    LOG(INFO) << "this is debug build\n";
-#endif
+   LOG_DEBUG(core_log_tag, "urph-fin-core initializing");
 
     try{
         storage = create_cloud_instance(onInitDone);
         return true;
     }
     catch(const std::exception& e){
-        LOG(ERROR) << "Failed to init storage service: " << e.what() << "\n";
+        LOG_ERROR(core_log_tag, "Failed to init storage service: " << e.what());
         return false;
     }
 }
 
 void urph_fin_core_close()
 {
-    LOG(INFO) << "Freeing storage ... ";
+    LOG_INFO(core_log_tag, "Freeing storage ... ");
     delete storage;
-    LOG(INFO) << "freed! \n";
+    LOG_INFO(core_log_tag, "freed!");
 }
 
 #define TRY try{
-#define CATCH(error_ret) }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); return error_ret; }
-#define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG(ERROR) << e.what(); }
+#define CATCH(error_ret) }catch(const std::runtime_error& e) { LOG_ERROR(log_tag, e.what(); return error_ret); }
+#define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG_ERROR(log_tag, e.what()); }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
 void get_brokers(OnAllBrokers onAllBrokers, void* param)
@@ -478,7 +465,7 @@ quotes* get_quotes(int num, const char **symbols_head)
         }
         catch(std::runtime_error& e)
         {
-            LOG(ERROR)<< e.what() <<"\n";
+            LOG_ERROR(core_log_tag,e.what());
             all_quotes = nullptr;
             cv.notify_one();
         }
@@ -734,7 +721,7 @@ static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
         return assets->second;
     }
      else{
-        LOG(ERROR) << "Cannot find assets by handle " << asset_handle << "\n";
+        LOG_ERROR(core_log_tag, "Cannot find assets by handle " << asset_handle);
         return nullptr;
     }
 }
