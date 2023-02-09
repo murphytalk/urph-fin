@@ -24,6 +24,7 @@ namespace
     const char db_sub_broker[] = "B#";
     const char db_sub_stock [] = "I#S";
     const char db_sub_fund  [] = "I#F";
+    const char db_sub_fx    [] = "I#X";
     const char db_sub_tx_prefix[] = "x#";
     const char db_name_attr[] = "name";
     const char db_sub_attr[] = "sub";
@@ -69,32 +70,6 @@ private:
                         OnItemCount onItemCount,
                         AddAttrValue add_filter_attr_value = NOOP)
     {
-
-#ifdef DEBUG_BUILD
-        /*
-        LOG(DEBUG) << "query " << key_condition_expr << "\n";
-        for (auto const& [key, val] : attr_names){
-            LOG(DEBUG) << "attr name " << key << " = " << val <<"\n";
-        }
-        for (auto const& [key, val] : expr_attr_values){
-            LOG(DEBUG) << "attr value" << key << " = " << val.GetS() <<"\n";
-        }
-        */
-        {
-            Aws::Utils::Logging::LogSystemInterface* logSystem = Aws::Utils::Logging::GetLogSystem(); 
-            if ( logSystem && logSystem->GetLogLevel() >= Aws::Utils::Logging::LogLevel::Debug ){
-                Aws::OStringStream logStream;
-                logStream << "query " << key_condition_expr << "\n";
-                for (auto const& [key, val] : attr_names){
-                    logStream << "attr name " << key.c_str() << " = " << val.c_str() << "\n";
-                }
-                for (auto const& [key, val] : expr_attr_values){
-                    logStream << "attr value " << key.c_str() << " = " << val.GetS().c_str() << "\n";
-                }
-                logSystem->LogStream( Aws::Utils::Logging::LogLevel::Debug, dao_log_tag, logStream );
-            }
-        }
- #endif                
         Aws::DynamoDB::Model::QueryRequest q;
         q.SetTableName(dynamo_db_table);
         if (index != nullptr)
@@ -129,9 +104,6 @@ private:
             int itemIdx = 0;
             for (const auto &item : result.GetItems())
             {
-#ifdef DEBUG_BUILD
-                LOG_DEBUG(dao_log_tag, "query " << key_condition_expr << " item #" << itemIdx);
-#endif                
                 if (!onItem(lk.empty() && (++itemIdx == result.GetCount()), item))
                     break;
             }
@@ -222,9 +194,8 @@ public:
     {
 #if defined(__ANDROID__)
         //todo: redirect logging to stdout or null device
-        setenv("AWS_CPP_SDK_LOG_STREAM", "cout", 1);
+        options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Off;
 #else        
-        setenv("AWS_DISABLE_LOGGING", "1", 1);
         auto verbose = getenv("VERBOSE");
         options.loggingOptions.logLevel = verbose == nullptr ? Aws::Utils::Logging::LogLevel::Info: Aws::Utils::Logging::LogLevel::Debug;
         options.loggingOptions.defaultLogPrefix = "urphin_";

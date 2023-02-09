@@ -87,7 +87,7 @@ public:
         new (balances_alloc->next()) CashBalance(currency, balance);
     }
     void add_active_fund(const std::string& active_fund_id){
-        LOG_DEBUG(storage_log_tag, "adding fund " << active_fund_id << "\n");
+        LOG_DEBUG(storage_log_tag, "adding fund " << active_fund_id);
         funds_name_builder->add(active_fund_id);
     }
 };
@@ -113,7 +113,7 @@ public:
     typedef PlacementNew<broker> BrokerAlloc;
     BrokerAlloc *alloc;
     AllBrokerBuilder(int n){
-        LOG_DEBUG(storage_log_tag, "Total brokers:" << n << "\n");
+        LOG_DEBUG(storage_log_tag, "Total brokers:" << n);
         alloc = new BrokerAlloc(n);
     }
     ~AllBrokerBuilder(){
@@ -121,7 +121,7 @@ public:
     }
     void add_broker(DAO* dao, const BrokerType& b){
         create_broker(dao, b, [&](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){
-            LOG_DEBUG(storage_log_tag, "creating broker " << n << "\n");
+            LOG_DEBUG(storage_log_tag, "creating broker " << n);
 #ifdef _MSC_VER
             void* p = all_brokers++;
             return new (p)
@@ -151,7 +151,7 @@ public:
 class LatestQuotesBuilder: public Builder<quote>{
 public:
     Quote* add_quote(const std::string& symbol, timestamp date, double rate){
-        LOG_DEBUG(storage_log_tag, "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate <<"\n");
+        LOG_DEBUG(storage_log_tag, "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate );
         return new (alloc->next()) Quote(symbol, date, rate);
     }
 };
@@ -175,7 +175,7 @@ public:
 
     StockAlloc* stock_alloc; 
     Stock* add_stock(const std::string& symbol, const std::string& ccy){
-        LOG_DEBUG(storage_log_tag, "adding stock " << symbol << "@" << ccy << "\n");
+        LOG_DEBUG(storage_log_tag, "adding stock " << symbol << "@" << ccy);
         return new (stock_alloc->next()) Stock(symbol, ccy);
     }
     void prepare_stock_alloc(int n) {
@@ -184,7 +184,7 @@ public:
         stock_alloc = new StockAlloc(n);
     }
     void prepare_tx_alloc(const std::string& symbol, int num){
-        LOG_DEBUG(storage_log_tag, "Got " << num << " tx for " << symbol << "\n");
+        LOG_DEBUG(storage_log_tag, "Got " << num << " tx for " << symbol);
         if(num == 0){
             check_completion(nullptr);
         }
@@ -204,17 +204,17 @@ public:
         if(s != tx.end()){
             const auto& tx_alloc = s->second;
             new (tx_alloc->next()) StockTx(broker, shares, price, fee, type, date);
-            LOG_DEBUG(storage_log_tag, "Added tx@" << date << " for " << symbol << " broker=" << broker << "\n");
+            LOG_DEBUG(storage_log_tag, "Added tx@" << date << " for " << symbol << " broker=" << broker);
             check_completion(tx_alloc);
         }
         else throw std::runtime_error("Cannot find tx for stock " + symbol);
     }
     void incr_counter(const std::string& symbol){
-        LOG_DEBUG(storage_log_tag, "Increasing counter for " << symbol << "\n");
+        LOG_DEBUG(storage_log_tag, "Increasing counter for " << symbol);
         const auto s = tx.find(symbol);
         if(s != tx.end()){
             auto counter = s->second->inc_counter();
-            LOG_DEBUG(storage_log_tag, "Increased counter for " << symbol << " to " << counter  << "\n");
+            LOG_DEBUG(storage_log_tag, "Increased counter for " << symbol << " to " << counter );
         }
     }
     inline void failed(){
@@ -244,7 +244,9 @@ public:
         return head;
     } 
 private:
-    int unfinished_stocks = (std::numeric_limits<int>::max)(); //https://stackoverflow.com/questions/1394132/macro-and-member-function-conflict
+    //https://stackoverflow.com/questions/1394132/macro-and-member-function-conflict
+    int unfinished_stocks = (std::numeric_limits<int>::max)(); 
+
     TxAllocPointerBySymbol tx;
     OnSuccess onSuccess;
     StockPortfolioBuilder(OnSuccess on_success){ 
@@ -257,7 +259,7 @@ private:
         }
         if(alloc == nullptr || alloc->has_enough_counter()){
             --unfinished_stocks;
-            LOG_DEBUG(storage_log_tag, "Enough tx , remaining stocks = " << unfinished_stocks << "\n");
+            LOG_DEBUG(storage_log_tag, "Enough tx , remaining stocks = " << unfinished_stocks);
             if(unfinished_stocks == 0){
                 // no more pending
                 onSuccess(stock_alloc, tx);
@@ -349,16 +351,15 @@ public:
     }
 
     void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param){
+        int preallocated_num = symbols_head == nullptr ? 10 : num;
+        auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(preallocated_num,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
+            onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
+        }));
+
         if (symbols_head == nullptr){
-                auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(10,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
-                    onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
-                }));
-                dao->get_latest_quotes(builder);
+            dao->get_latest_quotes(builder);
         }
         else{
-            auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(num,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
-                onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
-            }));
             dao->get_latest_quotes(builder, num, symbols_head);
         }
     }
