@@ -10,6 +10,8 @@
 #include <memory>
 #include <cmath>
 
+#include "../utils.hxx"
+
 // C++ extensions to make life (much more) easier
 #ifdef USE_FIREBASE
 struct Config{
@@ -54,6 +56,7 @@ public:
         if(allocated_num() >= _max_counter){
             //resize
             int new_max = std::ceil(_max_counter * _ratio);
+            LOG_DEBUG("alloc", "resizing from " << _max_counter << " to " << new_max);
             auto* p = new T[new_max];
             memcpy(p, _head, sizeof(T) * _max_counter);
             
