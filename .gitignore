@@ -43,3 +43,6 @@ geckodriver.log
 
 #flutter
 *.mocks.dart
+compile_commands.json
+.clangd/
+*.log
