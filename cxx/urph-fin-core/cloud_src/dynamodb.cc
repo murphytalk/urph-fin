@@ -143,9 +143,9 @@ private:
     }
 
     template <typename T>
-    inline void db_query_by_sub_with_total_num_aware_builder(const char *sub, const char *filter_expr, Builder<T>* builder, std::function<bool(const AttrValueMap&)> onItem,  
+    inline void db_query_by_sub_with_total_num_aware_builder(const char *sub, const char *filter_expr, Builder<T>* builder, std::function<bool(const AttrValueMap&)> onItem,
                                                              AddAttrValue add_filter_attr_value = NOOP){
-         db_query_by_sub(sub, filter_expr, [builder, &onItem](bool, const auto &item){ 
+         db_query_by_sub(sub, filter_expr, [builder, &onItem](bool, const auto &item){
                 if(!onItem(item)) return true;
 
                 builder->alloc->inc_counter();
@@ -154,7 +154,7 @@ private:
                     builder->succeed();
                     return false;
                 }
-                else return true; 
+                else return true;
             },
             [](int){}, add_filter_attr_value
         );
@@ -162,10 +162,10 @@ private:
 
     inline  void get_items_by_sub_key(const char* sub_key_value, const char *filter_expr, OnItemCount totalNum, OnItem onItem, AddAttrValue add_filter_attr_value = NOOP){
         db_query_by_sub(
-            sub_key_value, filter_expr, 
+            sub_key_value, filter_expr,
             [&onItem](bool is_last, const auto &item){
                 onItem(is_last, item);
-                return true; 
+                return true;
             },
             [&totalNum](int count){ totalNum(count); });
     }
@@ -195,11 +195,11 @@ public:
 #if defined(__ANDROID__)
         //todo: redirect logging to stdout or null device
         options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Off;
-#else        
+#else
         auto verbose = getenv("VERBOSE");
         options.loggingOptions.logLevel = verbose == nullptr ? Aws::Utils::Logging::LogLevel::Info: Aws::Utils::Logging::LogLevel::Debug;
         options.loggingOptions.defaultLogPrefix = "urphin_";
-#endif        
+#endif
         Aws::InitAPI(options);
         logger = Aws::Utils::Logging::GetLogSystem();
         logger->Log(Aws::Utils::Logging::LogLevel::Info, dao_log_tag, "Initialized API");
@@ -312,11 +312,11 @@ public:
                     if(!find_matched_str(fund_names_head, funds_num, name.c_str())) {
                         LOG_WARNING(dao_log_tag, "unexpected fund " << name.c_str());
                         return false;
-                    } 
+                    }
                     const auto& broker = item.at("broker").GetS();
                     const int amt = std::stoi(item.at("amount").GetN());
                     const double capital = std::stod(item.at("capital").GetN());
-                    const double market_value = std::stod(item.at("market_value").GetN()); 
+                    const double market_value = std::stod(item.at("market_value").GetN());
                     const double price = std::stod(item.at("price").GetN());
                     const double profit = market_value - capital;
                     const double roi = profit / capital;
@@ -341,7 +341,7 @@ public:
     }
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {
         StringsBuilder *sb = nullptr;
-        get_items_by_sub_key(db_sub_stock, nullptr, 
+        get_items_by_sub_key(db_sub_stock, nullptr,
             [&sb](int num) { sb = new StringsBuilder(num); },
             [&sb, &onResult](bool is_last, auto const& item){
                 sb->add(item.at(db_name_attr).GetS());
@@ -355,7 +355,7 @@ public:
     }
 
     void get_latest_quotes(LatestQuotesBuilder *builder, const char* sub_idx, std::function<void(LatestQuotesBuilder*)> done) {
-        get_items_by_sub_key(sub_idx, "attribute_exists(last_price)", 
+        get_items_by_sub_key(sub_idx, "attribute_exists(last_price)",
             [](int num) { },
             [&builder, &done](bool is_last, auto const& item){
                 const auto& name = item.at("name").GetS();
@@ -377,12 +377,12 @@ public:
     }
 
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {
-        db_query_by_sub_with_total_num_aware_builder(db_sub_stock, "attribute_exists(last_price)", 
+        db_query_by_sub_with_total_num_aware_builder(db_sub_stock, "attribute_exists(last_price)",
             builder,
             [symbols_head, num, builder](const auto &item){
                 const auto& name = item.at("name").GetS();
                 if(!find_matched_str(symbols_head, num, name.c_str())) return true;
-                
+
                 const double price = std::stod(item.at("last_price").GetN());
                 const timestamp dt = std::stol(item.at("last_price_time").GetN());
                 builder->add_quote(name, dt, price);
@@ -408,12 +408,12 @@ public:
                 const auto& name = item.at("name").GetS();
                 const auto& ccy  = item.at("ccy").GetS();
                 builder->add_stock(name, ccy);
-                
+
                 const char* filter_expr = nullptr;
 
                 Aws::Map<Aws::String, Aws::String> n = {{"#name_n", db_name_attr}, {"#sub_n", db_sub_attr}};
                 AttrValueMap v = {
-                    {":name_v", Aws::DynamoDB::Model::AttributeValue(name)}, 
+                    {":name_v", Aws::DynamoDB::Model::AttributeValue(name)},
                     {":sub_v", Aws::DynamoDB::Model::AttributeValue(db_sub_tx_prefix)}
                     };
                 if(broker!=nullptr){
@@ -422,7 +422,7 @@ public:
                     filter_expr = "#broker_n = :broker_v";
                 }
 
-                db_query(nullptr, "#name_n = :name_v and begins_with(#sub_n, :sub_v)", 
+                db_query(nullptr, "#name_n = :name_v and begins_with(#sub_n, :sub_v)",
                     n, filter_expr, v,
                     [builder, &name](bool tx_is_last, const AttrValueMap &tx){
                         builder->incr_counter(name);
@@ -430,11 +430,11 @@ public:
                         const auto& type = tx.at("type").GetS();
                         bool is_split = type == "SPLIT";
                         const double price = std::stod(tx.at("price").GetN());
-                        const double fee = is_split ? 0.0 : std::stod(tx.at("fee").GetN()); 
-                        const double shares = is_split ? 0.0 : std::stod(tx.at("shares").GetN()); 
+                        const double fee = is_split ? 0.0 : std::stod(tx.at("fee").GetN());
+                        const double shares = is_split ? 0.0 : std::stod(tx.at("shares").GetN());
                         const auto& my_broker = tx.at("broker").GetS();
                         builder->addTx(my_broker, name, type, price, shares, fee, date);
- 
+
                         return true;
                     },
                     [builder,&name](int tx_count){ builder->prepare_tx_alloc(name, tx_count); },
@@ -442,9 +442,9 @@ public:
                 );
 
                 return true;
-            }, 
+            },
             [builder](int count){ builder->prepare_stock_alloc(count); },
-            NOOP 
+            NOOP
         );
     }
 

@@ -519,7 +519,7 @@ void AllAssets::load(){
     quotes_by_symbol = new QuoteBySymbol([this](quotes* all_quotes){
         this->q = static_cast<::Quotes*>(all_quotes);
         this->notify(AllAssets::Loaded::Quotes);
-        // stock portfolio value calculation needs quotes to be loaded first 
+        // stock portfolio value calculation needs quotes to be loaded first
         get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
             AllAssets *me = reinterpret_cast<AllAssets*>(param);
             me->stocks = static_cast<StockPortfolio*>(p);
@@ -656,9 +656,11 @@ void AllAssets::load_stocks(StockPortfolio* sp)
     AssetItems grouped_by_sym_and_broker;
     for(auto const& stockWithTx: *sp){
         StockTxList *tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+        LOG_DEBUG("assets", "stock=" << stockWithTx.instrument->symbol);
         // group tx by broker
         for(auto& by_broker: group_by(tx_list->ptr_begin(),tx_list->ptr_end(), [](const StockTx* tx){ return std::string(tx->broker); })){
             auto& broker = by_broker.first;
+            LOG_DEBUG("assets", "broker=" << broker);
             const auto& balance = StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
             if(balance.shares == 0) continue;
             double value, profit =  nan;

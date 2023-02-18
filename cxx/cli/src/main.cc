@@ -1,3 +1,4 @@
+#include "utils.hxx"
 #define URPH_FIN_CLI
 
 #include <iostream>
@@ -5,7 +6,7 @@
 #include <string>
 #include <mutex>
 #include <iomanip>
-#include <sstream> 
+#include <sstream>
 #include <locale>
 #include <condition_variable>
 #include <cmath>
@@ -56,8 +57,8 @@ static quotes* all_quotes = nullptr;
 static void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if(all_quotes == nullptr){
-        quotes_by_symbol = new QuoteBySymbol([&onQuotesLoaded](quotes* aq){ 
-            all_quotes = aq; 
+        quotes_by_symbol = new QuoteBySymbol([&onQuotesLoaded](quotes* aq){
+            all_quotes = aq;
             onQuotesLoaded();
         });
         get_all_quotes(*quotes_by_symbol);
@@ -87,6 +88,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
     timestamp fx_date = 0L;
     for(auto const& stockWithTx: *port){
         auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+        LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
         auto balance = tx_list->calc();
         if(balance.shares == 0) continue;
         ++row;
@@ -262,7 +264,7 @@ static void main_menu()
                     }, &out);
                 }
                 else list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
-            },                
+            },
             "List by Asset-Broker-Currency => shortcut for: cs a b c"
         );
 
@@ -270,7 +272,7 @@ static void main_menu()
             "cs",
             [](ostream& out, std::string lvl1, std::string lvl2, std::string lvl3){
                 list_overview(to_lvl_group(lvl1),to_lvl_group(lvl2),to_lvl_group(lvl3), out);
-            },                
+            },
             "custom list by lv1-lvl2-lvl3, a=>Asset b=>Broker c=>Currency"
         );
 
@@ -283,10 +285,10 @@ static void main_menu()
                 get_brokers([](auto* bks, void* ctx){
                     ostream* out = reinterpret_cast<ostream*>(ctx);
                     AllBrokers *brokers = static_cast<AllBrokers*>(bks);
-    
+
                     Table table;
                     table.add_row({"Broker", "Currency", "Balance"});
-    
+
                     for(Broker& broker: *brokers){
                         if(broker.size(default_member_tag()) == 0){
                             table.add_row({broker.name, "", ""});
@@ -304,7 +306,7 @@ static void main_menu()
                                 );
                                 broker_name_printed = true;
                             }
-                        }    
+                        }
                     }
                     delete brokers;
                     table.column(1).format().font_align(FontAlign::center);
@@ -329,8 +331,8 @@ static void main_menu()
                     int row = 0;
                     for(const Fund& fund: *fund_portfolio){
                         ++row;
-                        table.add_row({fund.broker, fund.name, 
-                            format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value), 
+                        table.add_row({fund.broker, fund.name,
+                            format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value),
                             format_with_commas(fund.profit), percentage(fund.ROI), format_timestamp(fund.date)});
                         if(fund.profit < 0){
                             table[row][6].format().font_color(Color::red);
@@ -442,22 +444,22 @@ static void main_menu()
 
                 out << "Adding broker=" << broker << " symbol=" << symbol
                     << " shares=" << shares << " price=" << price << " side=" << side << " date=" << d << "\n";
-                add_stock_tx(broker.c_str(), symbol.c_str(), shares, price, fee, side.c_str(), t, [](void *param){ 
+                add_stock_tx(broker.c_str(), symbol.c_str(), shares, price, fee, side.c_str(), t, [](void *param){
                     ostream* out = reinterpret_cast<ostream*>(param);
                     *out << "Added\n";
                 }, &out);
             },
             "Add new transaction : broker symbol shares price fee side date(yyyy-mm-dd)"
         );
- 
+
 
         rootMenu->Insert(std::move(stockMenu));
 
 
         cli::Cli cli( std::move(rootMenu) );
         // global exit action
-        cli.ExitAction( [](auto& out){ 
-            out << "Goodbye.\n"; 
+        cli.ExitAction( [](auto& out){
+            out << "Goodbye.\n";
         });
 
         cli::LoopScheduler scheduler;
@@ -503,8 +505,8 @@ int main(int argc, char *argv[])
         cv.wait(lk, []{return init_done;});
     }
 
-    main_menu(); 
-   
+    main_menu();
+
     urph_fin_core_close();
     return 0;
 }
