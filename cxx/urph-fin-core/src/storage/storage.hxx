@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <stdexcept>
-#include <sstream> 
+#include <sstream>
 #include <string>
 #include <cstring>
 #include <functional>
@@ -34,16 +34,16 @@ public:
    ~Builder(){
         delete alloc;
     }
-    inline void succeed() { 
+    inline void succeed() {
         LOG_DEBUG(storage_log_tag, "Builder succeeded");
-        onSuccess(alloc); 
+        onSuccess(alloc);
         delete this;
     }
     inline void failed(){
         LOG_DEBUG(storage_log_tag, "Builder failed");
         delete this;
     }
-protected: 
+protected:
     std::vector<T> v;
     std::function<void(Alloc*)> onSuccess;
     // ensure this cannot be allocated in stack
@@ -61,7 +61,7 @@ public:
     }
     void add(const std::string& str){
         strings->add(str);
-    }        
+    }
 };
 
 class BrokerBuilder{
@@ -70,7 +70,7 @@ public:
     CashBalanceAlloc * balances_alloc;
     StringsBuilder *funds_name_builder;
     char* fund_update_date;
-    BrokerBuilder(int n, int active_fund_num){ 
+    BrokerBuilder(int n, int active_fund_num){
         balances_alloc = new CashBalanceAlloc(n);
         funds_name_builder = new StringsBuilder(active_fund_num);
         fund_update_date = nullptr;
@@ -173,7 +173,7 @@ public:
         return new StockPortfolioBuilder(callback);
     }
 
-    StockAlloc* stock_alloc; 
+    StockAlloc* stock_alloc;
     Stock* add_stock(const std::string& symbol, const std::string& ccy){
         LOG_DEBUG(storage_log_tag, "adding stock " << symbol << "@" << ccy);
         return new (stock_alloc->next()) Stock(symbol, ccy);
@@ -228,7 +228,7 @@ public:
         memset(head, 0, sizeof(stock_with_tx) * stock_num);
         stock_with_tx* current = head;
         for(auto* b = stock_alloc->head(); b != stock_alloc->end(); ++b){
-            auto tx_iter = tx.find(b->symbol);      
+            auto tx_iter = tx.find(b->symbol);
             int tx_num;
             stock_tx* first;
             if(tx_iter == tx.end()){
@@ -238,18 +238,18 @@ public:
             else{
                 tx_num = tx_iter->second->allocated_num();
                 first = tx_iter->second->head();
-            }    
+            }
             new (current++) StockWithTx(b, new StockTxList(tx_num, first));
         }
         return head;
-    } 
+    }
 private:
     //https://stackoverflow.com/questions/1394132/macro-and-member-function-conflict
-    int unfinished_stocks = (std::numeric_limits<int>::max)(); 
+    int unfinished_stocks = (std::numeric_limits<int>::max)();
 
     TxAllocPointerBySymbol tx;
     OnSuccess onSuccess;
-    StockPortfolioBuilder(OnSuccess on_success){ 
+    StockPortfolioBuilder(OnSuccess on_success){
         stock_alloc = nullptr;
         onSuccess = on_success;
     }
@@ -301,11 +301,11 @@ public:
     void get_broker(const char* name, OnBroker onBroker, void*param)
     {
         dao->get_broker_by_name(
-            name, 
+            name,
             [this, &onBroker, param](const auto& brokerQueryResult) {
-                create_broker(dao.get(), 
-                    brokerQueryResult,  
-                    [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){ 
+                create_broker(dao.get(),
+                    brokerQueryResult,
+                    [](const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){
                         return new Broker(n, ccy_num, first_ccy_balance, fund_update_date, active_funds);
                     },
                     [&onBroker,param](Broker* b){ onBroker(b, param);}

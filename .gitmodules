@@ -1,9 +1,0 @@
-[submodule "cxx/3rd-party/cli"]
-	path = cxx/3rd-party/cli
-	url = https://github.com/daniele77/cli.git
-[submodule "cxx/3rd-party/yaml-cpp"]
-	path = cxx/3rd-party/yaml-cpp
-	url = https://github.com/jbeder/yaml-cpp.git
-[submodule "cxx/3rd-party/tabulate"]
-	path = cxx/3rd-party/tabulate
-	url = https://github.com/p-ranav/tabulate.git

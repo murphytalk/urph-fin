@@ -87,6 +87,7 @@ if(USE_MONGODB)
 endif()
 
 if(USE_YAHOO_FINANCE)
+    add_definitions(-DYAHOO_FINANCE)
     add_src_libs_ (mkt-data-src/yahoo-finance mkt_src)
 endif()
 
@@ -98,13 +99,13 @@ add_src_libs_ (src the_SRC)
 list(APPEND the_SRC ${cloud_src})
 list(APPEND the_SRC ${mkt_src})
 
-include(FetchContent)
 include(ExternalProject)
 
 ExternalProject_Add(
     curl-project
     URL https://curl.se/download/curl-7.88.1.tar.gz
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libcurl
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
     CMAKE_ARGS
         -DBUILD_SHARED_LIBS=OFF
         -DCURL_STATICLIB=ON
@@ -112,13 +113,6 @@ ExternalProject_Add(
         -DENABLE_IPV6=OFF
         -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
 )
-
-# Add libcurl as a target to link against
-#add_library(libcurl STATIC IMPORTED GLOBAL)
-#set_target_properties(libcurl PROPERTIES
-#    IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib/libcurl.a
-#    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include
-#)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl/include)
 # libcurl is defined by curl
@@ -149,6 +143,7 @@ target_include_directories (${lib_target}
   PUBLIC src
 )
 
+include(FetchContent)
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
