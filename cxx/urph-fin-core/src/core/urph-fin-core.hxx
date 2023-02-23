@@ -56,7 +56,6 @@ public:
         if(allocated_num() >= _max_counter){
             //resize
             int new_max = std::ceil(_max_counter * _ratio);
-            LOG_DEBUG("alloc", "resizing from " << _max_counter << " to " << new_max);
             auto* p = new T[new_max];
             memcpy(p, _head, sizeof(T) * _max_counter);
             
