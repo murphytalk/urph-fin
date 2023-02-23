@@ -75,11 +75,11 @@ if(USE_AWS)
     add_definitions(-DAWS)
     set(cloud_libs  ${AWSSDK_LINK_LIBRARIES} ${AWSSDK_PLATFORM_DEPS})
 
-    target_include_directories(${lib_target} PUBLIC 
+    target_include_directories(${lib_target} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
         ${AWSSDK_INCLUDE_DIR}/aws
-    )    
+    )
 endif()
 
 if(USE_MONGODB)
@@ -90,63 +90,47 @@ if(USE_YAHOO_FINANCE)
     add_src_libs_ (mkt-data-src/yahoo-finance mkt_src)
 endif()
 
+if(DUMMY_LOG)
+    add_definitions(-DDUMMY_LOG)
+endif()
+
 add_src_libs_ (src the_SRC)
 list(APPEND the_SRC ${cloud_src})
 list(APPEND the_SRC ${mkt_src})
 
 include(FetchContent)
-#FetchContent_Declare(
-#  curl
-#  URL https://curl.se/download/curl-7.88.1.tar.gz
-#  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+include(ExternalProject)
+
+ExternalProject_Add(
+    curl-project
+    URL https://curl.se/download/curl-7.88.1.tar.gz
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libcurl
+    CMAKE_ARGS
+        -DBUILD_SHARED_LIBS=OFF
+        -DCURL_STATICLIB=ON
+        -DHTTP_ONLY=ON
+        -DENABLE_IPV6=OFF
+        -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
+)
+
+# Add libcurl as a target to link against
+#add_library(libcurl STATIC IMPORTED GLOBAL)
+#set_target_properties(libcurl PROPERTIES
+#    IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib/libcurl.a
+#    INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include
 #)
-#
-#FetchContent_GetProperties(curl)
-#if(NOT curl_POPULATED)
-#  FetchContent_Populate(curl)
-#
-#  message("curl source is expanded under ${curl_SOURCE_DIR}")
-#
-#    # Build curl as a static library
-#    set(CURL_STATICLIB ON CACHE BOOL "")
-#    if (WIN32)
-#      # Enable Windows native SSL/TLS in libcurl.
-#      set(CMAKE_USE_SCHANNEL ON CACHE BOOL "")
-#    endif()
-#  
-#    # Current Curl library defaults to requiring some dependencies we don't need, disable them.
-#    set(CMAKE_USE_LIBSSH2 OFF)
-#    set(HTTP_ONLY ON)
-#    set(BUILD_TESTING OFF)
-#    set(ENABLE_IPV6 OFF)
-#    set(CURL_ENABLE_EXPORT_TARGET OFF)
-#    if(APPLE AND CMAKE_CROSSCOMPILING AND NOT CMAKE_TOOLCHAIN_FILE)
-#      # curl's CMake file checks for CMAKE_TOOLCHAIN_FILE rather than checking
-#      # CMAKE_CROSSCOMPILING when determining whether we are cross-compiling.
-#      # So if CMAKE_CROSSCOMPILING is set and we don't have a CMAKE_TOOLCHAIN_FILE,
-#      # just add a null one now so curl is happy. This only happens on Mac when
-#      # building for arm64/x86_64 on the opposite machine.
-#      set(CMAKE_TOOLCHAIN_FILE /dev/null)
-#    endif()
-#   
-#
-#  add_subdirectory(
-#    ${curl_SOURCE_DIR}
-#    ${curl_BINARY_DIR}
-#    EXCLUDE_FROM_ALL
-#  )
-#endif()
 
-find_package(CURL REQUIRED)
-set(extra_libs CURL::libcurl)
-
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl/include)
+# libcurl is defined by curl
+set(extra_libs curl)
 
 set(BUILD_SHARED_LIBS OFF)
-
 add_library (${lib_target} ${the_SRC})
+set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+add_dependencies(${lib_target} curl-project)
 
-# If the debug configuration pass the DEBUG define to the compiler 
+# If the debug configuration pass the DEBUG define to the compiler
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DDEBUG_BUILD)
 endif()
@@ -161,7 +145,7 @@ target_link_libraries(${lib_target} ${extra_libs} ${cloud_libs})
 
 
 # populate include to project that uses this target
-target_include_directories (${lib_target} 
+target_include_directories (${lib_target}
   PUBLIC src
 )
 
@@ -179,7 +163,7 @@ enable_testing()
 add_src_libs_ (test test_SRC)
 add_executable(
   test
-  ${test_SRC} 
+  ${test_SRC}
 )
 target_link_libraries(
   test
