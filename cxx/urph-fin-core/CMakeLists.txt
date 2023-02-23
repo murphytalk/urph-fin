@@ -101,7 +101,7 @@ if(USE_MONGODB)
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/include)
     find_library(
         mongoc_libs
-        NAMES bson-static-1.0.a mongoc-static-1.0
+        NAMES bson-static-1.0 mongoc-static-1.0
         PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
         NO_DEFAULT_PATH
     )
@@ -125,7 +125,7 @@ if(USE_MONGODB)
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/include)
     find_library(
         mongocxx_lib
-        NAMES mongocxx-static
+        NAMES bsoncxx-static mongocxx-static
         PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/lib64
         NO_DEFAULT_PATH
     )
