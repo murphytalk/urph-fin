@@ -1,5 +1,7 @@
 set(lib_target urph-fin-core)
 
+include(ExternalProject)
+
 if(USE_FIREBASE)
 	# flutter only supports shared FFI lib now
 	# it looks when building shared lib -fPIC is always being used, but the prebuilt firebase SDK is not built with -fPIC
@@ -83,6 +85,27 @@ if(USE_AWS)
 endif()
 
 if(USE_MONGODB)
+    ExternalProject_Add(
+        mongodb-c-driver
+        GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
+        GIT_TAG 1.23.2
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmongoc
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=Release
+            -DENABLE_STATIC=ON
+            -DENABLE_TESTS=OFF
+            -DENABLE_EXAMPLES=OFF
+            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install
+    )
+    include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/include)
+    find_library(
+        mongo_libs
+        NAMES bson-static-1.0.a mongoc-static-1.0
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
+    )
+    message("mongodb-c-driver libs ${mongo_libs}")
+    list(APPEND extra_libs ${mongo_libs})
+
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
 
@@ -99,7 +122,11 @@ add_src_libs_ (src the_SRC)
 list(APPEND the_SRC ${cloud_src})
 list(APPEND the_SRC ${mkt_src})
 
-include(ExternalProject)
+add_library (${lib_target} STATIC ${the_SRC})
+
+if(USE_MONGODB)
+    add_dependencies(${lib_target} mongodb-c-driver)
+endif()
 
 ExternalProject_Add(
     curl-project
@@ -115,11 +142,15 @@ ExternalProject_Add(
 )
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include)
-# libcurl is defined by curl
-set(extra_libs curl)
+
+find_library(
+    curl_lib
+    NAMES curl
+    PATHS ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib64
+)
+list(APPEND extra_libs ${curl_lib})
 
 set(BUILD_SHARED_LIBS OFF)
-add_library (${lib_target} ${the_SRC})
 set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_dependencies(${lib_target} curl-project)
