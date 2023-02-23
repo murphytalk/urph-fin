@@ -6,6 +6,8 @@
 #include <sstream>
 #include <curl/curl.h>
 
+namespace YahooFinance{
+
 Quote::Quote(std::string symbol) {
     this->symbol = symbol;
 }
@@ -36,8 +38,9 @@ Spot Quote::getSpot(std::time_t date) {
             return *it;
         }
     }
-    std::string error = "ERROR getSpot(date) - There is not spot at " + date;
-    throw std::invalid_argument(error);
+    std::stringstream ss;
+    ss << "ERROR getSpot(date) - There is not spot at " << date;
+    throw std::invalid_argument(ss.str());
 }
 
 Spot Quote::getSpot(std::string date) {
@@ -48,8 +51,9 @@ Spot Quote::getSpot(std::string date) {
             return *it;
         }
     }
-    std::string error = "ERROR getSpot(date) - There is not spot at " + date;
-    throw std::invalid_argument(error);
+    std::stringstream ss;
+    ss << "ERROR getSpot(date) - There is not spot at " << date;
+    throw std::invalid_argument(ss.str());
 }
 
 void Quote::printSpots() {
@@ -112,4 +116,6 @@ void Quote::getHistoricalSpots(const char *date1,
     std::time_t period2 = dateToEpoch(date2);
 
     this->getHistoricalSpots(period1, period2, interval);
+}
+
 }

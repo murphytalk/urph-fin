@@ -14,7 +14,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(cli)
 
-include(FetchContent)
 FetchContent_Declare(
   tabulate
   GIT_REPOSITORY https://github.com/p-ranav/tabulate.git

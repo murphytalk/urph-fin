@@ -5,6 +5,7 @@
 
 #include <vector>
 
+namespace YahooFinance{
 /**
  * @brief Quote class
  */
@@ -112,5 +113,5 @@ private:
      */
     std::vector<Spot> spots;
 };
-
+}
 #endif /* QUOTE_HPP */

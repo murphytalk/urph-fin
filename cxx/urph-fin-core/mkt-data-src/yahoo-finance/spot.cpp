@@ -4,6 +4,8 @@
 #include <iostream>
 #include <sstream>
 
+namespace YahooFinance{
+
 Spot::Spot(std::time_t date, double open, double high, double low, double close) {
     this->date = date;
     this->open = open;
@@ -82,4 +84,6 @@ std::string Spot::toString() {
 
 void Spot::printSpot() {
     std::cout << this->toString() << std::endl;
+}
+
 }

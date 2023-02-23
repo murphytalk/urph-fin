@@ -114,7 +114,7 @@ ExternalProject_Add(
         -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
 )
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include)
 # libcurl is defined by curl
 set(extra_libs curl)
 

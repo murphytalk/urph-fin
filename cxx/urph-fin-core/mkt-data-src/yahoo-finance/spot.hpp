@@ -4,6 +4,8 @@
 #include <ctime>
 #include <string>
 
+namespace YahooFinance{
+
 /**
  * @brief Spot class
  */
@@ -125,5 +127,5 @@ private:
     double close;
 
 };
-
+}
 #endif /* SPOT_HPP */
