@@ -98,20 +98,27 @@ if(USE_MONGODB)
             -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install
     )
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/include)
-    find_library(
-        mongo_libs
-        NAMES bson-static-1.0.a mongoc-static-1.0
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
-    )
-    message("mongodb-c-driver libs ${mongo_libs}")
-    list(APPEND extra_libs ${mongo_libs})
-
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
 
 if(USE_YAHOO_FINANCE)
     add_definitions(-DYAHOO_FINANCE)
     add_src_libs_ (mkt-data-src/yahoo-finance mkt_src)
+    ExternalProject_Add(
+        curl-project
+        URL https://curl.se/download/curl-7.88.1.tar.gz
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libcurl
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        CMAKE_ARGS
+            -DBUILD_SHARED_LIBS=OFF
+            -DCURL_STATICLIB=ON
+            -DHTTP_ONLY=ON
+            -DENABLE_IPV6=OFF
+            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
+    )
+
+    include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include)
+
 endif()
 
 if(DUMMY_LOG)
@@ -124,36 +131,31 @@ list(APPEND the_SRC ${mkt_src})
 
 add_library (${lib_target} STATIC ${the_SRC})
 
-if(USE_MONGODB)
-    add_dependencies(${lib_target} mongodb-c-driver)
-endif()
-
-ExternalProject_Add(
-    curl-project
-    URL https://curl.se/download/curl-7.88.1.tar.gz
-    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libcurl
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    CMAKE_ARGS
-        -DBUILD_SHARED_LIBS=OFF
-        -DCURL_STATICLIB=ON
-        -DHTTP_ONLY=ON
-        -DENABLE_IPV6=OFF
-        -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
-)
-
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include)
-
-find_library(
-    curl_lib
-    NAMES curl
-    PATHS ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib64
-)
-list(APPEND extra_libs ${curl_lib})
-
 set(BUILD_SHARED_LIBS OFF)
 set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-add_dependencies(${lib_target} curl-project)
+if(USE_MONGODB)
+    add_dependencies(${lib_target} mongodb-c-driver)
+    find_library(
+        mongo_libs
+        NAMES bson-static-1.0.a mongoc-static-1.0
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
+        NO_DEFAULT_PATH
+    )
+    message("mongodb-c-driver libs ${mongo_libs}")
+    list(APPEND cloud_libs ${mongo_libs})
+endif()
+
+if(USE_YAHOO_FINANCE)
+    add_dependencies(${lib_target} curl-project)
+    find_library(
+        curl_lib
+        NAMES curl
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib64
+        NO_DEFAULT_PATH
+    )
+    list(APPEND extra_libs ${curl_lib})
+endif()    
 
 # If the debug configuration pass the DEBUG define to the compiler
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
