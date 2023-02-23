@@ -95,9 +95,17 @@ if(USE_MONGODB)
             -DENABLE_STATIC=ON
             -DENABLE_TESTS=OFF
             -DENABLE_EXAMPLES=OFF
+            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
             -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install
     )
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/include)
+    find_library(
+        mongo_libs
+        NAMES bson-static-1.0.a mongoc-static-1.0
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
+        NO_DEFAULT_PATH
+    )
+
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
 
@@ -118,7 +126,12 @@ if(USE_YAHOO_FINANCE)
     )
 
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include)
-
+    find_library(
+        curl_lib
+        NAMES curl
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib64
+        NO_DEFAULT_PATH
+    )
 endif()
 
 if(DUMMY_LOG)
@@ -136,25 +149,12 @@ set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(USE_MONGODB)
     add_dependencies(${lib_target} mongodb-c-driver)
-    find_library(
-        mongo_libs
-        NAMES bson-static-1.0.a mongoc-static-1.0
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
-        NO_DEFAULT_PATH
-    )
-    message("mongodb-c-driver libs ${mongo_libs}")
-    list(APPEND cloud_libs ${mongo_libs})
+   list(APPEND cloud_libs ${mongo_libs})
 endif()
 
 if(USE_YAHOO_FINANCE)
-    add_dependencies(${lib_target} curl-project)
-    find_library(
-        curl_lib
-        NAMES curl
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib64
-        NO_DEFAULT_PATH
-    )
-    list(APPEND extra_libs ${curl_lib})
+   add_dependencies(${lib_target} curl-project)
+   list(APPEND extra_libs ${curl_lib})
 endif()    
 
 # If the debug configuration pass the DEBUG define to the compiler
@@ -166,9 +166,8 @@ message("cloud_src is ${cloud_src}")
 message("mkt_src is ${mkt_src}")
 
 message("lib_target is ${lib_target}")
-message("extra_libs is ${extra_libs}")
-message("cloud_libs is ${cloud_libs}")
-target_link_libraries(${lib_target} ${extra_libs} ${cloud_libs})
+## it is important to double reference extra_libs and cloud_libs, because the names they held depend on external project
+target_link_libraries(${lib_target} ${${extra_libs}} ${${cloud_libs}})
 
 
 # populate include to project that uses this target
