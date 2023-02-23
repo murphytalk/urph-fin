@@ -100,12 +100,37 @@ if(USE_MONGODB)
     )
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/include)
     find_library(
-        mongo_libs
+        mongoc_libs
         NAMES bson-static-1.0.a mongoc-static-1.0
         PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
         NO_DEFAULT_PATH
     )
 
+    ExternalProject_Add(
+        mongodb-cxx-driver
+        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
+        GIT_TAG r3.7.0
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmongocxx
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=Release
+            -DBUILD_SHARED_LIBS=OFF
+            -DENABLE_STATIC=ON
+            -DENABLE_TESTS=OFF
+            -DENABLE_EXAMPLES=OFF
+            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
+            # so Find_Package can find the mongo c drivers
+            -DCMAKE_PREFIX_PATH=${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install
+            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install
+    )
+    include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/include)
+    find_library(
+        mongocxx_lib
+        NAMES mongocxx-static
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/lib64
+        NO_DEFAULT_PATH
+    )
+
+    add_dependencies(mongodb-cxx-driver mongodb-c-driver)
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
 
@@ -148,8 +173,8 @@ set(BUILD_SHARED_LIBS OFF)
 set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(USE_MONGODB)
-    add_dependencies(${lib_target} mongodb-c-driver)
-   list(APPEND cloud_libs ${mongo_libs})
+   add_dependencies(${lib_target} mongodb-cxx-driver)
+   list(APPEND cloud_libs ${mongoc_libs} ${mongocxx_lib})
 endif()
 
 if(USE_YAHOO_FINANCE)
