@@ -1,4 +1,3 @@
-#include "utils.hxx"
 #define URPH_FIN_CLI
 
 #include <iostream>
@@ -16,6 +15,7 @@
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
+
 #include <core/urph-fin-core.hxx>
 #include <core/stock.hxx>
 
@@ -88,7 +88,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
     timestamp fx_date = 0L;
     for(auto const& stockWithTx: *port){
         auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
-        LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
+//        LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
         auto balance = tx_list->calc();
         if(balance.shares == 0) continue;
         ++row;
@@ -110,7 +110,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
             profit_sum_jpy += profit_jpy;
         }
         else{
-            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
+//            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
         }
         table.add_row({
             stockWithTx.instrument->symbol,

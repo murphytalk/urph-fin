@@ -2,7 +2,7 @@ find_package(Threads REQUIRED)
 find_package(Boost COMPONENTS date_time REQUIRED)
 INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})	
 
-add_src_libs_(src)
+add_src_libs_(src the_SRC)
 
 set(target urph-fin-cli)
 

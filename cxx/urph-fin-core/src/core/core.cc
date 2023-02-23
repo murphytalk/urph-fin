@@ -513,6 +513,7 @@ const char ASSET_TYPE_CASH  [] = "Cash";
 AllAssets::AllAssets(std::function<void()> onLoaded){
     notifyLoaded = onLoaded;
     quotes_by_symbol = nullptr;
+    load();
 }
 
 void AllAssets::load(){
@@ -722,7 +723,7 @@ static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
     if(assets != all_assets_by_handle.end()){
         return assets->second;
     }
-     else{
+    else{
         LOG_ERROR(core_log_tag, "Cannot find assets by handle " << asset_handle);
         return nullptr;
     }
@@ -846,10 +847,13 @@ void free_assets(AssetHandle handle)
     }
 }
 
-static char GROUP_ASSET [] = "Asset";
-static char GROUP_BROKER[] = "Broker";
-static char GROUP_CCY   [] = "Currency";
-static char* GROUPS[] = {GROUP_ASSET, GROUP_BROKER, GROUP_CCY};
+namespace{
+    char GROUP_ASSET [] = "Asset";
+    char GROUP_BROKER[] = "Broker";
+    char GROUP_CCY   [] = "Currency";
+    char *GROUPS[] = {GROUP_ASSET, GROUP_BROKER, GROUP_CCY};
+    char overview_tag[] = "overview";
+}
 
 struct LvlGroup
 {
@@ -885,6 +889,7 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
     auto lvl2 = LvlGroup(level2_group);
     auto lvl3 = LvlGroup(level3_group);
 
+    LOG_DEBUG(overview_tag, "lvl1=" << lvl1.group_name << ",lvl2="<<lvl2.group_name<<",lvl3="<<lvl3.group_name);
 
     double lvl1_sum = 0.0, lvl1_sum_profit = 0.0;
     const auto& lvl1_grp = group_by(assets->items.begin(),assets->items.end(), lvl1);
@@ -893,11 +898,14 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
         const auto& l1_name = l1.first;
         auto& lvl2_grp = l1.second;
 
+        LOG_DEBUG(overview_tag, "Level 1 " << l1_name);
+
         PlacementNew<overview_item_container> container_alloc(lvl2_grp.size());
 
         double lvl2_sum = 0.0, lvl2_sum_profit = 0.0;
         for(auto& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
             const auto& l2_name = l2.first;
+            LOG_DEBUG(overview_tag, "Level 2 " << l2_name);
             PlacementNew<overview_item> item_alloc(l2.second.size());
             double sum = 0.0, sum_profit = 0.0;
             for(auto&& l3: l2.second){

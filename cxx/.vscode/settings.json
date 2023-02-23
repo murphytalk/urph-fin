@@ -101,7 +101,8 @@
         "cfenv": "cpp",
         "valarray": "cpp",
         "__verbose_abort": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "__availability": "cpp"
     },
     "cSpell.words": [
         "Firestore",

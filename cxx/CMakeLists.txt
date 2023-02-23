@@ -20,6 +20,8 @@ set(project_root ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(CMake/internal_utils.cmake)
 
+set(USE_MONGODB ON)
+set(USE_YAHOO_FINANCE ON)
 
 add_subdirectory (urph-fin-core)
 add_subdirectory (cli)

@@ -28,8 +28,29 @@ if(USE_FIREBASE)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../3rd-party/yaml-cpp yaml-bin/ EXCLUDE_FROM_ALL)
 
     add_compile_definitions(USE_FIREBASE)
-    set(cloud_src "cloud_src/firestore.cc")
-else()
+    set(cloud_src "cloud-src/firestore.cc")
+
+    set(cloud_libs firebase_auth firebase_firestore firebase_app)
+    if(APPLE)
+        set(extra_libs
+          gssapi_krb5
+          pthread
+          "-framework CoreFoundation"
+          "-framework Foundation"
+          "-framework GSS"
+          "-framework Security"
+          "-framework SystemConfiguration"
+    )
+    elseif(MSVC)
+        set(extra_libs advapi32 ws2_32 crypt32 iphlpapi psapi userenv)
+    #else()
+    #    set(ADDITIONAL_LIBS pthread)
+    endif()
+    list(APPEND extra_libs yaml-cpp)
+    set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
+
+if(USE_AWS)
     # use AWS
 	if (NOT "$ENV{AWS_CPP_SDK_DIR}" STREQUAL "")
 	  set(AWS_CPP_SDK_DIR "$ENV{AWS_CPP_SDK_DIR}")
@@ -50,37 +71,8 @@ else()
 
     find_package(AWSSDK REQUIRED COMPONENTS ${SERVICE_COMPONENTS})
 
-    set(cloud_src "cloud_src/dynamodb.cc")
-endif()
-
-add_src_libs_ (src the_SRC)
-list(APPEND the_SRC ${cloud_src})
-
-
-
-set(BUILD_SHARED_LIBS OFF)
-add_library (${lib_target} ${the_SRC})
-
-if(USE_FIREBASE)
-    set(cloud_libs firebase_auth firebase_firestore firebase_app)
-    if(APPLE)
-        set(extra_libs
-          gssapi_krb5
-          pthread
-          "-framework CoreFoundation"
-          "-framework Foundation"
-          "-framework GSS"
-          "-framework Security"
-          "-framework SystemConfiguration"
-    )
-    elseif(MSVC)
-        set(extra_libs advapi32 ws2_32 crypt32 iphlpapi psapi userenv)
-    #else()
-    #    set(ADDITIONAL_LIBS pthread)
-    endif()
-    list(APPEND extra_libs yaml-cpp)
-    set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
-else()
+    set(cloud_src "cloud-src/dynamodb.cc")
+    add_definitions(-DAWS)
     set(cloud_libs  ${AWSSDK_LINK_LIBRARIES} ${AWSSDK_PLATFORM_DEPS})
 
     target_include_directories(${lib_target} PUBLIC 
@@ -90,11 +82,81 @@ else()
     )    
 endif()
 
+if(USE_MONGODB)
+    set(cloud_src "cloud-src/mongodb.cc")
+endif()
+
+if(USE_YAHOO_FINANCE)
+    add_src_libs_ (mkt-data-src/yahoo-finance mkt_src)
+endif()
+
+add_src_libs_ (src the_SRC)
+list(APPEND the_SRC ${cloud_src})
+list(APPEND the_SRC ${mkt_src})
+
+include(FetchContent)
+#FetchContent_Declare(
+#  curl
+#  URL https://curl.se/download/curl-7.88.1.tar.gz
+#  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+#)
+#
+#FetchContent_GetProperties(curl)
+#if(NOT curl_POPULATED)
+#  FetchContent_Populate(curl)
+#
+#  message("curl source is expanded under ${curl_SOURCE_DIR}")
+#
+#    # Build curl as a static library
+#    set(CURL_STATICLIB ON CACHE BOOL "")
+#    if (WIN32)
+#      # Enable Windows native SSL/TLS in libcurl.
+#      set(CMAKE_USE_SCHANNEL ON CACHE BOOL "")
+#    endif()
+#  
+#    # Current Curl library defaults to requiring some dependencies we don't need, disable them.
+#    set(CMAKE_USE_LIBSSH2 OFF)
+#    set(HTTP_ONLY ON)
+#    set(BUILD_TESTING OFF)
+#    set(ENABLE_IPV6 OFF)
+#    set(CURL_ENABLE_EXPORT_TARGET OFF)
+#    if(APPLE AND CMAKE_CROSSCOMPILING AND NOT CMAKE_TOOLCHAIN_FILE)
+#      # curl's CMake file checks for CMAKE_TOOLCHAIN_FILE rather than checking
+#      # CMAKE_CROSSCOMPILING when determining whether we are cross-compiling.
+#      # So if CMAKE_CROSSCOMPILING is set and we don't have a CMAKE_TOOLCHAIN_FILE,
+#      # just add a null one now so curl is happy. This only happens on Mac when
+#      # building for arm64/x86_64 on the opposite machine.
+#      set(CMAKE_TOOLCHAIN_FILE /dev/null)
+#    endif()
+#   
+#
+#  add_subdirectory(
+#    ${curl_SOURCE_DIR}
+#    ${curl_BINARY_DIR}
+#    EXCLUDE_FROM_ALL
+#  )
+#endif()
+
+find_package(CURL REQUIRED)
+set(extra_libs CURL::libcurl)
+
+
+set(BUILD_SHARED_LIBS OFF)
+
+add_library (${lib_target} ${the_SRC})
+
+
 # If the debug configuration pass the DEBUG define to the compiler 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DDEBUG_BUILD)
 endif()
 
+message("cloud_src is ${cloud_src}")
+message("mkt_src is ${mkt_src}")
+
+message("lib_target is ${lib_target}")
+message("extra_libs is ${extra_libs}")
+message("cloud_libs is ${cloud_libs}")
 target_link_libraries(${lib_target} ${extra_libs} ${cloud_libs})
 
 
@@ -103,7 +165,6 @@ target_include_directories (${lib_target}
   PUBLIC src
 )
 
-include(FetchContent)
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
@@ -115,10 +176,10 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
-add_src_libs_ (test)
+add_src_libs_ (test test_SRC)
 add_executable(
   test
-  ${the_SRC} 
+  ${test_SRC} 
 )
 target_link_libraries(
   test
