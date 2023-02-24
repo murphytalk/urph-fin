@@ -12,7 +12,25 @@
 #include <iostream>
 #include <vector>
 
-#include <mongoc/mongoc.h>
+#include <cstdint>
+#include <iostream>
+#include <vector>
+#include <bsoncxx/json.hpp>
+#include <mongocxx/client.hpp>
+#include <mongocxx/stdx.hpp>
+#include <mongocxx/uri.hpp>
+#include <mongocxx/instance.hpp>
+#include <bsoncxx/builder/stream/helpers.hpp>
+#include <bsoncxx/builder/stream/document.hpp>
+#include <bsoncxx/builder/stream/array.hpp>
+
+
+using bsoncxx::builder::stream::close_array;
+using bsoncxx::builder::stream::close_document;
+using bsoncxx::builder::stream::document;
+using bsoncxx::builder::stream::finalize;
+using bsoncxx::builder::stream::open_array;
+using bsoncxx::builder::stream::open_document;
 
 namespace{
     const char DB_NAME[] = "urph-fin";
@@ -28,10 +46,8 @@ class MongoDbDao
 {
 public:
     MongoDbDao(OnDone onInitDone){
-        mongoc_init ();
     }
     ~MongoDbDao(){
-        mongoc_cleanup ();
     }
     typedef int BrokerType;
     void get_broker_by_name(const char *, std::function<void(const BrokerType&)> onBrokerData) {}
@@ -52,5 +68,6 @@ public:
 
 
 IDataStorage *create_cloud_instance(OnDone onInitDone) { 
+    mongocxx::instance instance{};
     return new Storage<MongoDbDao>(onInitDone); 
 }

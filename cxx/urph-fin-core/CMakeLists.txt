@@ -111,6 +111,8 @@ if(USE_MONGODB)
    
 
     include(FetchContent)
+
+    option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
     FetchContent_Declare(    
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
@@ -124,30 +126,19 @@ if(USE_MONGODB)
     )
     FetchContent_MakeAvailable(mongodb-c-driver)
 
-#    set(mongo_cxx_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install)
-#    ExternalProject_Add(
-#        mongodb-cxx-driver
-#        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
-#        GIT_TAG r3.7.0
-#        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmongocxx
-#        CMAKE_ARGS
-#            -DCMAKE_BUILD_TYPE=Release
-#            -DBUILD_SHARED_LIBS=OFF
-#            -DENABLE_STATIC=ON
-#            -DENABLE_TESTS=OFF
-#            -DENABLE_EXAMPLES=OFF
-#            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
-#            # so Find_Package can find the mongo c drivers
-#            -DCMAKE_PREFIX_PATH=${mongo_c_install_dir}
-#            -DCMAKE_INSTALL_PREFIX=${mongo_cxx_install_dir}
-#    )
-#    include_directories(${mongo_cxx_install_dir}/include/bsoncxx/v_noabi ${mongo_cxx_install_dir}/include/mongocxx/v_noabi)
-#    find_library(
-#        mongocxx_lib
-#        NAMES bsoncxx-static mongocxx-static
-#        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/lib64
-#        NO_DEFAULT_PATH
-#    )
+    FetchContent_Declare(    
+        mongodb-cxx-driver
+        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
+        GIT_TAG r3.7.0
+        CMAKE_ARGS
+            -DCMAKE_BUILD_TYPE=Release
+            -DBUILD_SHARED_LIBS=OFF
+            -DENABLE_STATIC=ON
+            -DENABLE_TESTS=OFF
+            -DENABLE_EXAMPLES=OFF
+            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
+    )
+    FetchContent_MakeAvailable(mongodb-cxx-driver)
 
     add_definitions(-DUSE_MONGODB)
     set(cloud_src "cloud-src/mongodb.cc")
@@ -206,7 +197,8 @@ message("mkt_src is ${mkt_src}")
 message("cloud_libs is ${cloud_libs}")
 message("lib_target is ${lib_target}")
 
-target_link_libraries(${lib_target} PRIVATE mongoc_static)
+
+target_link_libraries(${lib_target} PRIVATE mongocxx_static bsoncxx_static)
 
 # populate include to project that uses this target
 target_include_directories (${lib_target}
