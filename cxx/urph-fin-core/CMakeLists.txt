@@ -110,33 +110,19 @@ if(USE_MONGODB)
     endforeach()
    
 
-    set(mongo_c_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install)
-    ExternalProject_Add(
+    include(FetchContent)
+    FetchContent_Declare(    
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
         GIT_TAG 1.23.2
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmongoc
         CMAKE_ARGS
             -DCMAKE_BUILD_TYPE=Release
             -DENABLE_STATIC=ON
             -DENABLE_TESTS=OFF
             -DENABLE_EXAMPLES=OFF
             -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
-            -DCMAKE_INSTALL_PREFIX=${mongo_c_install_dir}
     )
-    #include_directories(${mongo_c_install_dir}/include/libbson-1.0 ${mongo_c_install_dir}/include/libmongoc-1.0)
-    find_library(
-        bsonc_lib
-        NAMES bson-static-1.0
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
-        NO_DEFAULT_PATH
-    )
-    find_library(
-        mongoc_lib
-        NAMES  mongoc-static-1.0
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
-        NO_DEFAULT_PATH
-    )
+    FetchContent_MakeAvailable(mongodb-c-driver)
 
 #    set(mongo_cxx_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install)
 #    ExternalProject_Add(
@@ -164,7 +150,6 @@ if(USE_MONGODB)
 #    )
 
     add_definitions(-DUSE_MONGODB)
-#    add_dependencies(mongodb-cxx-driver mongodb-c-driver)
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
 
@@ -206,19 +191,6 @@ add_library (${lib_target} STATIC ${the_SRC})
 set(BUILD_SHARED_LIBS OFF)
 set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(USE_MONGODB)
-   add_dependencies(${lib_target} mongodb-c-driver)
-   find_package (libmongoc-static-1.0 1.7 REQUIRED PATHS ${mongo_c_install_dir} NO_DEFAULT_PATH)
-   #find_package (mongo::mongoc_static REQUIRED PATHS ${mongo_c_install_dir} NO_DEFAULT_PATH)
-   message ("--   mongoc found version \"${MONGOC_STATIC_VERSION}\"")
-   message ("--   mongoc include path \"${MONGOC_STATIC_INCLUDE_DIRS}\"")
-   message ("--   mongoc libraries \"${MONGOC_STATIC_LIBRARIES}\"")
-
-   list(APPEND cloud_libs ${MONGOC_STATIC_LIBRARIES})
-   #target_include_directories (${lib_target} PRIVATE "${MONGOC_INCLUDE_DIRS}")
-   include_directories("${MONGOC_STATIC_INCLUDE_DIRS}")
-endif()
-
 if(USE_YAHOO_FINANCE)
    add_dependencies(${lib_target} curl-project)
    list(APPEND extra_libs ${curl_lib})
@@ -234,19 +206,13 @@ message("mkt_src is ${mkt_src}")
 message("cloud_libs is ${cloud_libs}")
 message("lib_target is ${lib_target}")
 
-
-
-
-## it is important to double reference extra_libs and cloud_libs, because the names they held depend on external project
-target_link_libraries(${lib_target} PRIVATE ${${extra_libs}} ${cloud_libs})
-#target_link_libraries(${lib_target} PRIVATE mongo::mongoc_static)
+target_link_libraries(${lib_target} PRIVATE mongoc_static)
 
 # populate include to project that uses this target
 target_include_directories (${lib_target}
   PUBLIC src
 )
 
-include(FetchContent)
 FetchContent_Declare(
   googletest
   URL https://github.com/google/googletest/archive/609281088cfefc76f9d0ce82e1ff6c30cc3591e5.zip
