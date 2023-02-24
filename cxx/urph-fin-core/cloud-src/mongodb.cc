@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include <memory>
 
 #include <cstdint>
 #include <iostream>
@@ -19,6 +20,7 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/stdx.hpp>
 #include <mongocxx/uri.hpp>
+#include <mongocxx/exception/exception.hpp>
 #include <mongocxx/instance.hpp>
 #include <bsoncxx/builder/stream/helpers.hpp>
 #include <bsoncxx/builder/stream/document.hpp>
@@ -44,8 +46,18 @@ namespace{
 
 class MongoDbDao
 {
+    std::unique_ptr<mongocxx::client> client;
 public:
     MongoDbDao(OnDone onInitDone){
+        std::cout<<"connecting to " << mongodb_conn_str <<std::endl;
+        try{
+            client = std::make_unique<mongocxx::client>(mongocxx::uri(mongodb_conn_str));
+            std::cout<<"client status " << (bool)*client<<std::endl;
+        }
+        catch(mongocxx::exception& ex){
+            std::cout << ex.what() << std::endl;
+        }
+        onInitDone(nullptr);
     }
     ~MongoDbDao(){
     }

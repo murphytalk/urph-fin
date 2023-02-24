@@ -117,10 +117,10 @@ if(USE_MONGODB)
     set(ENABLE_TESTS OFF)
     set(ENABLE_EXAMPLES OFF)
     set(MONGOC_ENABLE_MONGODB_AWS_AUTH OFF)
-    set(ENABLE_SSL OFF)
+    set(ENABLE_SSL OPENSSL)
     set(ENABLE_ZLIB BUNDLED)
     set(ENABLE_ZSTD OFF)
-    set(MONGOCXX_ENABLE_SSL OFF)
+    set(MONGOCXX_ENABLE_SSL ON)
 
     FetchContent_Declare(    
         mongodb-c-driver
