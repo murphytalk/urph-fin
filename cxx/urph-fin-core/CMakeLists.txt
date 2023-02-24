@@ -85,6 +85,32 @@ if(USE_AWS)
 endif()
 
 if(USE_MONGODB)
+    set(DB_NAME "atlas")
+
+    # read conn str and generate the code
+    set(finance_yaml_file "$ENV{HOME}/.finance-credentials/finance-scraper.yaml")
+    if(NOT EXISTS ${finance_yaml_file})
+        message(FATAL_ERROR "${finance_yaml_file}does not exist")
+    endif()
+    file(READ ${finance_yaml_file} FILE_CONTENTS)
+    # replace newline with ; so it is treated by CMake as list
+    string(REPLACE "\n" ";" TEXT_LINES "${FILE_CONTENTS}")
+    foreach(_line ${TEXT_LINES})
+        string(FIND ${_line} ${DB_NAME} IDX)
+        if(${IDX} GREATER -1)
+            string(REGEX REPLACE "${DB_NAME}: *(.*)" "\\1" TARGET_DATA "${_line}")
+            string(STRIP "${TARGET_DATA}" TARGET_DATA)
+            message("Found ${DB_NAME} conn str: ${TARGET_DATA}")
+
+            set(conn_str_src ${CMAKE_CURRENT_BINARY_DIR}/mongodb_${DB_NAME}.cc)
+            message("Generated coode ${conn_str_src}")
+            file(WRITE ${conn_str_src} "const char mongodb_conn_str [] = \"${TARGET_DATA}\";\n")
+            list(APPEND the_SRC ${conn_str_src})
+            break()
+        endif()
+    endforeach()
+   
+
     ExternalProject_Add(
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
@@ -130,6 +156,7 @@ if(USE_MONGODB)
         NO_DEFAULT_PATH
     )
 
+    add_definitions(-DUSE_MONGODB)
     add_dependencies(mongodb-cxx-driver mongodb-c-driver)
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
