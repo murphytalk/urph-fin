@@ -46,3 +46,7 @@ geckodriver.log
 compile_commands.json
 .clangd/
 *.log
+
+#generated codes
+generated-code/
+

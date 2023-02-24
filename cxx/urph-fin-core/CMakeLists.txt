@@ -102,15 +102,15 @@ if(USE_MONGODB)
             string(STRIP "${TARGET_DATA}" TARGET_DATA)
             message("Found ${DB_NAME} conn str: ${TARGET_DATA}")
 
-            set(conn_str_src ${CMAKE_CURRENT_BINARY_DIR}/mongodb_${DB_NAME}.cc)
+            set(conn_str_src ${CMAKE_CURRENT_LIST_DIR}/generated-code/mongodb.cc)
             message("Generated coode ${conn_str_src}")
             file(WRITE ${conn_str_src} "const char mongodb_conn_str [] = \"${TARGET_DATA}\";\n")
-            list(APPEND the_SRC ${conn_str_src})
             break()
         endif()
     endforeach()
    
 
+    set(mongo_c_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install)
     ExternalProject_Add(
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
@@ -122,9 +122,9 @@ if(USE_MONGODB)
             -DENABLE_TESTS=OFF
             -DENABLE_EXAMPLES=OFF
             -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
-            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install
+            -DCMAKE_INSTALL_PREFIX=${mongo_c_install_dir}
     )
-    include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/include)
+    include_directories(${mongo_c_install_dir}/include/libbson-1.0 ${mongo_c_install_dir}/include/libmongc-1.0)
     find_library(
         mongoc_libs
         NAMES bson-static-1.0 mongoc-static-1.0
@@ -132,6 +132,7 @@ if(USE_MONGODB)
         NO_DEFAULT_PATH
     )
 
+    set(mongo_cxx_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install)
     ExternalProject_Add(
         mongodb-cxx-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
@@ -145,10 +146,10 @@ if(USE_MONGODB)
             -DENABLE_EXAMPLES=OFF
             -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
             # so Find_Package can find the mongo c drivers
-            -DCMAKE_PREFIX_PATH=${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install
-            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install
+            -DCMAKE_PREFIX_PATH=${mongo_c_install_dir}
+            -DCMAKE_INSTALL_PREFIX=${mongo_cxx_install_dir}
     )
-    include_directories(${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/include)
+    include_directories(${mongo_cxx_install_dir}/include/bsoncxx/v_noabi ${mongo_cxx_install_dir}/include/mongocxx/v_noabi)
     find_library(
         mongocxx_lib
         NAMES bsoncxx-static mongocxx-static
