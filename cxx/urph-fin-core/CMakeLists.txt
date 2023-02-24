@@ -113,16 +113,19 @@ if(USE_MONGODB)
     include(FetchContent)
 
     option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+    set(ENABLE_STATIC ON)
+    set(ENABLE_TESTS OFF)
+    set(ENABLE_EXAMPLES OFF)
+    set(MONGOC_ENABLE_MONGODB_AWS_AUTH OFF)
+    set(ENABLE_SSL OFF)
+    set(ENABLE_ZLIB BUNDLED)
+    set(ENABLE_ZSTD OFF)
+    set(MONGOCXX_ENABLE_SSL OFF)
+
     FetchContent_Declare(    
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
         GIT_TAG 1.23.2
-        CMAKE_ARGS
-            -DCMAKE_BUILD_TYPE=Release
-            -DENABLE_STATIC=ON
-            -DENABLE_TESTS=OFF
-            -DENABLE_EXAMPLES=OFF
-            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
     )
     FetchContent_MakeAvailable(mongodb-c-driver)
 
@@ -130,13 +133,6 @@ if(USE_MONGODB)
         mongodb-cxx-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
         GIT_TAG r3.7.0
-        CMAKE_ARGS
-            -DCMAKE_BUILD_TYPE=Release
-            -DBUILD_SHARED_LIBS=OFF
-            -DENABLE_STATIC=ON
-            -DENABLE_TESTS=OFF
-            -DENABLE_EXAMPLES=OFF
-            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
     )
     FetchContent_MakeAvailable(mongodb-cxx-driver)
 
