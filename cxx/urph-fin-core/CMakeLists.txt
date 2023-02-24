@@ -124,41 +124,47 @@ if(USE_MONGODB)
             -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
             -DCMAKE_INSTALL_PREFIX=${mongo_c_install_dir}
     )
-    include_directories(${mongo_c_install_dir}/include/libbson-1.0 ${mongo_c_install_dir}/include/libmongc-1.0)
+    #include_directories(${mongo_c_install_dir}/include/libbson-1.0 ${mongo_c_install_dir}/include/libmongoc-1.0)
     find_library(
-        mongoc_libs
-        NAMES bson-static-1.0 mongoc-static-1.0
+        bsonc_lib
+        NAMES bson-static-1.0
+        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
+        NO_DEFAULT_PATH
+    )
+    find_library(
+        mongoc_lib
+        NAMES  mongoc-static-1.0
         PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-c-driver-install/lib64
         NO_DEFAULT_PATH
     )
 
-    set(mongo_cxx_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install)
-    ExternalProject_Add(
-        mongodb-cxx-driver
-        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
-        GIT_TAG r3.7.0
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmongocxx
-        CMAKE_ARGS
-            -DCMAKE_BUILD_TYPE=Release
-            -DBUILD_SHARED_LIBS=OFF
-            -DENABLE_STATIC=ON
-            -DENABLE_TESTS=OFF
-            -DENABLE_EXAMPLES=OFF
-            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
-            # so Find_Package can find the mongo c drivers
-            -DCMAKE_PREFIX_PATH=${mongo_c_install_dir}
-            -DCMAKE_INSTALL_PREFIX=${mongo_cxx_install_dir}
-    )
-    include_directories(${mongo_cxx_install_dir}/include/bsoncxx/v_noabi ${mongo_cxx_install_dir}/include/mongocxx/v_noabi)
-    find_library(
-        mongocxx_lib
-        NAMES bsoncxx-static mongocxx-static
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/lib64
-        NO_DEFAULT_PATH
-    )
+#    set(mongo_cxx_install_dir ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install)
+#    ExternalProject_Add(
+#        mongodb-cxx-driver
+#        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
+#        GIT_TAG r3.7.0
+#        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libmongocxx
+#        CMAKE_ARGS
+#            -DCMAKE_BUILD_TYPE=Release
+#            -DBUILD_SHARED_LIBS=OFF
+#            -DENABLE_STATIC=ON
+#            -DENABLE_TESTS=OFF
+#            -DENABLE_EXAMPLES=OFF
+#            -DENABLE_AUTOMATIC_INIT_AND_CLEANUP=OFF
+#            # so Find_Package can find the mongo c drivers
+#            -DCMAKE_PREFIX_PATH=${mongo_c_install_dir}
+#            -DCMAKE_INSTALL_PREFIX=${mongo_cxx_install_dir}
+#    )
+#    include_directories(${mongo_cxx_install_dir}/include/bsoncxx/v_noabi ${mongo_cxx_install_dir}/include/mongocxx/v_noabi)
+#    find_library(
+#        mongocxx_lib
+#        NAMES bsoncxx-static mongocxx-static
+#        PATHS ${CMAKE_CURRENT_BINARY_DIR}/mongo-cxx-driver-install/lib64
+#        NO_DEFAULT_PATH
+#    )
 
     add_definitions(-DUSE_MONGODB)
-    add_dependencies(mongodb-cxx-driver mongodb-c-driver)
+#    add_dependencies(mongodb-cxx-driver mongodb-c-driver)
     set(cloud_src "cloud-src/mongodb.cc")
 endif()
 
@@ -201,8 +207,16 @@ set(BUILD_SHARED_LIBS OFF)
 set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 if(USE_MONGODB)
-   add_dependencies(${lib_target} mongodb-cxx-driver)
-   list(APPEND cloud_libs ${mongoc_libs} ${mongocxx_lib})
+   add_dependencies(${lib_target} mongodb-c-driver)
+   find_package (libmongoc-static-1.0 1.7 REQUIRED PATHS ${mongo_c_install_dir} NO_DEFAULT_PATH)
+   #find_package (mongo::mongoc_static REQUIRED PATHS ${mongo_c_install_dir} NO_DEFAULT_PATH)
+   message ("--   mongoc found version \"${MONGOC_STATIC_VERSION}\"")
+   message ("--   mongoc include path \"${MONGOC_STATIC_INCLUDE_DIRS}\"")
+   message ("--   mongoc libraries \"${MONGOC_STATIC_LIBRARIES}\"")
+
+   list(APPEND cloud_libs ${MONGOC_STATIC_LIBRARIES})
+   #target_include_directories (${lib_target} PRIVATE "${MONGOC_INCLUDE_DIRS}")
+   include_directories("${MONGOC_STATIC_INCLUDE_DIRS}")
 endif()
 
 if(USE_YAHOO_FINANCE)
@@ -217,11 +231,15 @@ endif()
 
 message("cloud_src is ${cloud_src}")
 message("mkt_src is ${mkt_src}")
-
+message("cloud_libs is ${cloud_libs}")
 message("lib_target is ${lib_target}")
-## it is important to double reference extra_libs and cloud_libs, because the names they held depend on external project
-target_link_libraries(${lib_target} ${${extra_libs}} ${${cloud_libs}})
 
+
+
+
+## it is important to double reference extra_libs and cloud_libs, because the names they held depend on external project
+target_link_libraries(${lib_target} PRIVATE ${${extra_libs}} ${cloud_libs})
+#target_link_libraries(${lib_target} PRIVATE mongo::mongoc_static)
 
 # populate include to project that uses this target
 target_include_directories (${lib_target}
@@ -248,7 +266,7 @@ add_executable(
 target_link_libraries(
   test
   gtest_main
-  urph-fin-core
+  ${lib_target}
 )
 
 include(GoogleTest)
