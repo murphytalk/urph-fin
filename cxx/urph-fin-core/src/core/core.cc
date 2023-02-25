@@ -27,15 +27,25 @@ namespace{
     const char core_log_tag[] = "urph-fin-core";
 }
 // dont forget to free
-char* copy_str(const std::string& str)
+char* copy_str(const char* str, int size)
 {
-    auto* p = new char[str.size() + 1];
-    strncpy(p, str.c_str(), str.size());
-    p[str.size()] = 0;
+    auto* p = new char[size + 1];
+    strncpy(p, str, size);
+    p[size] = 0;
     return p;
 }
 
-CashBalance::CashBalance(const std::string& n, float v)
+inline char* copy_str(const std::string_view& str)
+{
+    return copy_str(str.data(), str.size());
+}
+
+inline char* copy_str(const std::string& str)
+{
+    return copy_str(str.c_str(), str.size());
+}
+
+CashBalance::CashBalance(const std::string_view& n, float v)
 {
     ccy = copy_str(n);
     balance = v;
@@ -54,7 +64,7 @@ Strings::Strings(int n)
     last_str = strs;
 }
 //todo: move
-void Strings::add(const std::string& i)
+void Strings::add(const std::string_view& i)
 {
     if(size() == capacity){
         std::stringstream ss;
@@ -94,7 +104,7 @@ void free_strings(strings* ss)
     delete static_cast<Strings*>(ss);
 }
 
-Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
+Broker::Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
     LDEBUG(core_log_tag, "broker constructor");
     name = copy_str(n);

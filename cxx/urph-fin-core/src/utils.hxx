@@ -28,8 +28,7 @@
 
 #endif
 
-
-
 #define NULL_STR(x) (x == nullptr ? "" : x)
+
 
 #endif

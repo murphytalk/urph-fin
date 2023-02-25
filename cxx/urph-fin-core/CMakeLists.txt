@@ -190,6 +190,7 @@ endif()
 
 message("cloud_src is ${cloud_src}")
 message("mkt_src is ${mkt_src}")
+message("extra_libs is ${extra_libs}")
 message("cloud_libs is ${cloud_libs}")
 message("lib_target is ${lib_target}")
 

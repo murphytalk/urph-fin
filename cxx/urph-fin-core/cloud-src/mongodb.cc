@@ -48,6 +48,9 @@ namespace{
 class MongoDbDao
 {
     std::unique_ptr<mongocxx::client> client;
+    #define DB client->database(DB_NAME)
+    #define BROKER_COLLECTION DB[BROKER]
+    #define INSTRUMENT_COLLECTION DB[INSTRUMENT]
 public:
     MongoDbDao(OnDone onInitDone){
         LINFO(tag, "connecting to " << mongodb_conn_str);
@@ -60,13 +63,70 @@ public:
         }
         onInitDone(nullptr);
     }
-    ~MongoDbDao(){
+    typedef bsoncxx::document::view BrokerType;
+    void get_broker_by_name(const char *broker, std::function<void(const BrokerType&)> onBrokerData) {
+        const auto b = BROKER_COLLECTION.find_one( document{} << "name" << broker << finalize );
+        if(b){
+            onBrokerData(*b);
+        }
     }
-    typedef int BrokerType;
-    void get_broker_by_name(const char *, std::function<void(const BrokerType&)> onBrokerData) {}
-    std::string get_broker_name(const BrokerType&) { return std::string("");}
-    void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){}
-    void get_brokers(std::function<void(AllBrokerBuilder<MongoDbDao, BrokerType>*)>){}
+    std::string_view get_broker_name(const BrokerType& broker) { 
+        return broker["name"].get_string().value;
+    }
+    void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){
+        const auto &name = get_broker_name(broker_query_result);
+        LDEBUG(tag, "Broker " << name);
+
+        const auto& cashObj = broker_query_result["cash"].get_document().view();
+
+        auto addCash = [&cashObj](BrokerBuilder &b)
+        {
+            for (const auto &c : cashObj)
+            {
+                double balance = c.get_value().get_double();
+                LDEBUG(tag, "  " << c.key() << " " << balance );
+                b.add_cash_balance(c.key(), balance);
+            }
+        };
+
+        auto onlyAddCash = [&cashObj, &addCash]()
+        {
+            auto b = BrokerBuilder(cashObj.length(), 0);
+            addCash(b);
+        };
+
+        auto funds_update_date_element = broker_query_result["funds_update_date"];
+        if(funds_update_date_element){
+            const auto& funds_update_date = funds_update_date_element.get_value().get_string().value;
+            LDEBUG(tag, " last funds update date: " << funds_update_date );
+            
+            const auto& funds = broker_query_result["active_funds"].get_document().view()[funds_update_date].get_array().value;
+
+            auto b = BrokerBuilder(cashObj.length(), funds.length());
+            b.set_fund_update_date(funds_update_date);
+            addCash(b);
+
+            if(funds.length() == 0){
+                onlyAddCash();
+            }
+            else{
+                for (const auto &f : funds)
+                {
+                    b.add_active_fund(f.get_string());
+                }
+            }
+            onBrokerBuilder(b);
+         }
+    }
+    void get_brokers(std::function<void(AllBrokerBuilder<MongoDbDao, BrokerType>*)> onAllBrokersBuilder){
+        auto *all = new AllBrokerBuilder<MongoDbDao, BrokerType>(5 /*init value, will get increased automatically*/);
+        auto cursor = BROKER_COLLECTION.find({});
+        for(const auto broker: cursor){
+            LDEBUG(tag, "adding broker");
+            all->add_broker(this, broker);
+        }
+        onAllBrokersBuilder(all);
+    }
     void get_funds(FundsBuilder *, int, char* ,const char **) {}
     void get_known_stocks(OnStrings, void *ctx) {}
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}

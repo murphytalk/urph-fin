@@ -23,6 +23,7 @@ Config load_cfg();
 #endif
 
 char* copy_str(const std::string& str);
+char* copy_str(const std::string_view& str);
 
 struct NonCopyableMoveable {
     NonCopyableMoveable & operator=(const NonCopyableMoveable&) = delete;
@@ -135,7 +136,7 @@ void free_placement_allocated_structs(Wrapper* data, MemberTag mt = MemberTag())
 
 class CashBalance: public cash_balance{
 public:
-    CashBalance(const std::string& n, float v);
+    CashBalance(const std::string_view& n, float v);
     ~CashBalance();
 };
 
@@ -143,7 +144,7 @@ class Strings: public strings{
 public:
     explicit Strings(int n);
     ~Strings();
-    void add(const std::string& s);
+    void add(const std::string_view& s);
     int size() const;
     inline char** begin() { return strs; }
     inline char** end()   { return last_str; }
@@ -153,7 +154,7 @@ public:
 
 class Broker: public broker{
 public:
-    Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds);
+    Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds);
     ~Broker();
 
     inline CashBalance* head(default_member_tag) { return static_cast<CashBalance*>(first_cash_balance); }
