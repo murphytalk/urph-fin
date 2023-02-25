@@ -106,6 +106,10 @@
     },
     "cSpell.words": [
         "Firestore",
+        "LDEBUG",
+        "LERROR",
+        "LINFO",
+        "LWARN",
         "STREQ",
         "urph",
         "vwap"

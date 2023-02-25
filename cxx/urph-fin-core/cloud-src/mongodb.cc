@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "../src/utils.hxx"
 #include "core/stock.hxx"
 #include "storage/storage.hxx"
 #include "core/core_internal.hxx"
@@ -39,7 +40,7 @@ namespace{
     const char BROKER [] = "broker";
     const char INSTRUMENT [] = "instrument";
 
-    //todo: run this when MongDbDao is created ?
+    const char tag[] = "mongodb";
 }
 
 #include "../generated-code/mongodb.cc"
@@ -49,10 +50,10 @@ class MongoDbDao
     std::unique_ptr<mongocxx::client> client;
 public:
     MongoDbDao(OnDone onInitDone){
-        std::cout<<"connecting to " << mongodb_conn_str <<std::endl;
+        LINFO(tag, "connecting to " << mongodb_conn_str);
         try{
             client = std::make_unique<mongocxx::client>(mongocxx::uri(mongodb_conn_str));
-            std::cout<<"client status " << (bool)*client<<std::endl;
+            LINFO(tag, "client status " << (bool)*client);
         }
         catch(mongocxx::exception& ex){
             std::cout << ex.what() << std::endl;

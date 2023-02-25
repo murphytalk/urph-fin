@@ -43,7 +43,7 @@ CashBalance::CashBalance(const std::string& n, float v)
 
 CashBalance::~CashBalance()
 {
-    LOG_DEBUG(core_log_tag, " ccy= " << ccy);
+    LOG(DEBUG) << " ccy= " << ccy;
     delete[] ccy;
 }
 
@@ -82,10 +82,10 @@ char** Strings::to_str_array()
 Strings::~Strings()
 {
     for(char** p=strs; p!=last_str; ++p){
-        LOG_DEBUG(core_log_tag, *p << ",");
+        LDEBUG(core_log_tag, *p << ",");
         delete []*p;
     }
-    LOG_DEBUG(core_log_tag," deleted");
+    LDEBUG(core_log_tag," deleted");
     delete []strs;
 }
 
@@ -96,7 +96,7 @@ void free_strings(strings* ss)
 
 Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
-    LOG_DEBUG(core_log_tag, "broker constructor");
+    LDEBUG(core_log_tag, "broker constructor");
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
@@ -105,7 +105,7 @@ Broker::Broker(const std::string&n, int ccy_num, cash_balance* first_ccy_balance
 }
 
 Broker::~Broker(){
-    LOG_DEBUG(core_log_tag, "freeing broker " << name << " : cash balances:");
+    LDEBUG(core_log_tag, "freeing broker " << name << " : cash balances:");
     delete[] name;
 
     delete[] funds_update_date;
@@ -113,9 +113,9 @@ Broker::~Broker(){
     free_placement_allocated_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;
 
-    LOG_DEBUG(core_log_tag, " - active funds");
+    LDEBUG(core_log_tag, " - active funds");
     free_strings(active_fund_ids);
-    LOG_DEBUG(core_log_tag, " - active funds freed!");
+    LDEBUG(core_log_tag, " - active funds freed!");
 }
 
 AllBrokers::AllBrokers(int n, broker* broker)
@@ -126,7 +126,7 @@ AllBrokers::AllBrokers(int n, broker* broker)
 
 AllBrokers::~AllBrokers()
 {
-    LOG_DEBUG(core_log_tag, "freeing " << num << " brokers");
+    LDEBUG(core_log_tag, "freeing " << num << " brokers");
     free_placement_allocated_structs<AllBrokers, Broker>(this);
     delete []first_broker;
 }
@@ -258,28 +258,36 @@ namespace{
 
 bool urph_fin_core_init(OnDone onInitDone)
 {
-   LOG_DEBUG(core_log_tag, "urph-fin-core initializing");
+#ifdef AIX_LOG
+    std::vector<AixLog::log_sink_ptr> sinks;
+    auto log_file = getenv("LOGFILE");
+    auto verbose = getenv("VERBOSE");
+    auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
+    auto sink = std::make_shared<AixLog::SinkFile>(log_lvl, log_file == nullptr ? "urph-fin.log" :log_file);
+    AixLog::Log::init({sink});
+#endif
+   LDEBUG(core_log_tag, "urph-fin-core initializing");
 
     try{
         storage = create_cloud_instance(onInitDone);
         return true;
     }
     catch(const std::exception& e){
-        LOG_ERROR(core_log_tag, "Failed to init storage service: " << e.what());
+        LERROR(core_log_tag, "Failed to init storage service: " << e.what());
         return false;
     }
 }
 
 void urph_fin_core_close()
 {
-    LOG_INFO(core_log_tag, "Freeing storage ... ");
+    LINFO(core_log_tag, "Freeing storage ... ");
     delete storage;
-    LOG_INFO(core_log_tag, "freed!");
+    LINFO(core_log_tag, "freed!");
 }
 
 #define TRY try{
-#define CATCH(error_ret) }catch(const std::runtime_error& e) { LOG_ERROR(log_tag, e.what(); return error_ret); }
-#define CATCH_NO_RET }catch(const std::runtime_error& e) { LOG_ERROR(log_tag, e.what()); }
+#define CATCH(error_ret) }catch(const std::runtime_error& e) { LERROR(log_tag, e.what(); return error_ret); }
+#define CATCH_NO_RET }catch(const std::runtime_error& e) { LERROR(log_tag, e.what()); }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
 void get_brokers(OnAllBrokers onAllBrokers, void* param)
@@ -465,7 +473,7 @@ quotes* get_quotes(int num, const char **symbols_head)
         }
         catch(std::runtime_error& e)
         {
-            LOG_ERROR(core_log_tag,e.what());
+            LERROR(core_log_tag,e.what());
             all_quotes = nullptr;
             cv.notify_one();
         }
@@ -505,11 +513,13 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
 }
 
 //// Overview calculation Start
+namespace{
+    const char ASSET_TYPE_STOCK [] = "Stock&ETF";
+    const char ASSET_TYPE_FUNDS [] = "Funds";
+    const char ASSET_TYPE_CASH  [] = "Cash";
 
-const char ASSET_TYPE_STOCK [] = "Stock&ETF";
-const char ASSET_TYPE_FUNDS [] = "Funds";
-const char ASSET_TYPE_CASH  [] = "Cash";
-
+    const char assets_tag[] = "assets";
+}
 AllAssets::AllAssets(std::function<void()> onLoaded){
     notifyLoaded = onLoaded;
     quotes_by_symbol = nullptr;
@@ -657,11 +667,11 @@ void AllAssets::load_stocks(StockPortfolio* sp)
     AssetItems grouped_by_sym_and_broker;
     for(auto const& stockWithTx: *sp){
         StockTxList *tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
-        LOG_DEBUG("assets", "stock=" << stockWithTx.instrument->symbol);
+        LDEBUG(assets_tag, "stock=" << stockWithTx.instrument->symbol);
         // group tx by broker
         for(auto& by_broker: group_by(tx_list->ptr_begin(),tx_list->ptr_end(), [](const StockTx* tx){ return std::string(tx->broker); })){
             auto& broker = by_broker.first;
-            LOG_DEBUG("assets", "broker=" << broker);
+            LDEBUG(assets_tag, "broker=" << broker);
             const auto& balance = StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
             if(balance.shares == 0) continue;
             double value, profit =  nan;
@@ -724,7 +734,7 @@ static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
         return assets->second;
     }
     else{
-        LOG_ERROR(core_log_tag, "Cannot find assets by handle " << asset_handle);
+        LERROR(core_log_tag, "Cannot find assets by handle " << asset_handle);
         return nullptr;
     }
 }
@@ -889,7 +899,7 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
     auto lvl2 = LvlGroup(level2_group);
     auto lvl3 = LvlGroup(level3_group);
 
-    LOG_DEBUG(overview_tag, "lvl1=" << lvl1.group_name << ",lvl2="<<lvl2.group_name<<",lvl3="<<lvl3.group_name);
+    LDEBUG(overview_tag, "lvl1=" << lvl1.group_name << ",lvl2="<<lvl2.group_name<<",lvl3="<<lvl3.group_name);
 
     double lvl1_sum = 0.0, lvl1_sum_profit = 0.0;
     const auto& lvl1_grp = group_by(assets->items.begin(),assets->items.end(), lvl1);
@@ -898,14 +908,14 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
         const auto& l1_name = l1.first;
         auto& lvl2_grp = l1.second;
 
-        LOG_DEBUG(overview_tag, "Level 1 " << l1_name);
+        LDEBUG(overview_tag, "Level 1 " << l1_name);
 
         PlacementNew<overview_item_container> container_alloc(lvl2_grp.size());
 
         double lvl2_sum = 0.0, lvl2_sum_profit = 0.0;
         for(auto& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
             const auto& l2_name = l2.first;
-            LOG_DEBUG(overview_tag, "Level 2 " << l2_name);
+            LDEBUG(overview_tag, "Level 2 " << l2_name);
             PlacementNew<overview_item> item_alloc(l2.second.size());
             double sum = 0.0, sum_profit = 0.0;
             for(auto&& l3: l2.second){

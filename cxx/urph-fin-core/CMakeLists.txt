@@ -1,6 +1,6 @@
 set(lib_target urph-fin-core)
 
-include(ExternalProject)
+include(FetchContent)
 
 if(USE_FIREBASE)
 	# flutter only supports shared FFI lib now
@@ -82,6 +82,18 @@ if(USE_AWS)
         $<INSTALL_INTERFACE:include>
         ${AWSSDK_INCLUDE_DIR}/aws
     )
+else()
+    if(NOT ANDROID)
+        message("use aixlog")
+        FetchContent_Declare(
+            aixlog
+            GIT_REPOSITORY https://github.com/badaix/aixlog.git
+            GIT_TAG v1.5.0
+        )
+        FetchContent_MakeAvailable(aixlog)
+        include_directories(${aixlog_SOURCE_DIR}/include)
+        add_definitions(-DAIX_LOG)
+    endif()
 endif()
 
 if(USE_MONGODB)
@@ -110,7 +122,6 @@ if(USE_MONGODB)
     endforeach()
    
 
-    include(FetchContent)
 
     option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
     set(ENABLE_STATIC ON)
