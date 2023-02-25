@@ -115,7 +115,7 @@ if(USE_MONGODB)
             message("Found ${DB_NAME} conn str: ${TARGET_DATA}")
 
             set(conn_str_src ${CMAKE_CURRENT_LIST_DIR}/generated-code/mongodb.cc)
-            message("Generated coode ${conn_str_src}")
+            message("Generated code ${conn_str_src}")
             file(WRITE ${conn_str_src} "const char mongodb_conn_str [] = \"${TARGET_DATA}\";\n")
             break()
         endif()
@@ -149,31 +149,25 @@ if(USE_MONGODB)
 
     add_definitions(-DUSE_MONGODB)
     set(cloud_src "cloud-src/mongodb.cc")
+    set(cloud_libs mongocxx_static bsoncxx_static)
 endif()
 
 if(USE_YAHOO_FINANCE)
     add_definitions(-DYAHOO_FINANCE)
+
     add_src_libs_ (mkt-data-src/yahoo-finance mkt_src)
-    ExternalProject_Add(
+
+    set(BUILD_SHARED_LIBS OFF)
+    set(CURL_STATICLIB ON)
+    set(HTTP_ONLY ON)
+    set(ENABLE_IPV6 OFF)
+    FetchContent_Declare(
         curl-project
         URL https://curl.se/download/curl-7.88.1.tar.gz
-        PREFIX ${CMAKE_CURRENT_BINARY_DIR}/libcurl
-        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-        CMAKE_ARGS
-            -DBUILD_SHARED_LIBS=OFF
-            -DCURL_STATICLIB=ON
-            -DHTTP_ONLY=ON
-            -DENABLE_IPV6=OFF
-            -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/libcurl-install
     )
-
-    include_directories(${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/include)
-    find_library(
-        curl_lib
-        NAMES curl
-        PATHS ${CMAKE_CURRENT_BINARY_DIR}/libcurl-install/lib64
-        NO_DEFAULT_PATH
-    )
+    FetchContent_MakeAvailable(curl-project)
+    
+    list(APPEND extra_libs libcurl)
 endif()
 
 if(DUMMY_LOG)
@@ -189,11 +183,6 @@ add_library (${lib_target} STATIC ${the_SRC})
 set(BUILD_SHARED_LIBS OFF)
 set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
-if(USE_YAHOO_FINANCE)
-   add_dependencies(${lib_target} curl-project)
-   list(APPEND extra_libs ${curl_lib})
-endif()    
-
 # If the debug configuration pass the DEBUG define to the compiler
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_definitions(-DDEBUG_BUILD)
@@ -205,7 +194,7 @@ message("cloud_libs is ${cloud_libs}")
 message("lib_target is ${lib_target}")
 
 
-target_link_libraries(${lib_target} PRIVATE mongocxx_static bsoncxx_static)
+target_link_libraries(${lib_target} PRIVATE ${extra_libs} ${cloud_libs})
 
 # populate include to project that uses this target
 target_include_directories (${lib_target}
