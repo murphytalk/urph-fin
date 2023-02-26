@@ -166,8 +166,8 @@ public:
             }
         }
     }
+
     void get_known_stocks(OnStrings onStrings, void *ctx) {
-        
         bsoncxx::builder::basic::document query_builder{};
         query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
             bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
@@ -182,6 +182,11 @@ public:
         }
         onStrings(sb->strings, ctx);
     }
+
+    void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param){
+        
+    }
+
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void get_latest_quotes(LatestQuotesBuilder *builder) {}
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,

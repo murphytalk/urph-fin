@@ -507,6 +507,14 @@ void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
     }, &quotes_by_symbol);
 }
 
+void get_latest_quote_caller_ownership(const char* symbol, OnQuotes onQuotes, void* caller_provided_param)
+{
+    assert(storage != nullptr);
+    TRY
+    storage->get_latest_quote_caller_ownership(symbol, onQuotes, caller_provided_param);
+    CATCH_NO_RET
+}
+
 
 void free_quotes(quotes* q)
 {

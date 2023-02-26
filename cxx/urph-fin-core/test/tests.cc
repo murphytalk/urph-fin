@@ -148,6 +148,7 @@ public:
     void get_known_stocks(OnStrings, void *ctx) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void get_latest_quotes(LatestQuotesBuilder *builder) {}
+    void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param){}
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
                 OnDone onDone, void *caller_provided_param) {}
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
