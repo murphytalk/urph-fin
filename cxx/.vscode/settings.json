@@ -117,4 +117,5 @@
     "editor.insertSpaces": true,
     "editor.tabSize": 4,
     "sonarlint.pathToCompileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "cmakeCommandArgs": ["-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"],
 }
