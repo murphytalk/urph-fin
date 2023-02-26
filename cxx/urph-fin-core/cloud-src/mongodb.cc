@@ -166,7 +166,22 @@ public:
             }
         }
     }
-    void get_known_stocks(OnStrings, void *ctx) {}
+    void get_known_stocks(OnStrings onStrings, void *ctx) {
+        
+        bsoncxx::builder::basic::document query_builder{};
+        query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
+            bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
+        )));
+
+
+        auto sb = std::make_unique<StringsBuilder>(INSTRUMENT_COLLECTION.count_documents(query_builder.view()));
+
+        auto cursor = INSTRUMENT_COLLECTION.find(query_builder.extract());
+        for (auto doc_view : cursor) {
+            sb->add(doc_view["name"].get_string());
+        }
+        onStrings(sb->strings, ctx);
+    }
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void get_latest_quotes(LatestQuotesBuilder *builder) {}

@@ -63,7 +63,7 @@ Strings::Strings(int n)
     strs = new char* [n];
     last_str = strs;
 }
-//todo: move
+
 void Strings::add(const std::string_view& i)
 {
     if(size() == capacity){
