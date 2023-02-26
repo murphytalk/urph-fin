@@ -182,7 +182,6 @@ public:
         }
         onStrings(sb->strings, ctx);
     }
-    void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void get_latest_quotes(LatestQuotesBuilder *builder) {}
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
