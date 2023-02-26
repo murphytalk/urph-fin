@@ -97,7 +97,7 @@ else()
 endif()
 
 if(USE_MONGODB)
-    set(DB_NAME "atlas")
+    set(DB_PROVIDER "atlas")
 
     # read conn str and generate the code
     set(finance_yaml_file "$ENV{HOME}/.finance-credentials/finance-scraper.yaml")
@@ -108,11 +108,11 @@ if(USE_MONGODB)
     # replace newline with ; so it is treated by CMake as list
     string(REPLACE "\n" ";" TEXT_LINES "${FILE_CONTENTS}")
     foreach(_line ${TEXT_LINES})
-        string(FIND ${_line} ${DB_NAME} IDX)
+        string(FIND ${_line} ${DB_PROVIDER} IDX)
         if(${IDX} GREATER -1)
-            string(REGEX REPLACE "${DB_NAME}: *(.*)" "\\1" TARGET_DATA "${_line}")
+            string(REGEX REPLACE "${DB_PROVIDER}: *(.*)" "\\1" TARGET_DATA "${_line}")
             string(STRIP "${TARGET_DATA}" TARGET_DATA)
-            message("Found ${DB_NAME} conn str: ${TARGET_DATA}")
+            message("Found ${DB_PROVIDER} conn str: ${TARGET_DATA}")
 
             set(conn_str_src ${CMAKE_CURRENT_LIST_DIR}/generated-code/mongodb.cc)
             message("Generated code ${conn_str_src}")
@@ -168,10 +168,6 @@ if(USE_YAHOO_FINANCE)
     FetchContent_MakeAvailable(curl-project)
 
     list(APPEND extra_libs libcurl)
-endif()
-
-if(DUMMY_LOG)
-    add_compile_definitions(DUMMY_LOG)
 endif()
 
 add_src_libs_ (src the_SRC)
