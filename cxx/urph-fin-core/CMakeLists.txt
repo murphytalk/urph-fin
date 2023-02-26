@@ -74,7 +74,7 @@ if(USE_AWS)
     find_package(AWSSDK REQUIRED COMPONENTS ${SERVICE_COMPONENTS})
 
     set(cloud_src "cloud-src/dynamodb.cc")
-    add_definitions(-DAWS)
+    add_compile_definitions(AWS)
     set(cloud_libs  ${AWSSDK_LINK_LIBRARIES} ${AWSSDK_PLATFORM_DEPS})
 
     target_include_directories(${lib_target} PUBLIC
@@ -92,7 +92,7 @@ else()
         )
         FetchContent_MakeAvailable(aixlog)
         include_directories(${aixlog_SOURCE_DIR}/include)
-        add_definitions(-DAIX_LOG)
+        add_compile_definitions(AIX_LOG)
     endif()
 endif()
 
@@ -120,7 +120,7 @@ if(USE_MONGODB)
             break()
         endif()
     endforeach()
-   
+
 
 
     option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
@@ -133,27 +133,27 @@ if(USE_MONGODB)
     set(ENABLE_ZSTD OFF)
     set(MONGOCXX_ENABLE_SSL ON)
 
-    FetchContent_Declare(    
+    FetchContent_Declare(
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
         GIT_TAG 1.23.2
     )
     FetchContent_MakeAvailable(mongodb-c-driver)
 
-    FetchContent_Declare(    
+    FetchContent_Declare(
         mongodb-cxx-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
         GIT_TAG r3.7.0
     )
     FetchContent_MakeAvailable(mongodb-cxx-driver)
 
-    add_definitions(-DUSE_MONGODB)
+    add_compile_definitions(USE_MONGODB)
     set(cloud_src "cloud-src/mongodb.cc")
     set(cloud_libs mongocxx_static bsoncxx_static)
 endif()
 
 if(USE_YAHOO_FINANCE)
-    add_definitions(-DYAHOO_FINANCE)
+    add_compile_definitions(YAHOO_FINANCE)
 
     add_src_libs_ (mkt-data-src/yahoo-finance mkt_src)
 
@@ -166,12 +166,12 @@ if(USE_YAHOO_FINANCE)
         URL https://curl.se/download/curl-7.88.1.tar.gz
     )
     FetchContent_MakeAvailable(curl-project)
-    
+
     list(APPEND extra_libs libcurl)
 endif()
 
 if(DUMMY_LOG)
-    add_definitions(-DDUMMY_LOG)
+    add_compile_definitions(DUMMY_LOG)
 endif()
 
 add_src_libs_ (src the_SRC)
@@ -185,7 +185,7 @@ set_target_properties(${lib_target} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # If the debug configuration pass the DEBUG define to the compiler
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_definitions(-DDEBUG_BUILD)
+    add_compile_definitions(DEBUG_BUILD)
 endif()
 
 message("cloud_src is ${cloud_src}")
