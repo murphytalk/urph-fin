@@ -41,6 +41,10 @@ namespace{
     const char INSTRUMENT [] = "instrument";
 
     const char tag[] = "mongodb";
+    double safe_get_double(const bsoncxx::document::element& e){
+        const auto& v = e.get_value();
+        return v.type() == bsoncxx::type::k_int32 ? (double)v.get_int32() : v.get_double();
+    }
 }
 
 #include "../generated-code/mongodb.cc"
@@ -51,6 +55,7 @@ class MongoDbDao
     #define DB client->database(DB_NAME)
     #define BROKER_COLLECTION DB[BROKER]
     #define INSTRUMENT_COLLECTION DB[INSTRUMENT]
+
 public:
     MongoDbDao(OnDone onInitDone){
         LINFO(tag, "connecting to " << mongodb_conn_str);
@@ -70,7 +75,7 @@ public:
             onBrokerData(*b);
         }
     }
-    std::string_view get_broker_name(const BrokerType& broker) { 
+    std::string_view get_broker_name(const BrokerType& broker) {
         return broker["name"].get_string().value;
     }
     void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){
@@ -79,11 +84,11 @@ public:
 
         const auto& cashObj = broker_query_result["cash"].get_document().view();
 
-        auto addCash = [&cashObj](BrokerBuilder &b)
+        auto addCash = [&cashObj,this](BrokerBuilder &b)
         {
             for (const auto &c : cashObj)
             {
-                double balance = c.get_value().get_double();
+                double balance = safe_get_double(c);  // c.get_value().get_double();
                 LDEBUG(tag, "  " << c.key() << " " << balance );
                 b.add_cash_balance(c.key(), balance);
             }
@@ -99,7 +104,7 @@ public:
         if(funds_update_date_element){
             const auto& funds_update_date = funds_update_date_element.get_value().get_string().value;
             LDEBUG(tag, " last funds update date: " << funds_update_date );
-            
+
             const auto& funds = broker_query_result["active_funds"].get_document().view()[funds_update_date].get_array().value;
 
             auto b = BrokerBuilder(cashObj.length(), funds.length());
@@ -127,7 +132,40 @@ public:
         }
         onAllBrokersBuilder(all);
     }
-    void get_funds(FundsBuilder *, int, char* ,const char **) {}
+    void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
+        for(int i = 0 ; i< funds_num ; ++i){
+            const char* fund_name = fund_names_head[i];
+            const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
+            if(fund){
+                LDEBUG(tag, "found fund " << fund_name);
+                const auto& fund_doc = *fund;
+                const auto& tx = fund_doc["tx"].get_document().view()[fund_update_date].get_document().view();
+                const std::string_view broker = tx["broker"].get_string();
+                const int amt = tx["amount"].get_int32();
+                const double capital = safe_get_double(tx["capital"]);
+                const double market_value = safe_get_double(tx["market_value"]);
+                const double price = safe_get_double(tx["price"]);
+                const double profit = market_value - capital;
+                const double roi = profit / capital;
+                const timestamp date = tx["date"].get_int32();
+                LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << fund_name );
+                builder->add_fund(
+                    broker, fund_name,
+                    amt,
+                    capital,
+                    market_value,
+                    price,
+                    profit,
+                    roi,
+                    date
+                );
+                if(builder->alloc->has_enough_counter()) builder->succeed();
+            }
+            else{
+                LERROR(tag, "Missing fund " << fund_name);
+            }
+        }
+    }
     void get_known_stocks(OnStrings, void *ctx) {}
     void get_non_fund_symbols(std::function<void(Strings *)> onResult) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
@@ -140,7 +178,7 @@ public:
 };
 
 
-IDataStorage *create_cloud_instance(OnDone onInitDone) { 
+IDataStorage *create_cloud_instance(OnDone onInitDone) {
     mongocxx::instance instance{};
-    return new Storage<MongoDbDao>(onInitDone); 
+    return new Storage<MongoDbDao>(onInitDone);
 }

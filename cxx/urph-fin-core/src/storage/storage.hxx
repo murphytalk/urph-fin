@@ -135,7 +135,7 @@ public:
 
 class FundsBuilder: public Builder<fund>{
 public:
-    Fund* add_fund(const std::string& broker,  const std::string& name,  int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
+    Fund* add_fund(const std::string_view& broker,  const std::string_view& name,  int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
         return new (alloc->next()) Fund(broker, name,
                                         amount,
                                         capital,

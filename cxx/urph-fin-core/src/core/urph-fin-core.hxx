@@ -181,7 +181,7 @@ public:
 
 class Fund: public fund{
 public:
-    Fund(const std::string& broker,  const std::string& name,  int amount, double capital, double market_value, double price, double profit, double roi, timestamp date);
+    Fund(const std::string_view& broker,  const std::string_view& name,  int amount, double capital, double market_value, double price, double profit, double roi, timestamp date);
     ~Fund();
 };
 

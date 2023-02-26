@@ -152,7 +152,7 @@ FundPortfolio::~FundPortfolio()
     delete []first_fund;
 }
 
-Fund::Fund(const std::string& b,  const std::string&n, int a, double c, double m, double prc, double p, double r, timestamp d)
+Fund::Fund(const std::string_view& b,  const std::string_view&n, int a, double c, double m, double prc, double p, double r, timestamp d)
 {
     broker = copy_str(b);
     name = copy_str(n);
