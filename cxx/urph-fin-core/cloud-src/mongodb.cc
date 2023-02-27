@@ -13,9 +13,15 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <thread>
+#include <future>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
 
 #include <cstdint>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <bsoncxx/json.hpp>
 #include <mongocxx/client.hpp>
@@ -51,33 +57,78 @@ namespace{
 
 class MongoDbDao
 {
-    std::unique_ptr<mongocxx::client> client;
     #define DB client->database(DB_NAME)
     #define BROKER_COLLECTION DB[BROKER]
     #define INSTRUMENT_COLLECTION DB[INSTRUMENT]
 
-public:
-    MongoDbDao(OnDone onInitDone){
-        LINFO(tag, "connecting to " << mongodb_conn_str);
-        try{
-            client = std::make_unique<mongocxx::client>(mongocxx::uri(mongodb_conn_str));
-            LINFO(tag, "client status " << (bool)*client);
+
+    std::thread t;
+    std::mutex queue_mutex;
+    std::condition_variable queue_cv;
+
+    using Q = std::queue<std::packaged_task<void(mongocxx::client*)>>;
+    Q task_queue;
+
+    std::atomic<bool> stop_mongodb_worker;
+    static void mongodb_worker(std::atomic<bool>& exit_flag, std::mutex& q_mutex, std::condition_variable& condition, Q& q){
+        LINFO(tag, "mongodb worker thread started, connecting to " << mongodb_conn_str);
+        mongocxx::client client = mongocxx::client(mongocxx::uri(mongodb_conn_str));
+        LINFO(tag, "client status " << (bool)client);
+
+        while(!exit_flag){
+            std::unique_lock<std::mutex> lock(q_mutex);
+            condition.wait(lock, [&q, &exit_flag]{ return !q.empty() || exit_flag; });
+            if (exit_flag) break;
+
+            auto task = std::move(q.front());
+            q.pop();
+            lock.unlock();
+
+            task(&client);            
         }
-        catch(mongocxx::exception& ex){
-            std::cout << ex.what() << std::endl;
-        }
-        onInitDone(nullptr);
+        LINFO(tag, " stopping mongodb worker thread");
     }
+
+    std::future<void> post_task(std::function<void(mongocxx::client*)> f) {
+        std::packaged_task<void(mongocxx::client*)> task(f);
+        auto fut = task.get_future();
+    
+        std::unique_lock<std::mutex> lock(queue_mutex);
+        task_queue.push(std::move(task));
+        lock.unlock();
+        queue_cv.notify_one();
+    
+        return fut;
+    }
+public:
+    MongoDbDao(OnDone onInitDone, void* caller_provided_param)
+        :stop_mongodb_worker(false), t(mongodb_worker, std::ref(stop_mongodb_worker), std::ref(queue_mutex), std::ref(queue_cv), std::ref(task_queue))
+    {
+
+        onInitDone(caller_provided_param);
+    }
+    ~MongoDbDao(){
+        LINFO(tag, "shutdown mongodb DAO");
+        stop_mongodb_worker = true;
+        queue_cv.notify_one();
+        t.join();
+        LINFO(tag, "mongodb worker thread stopped");
+    }
+
     typedef bsoncxx::document::view BrokerType;
     void get_broker_by_name(const char *broker, std::function<void(const BrokerType&)> onBrokerData) {
-        const auto b = BROKER_COLLECTION.find_one( document{} << "name" << broker << finalize );
-        if(b){
-            onBrokerData(*b);
-        }
+        post_task([broker, this, &onBrokerData](mongocxx::client *client){
+            const auto b = BROKER_COLLECTION.find_one( document{} << "name" << broker << finalize );
+            if(b){
+                onBrokerData(*b);
+            }
+        });
     }
+    
     std::string_view get_broker_name(const BrokerType& broker) {
         return broker["name"].get_string().value;
     }
+
     void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){
         const auto &name = get_broker_name(broker_query_result);
         LDEBUG(tag, "Broker " << name);
@@ -124,15 +175,18 @@ public:
          }
     }
     void get_brokers(std::function<void(AllBrokerBuilder<MongoDbDao, BrokerType>*)> onAllBrokersBuilder){
-        auto *all = new AllBrokerBuilder<MongoDbDao, BrokerType>(5 /*init value, will get increased automatically*/);
-        auto cursor = BROKER_COLLECTION.find({});
-        for(const auto broker: cursor){
-            LDEBUG(tag, "adding broker");
-            all->add_broker(this, broker);
-        }
-        onAllBrokersBuilder(all);
+        post_task([this, onAllBrokersBuilder](mongocxx::client *client){
+            auto *all = new AllBrokerBuilder<MongoDbDao, BrokerType>(5 /*init value, will get increased automatically*/);
+            auto cursor = BROKER_COLLECTION.find({});
+            for(const auto broker: cursor){
+                LDEBUG(tag, "adding broker");
+                all->add_broker(this, broker);
+            }
+            onAllBrokersBuilder(all);
+        });
     }
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
+        /*
         for(int i = 0 ; i< funds_num ; ++i){
             const char* fund_name = fund_names_head[i];
             const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
@@ -165,9 +219,11 @@ public:
                 LERROR(tag, "Missing fund " << fund_name);
             }
         }
+        */
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
+        /*
         bsoncxx::builder::basic::document query_builder{};
         query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
             bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
@@ -181,10 +237,11 @@ public:
             sb->add(doc_view["name"].get_string());
         }
         onStrings(sb->strings, ctx);
+        */
     }
 
     void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param){
-        
+
     }
 
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
@@ -197,7 +254,7 @@ public:
 };
 
 
-IDataStorage *create_cloud_instance(OnDone onInitDone) {
+IDataStorage *create_cloud_instance(OnDone onInitDone, void* caller_provided_param) {
     mongocxx::instance instance{};
-    return new Storage<MongoDbDao>(onInitDone);
+    return new Storage<MongoDbDao>(onInitDone, caller_provided_param);
 }

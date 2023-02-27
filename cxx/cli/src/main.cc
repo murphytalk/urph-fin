@@ -495,7 +495,7 @@ int main(int argc, char *argv[])
             init_done = true;
         }
         cv.notify_one();
-    })){
+    },nullptr)){
         cout<<"Failed to init";
         return 1;
     }

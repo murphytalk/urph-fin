@@ -129,7 +129,7 @@ public:
             return new (alloc->next())
 #endif
                 Broker(n, ccy_num, first_ccy_balance, fund_update_date, active_funds);
-        }, [](Broker* broker){ /*already created inside alloc*/ });
+        }, [](Broker* broker){ LDEBUG(storage_log_tag, "broker created") });
     }
 };
 
@@ -288,8 +288,8 @@ template<typename DAO>
 class Storage: public IDataStorage{
     std::unique_ptr<DAO> dao;
 public:
-    Storage(OnDone onInitDone){
-        dao = std::make_unique<DAO>(onInitDone);
+    Storage(OnDone onInitDone, void* caller_provided_param){
+        dao = std::make_unique<DAO>(onInitDone, caller_provided_param);
         LDEBUG(storage_log_tag, "Storage instance created\n");
     };
     Storage(DAO *p): dao(std::unique_ptr<DAO>(p)){
@@ -316,7 +316,8 @@ public:
     }
 
     void get_brokers(OnAllBrokers onAllBrokers, void* param){
-        dao->get_brokers([&](auto *p){
+        // capturing by value as it is going to be executed in another thread
+        dao->get_brokers([=](auto *p){
             AllBrokers * b = new AllBrokers(p->alloc->allocated_num(), p->alloc->head());
             delete p;
             onAllBrokers(b, param);
@@ -373,6 +374,6 @@ public:
     }
 };
 
-IDataStorage* create_cloud_instance(OnDone onInitDone);
+IDataStorage* create_cloud_instance(OnDone onInitDone, void* caller_provided_param);
 
 #endif

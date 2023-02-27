@@ -106,7 +106,7 @@ void free_strings(strings* ss)
 
 Broker::Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
-    LDEBUG(core_log_tag, "broker constructor");
+    LDEBUG(core_log_tag, "broker constructor: " << n);
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
@@ -266,7 +266,7 @@ namespace{
     IDataStorage *storage = nullptr;
 }
 
-bool urph_fin_core_init(OnDone onInitDone)
+bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
 {
 #ifdef AIX_LOG
     std::vector<AixLog::log_sink_ptr> sinks;
@@ -279,7 +279,7 @@ bool urph_fin_core_init(OnDone onInitDone)
    LDEBUG(core_log_tag, "urph-fin-core initializing");
 
     try{
-        storage = create_cloud_instance(onInitDone);
+        storage = create_cloud_instance(onInitDone, caller_provided_param);
         return true;
     }
     catch(const std::exception& e){

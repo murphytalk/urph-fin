@@ -11,7 +11,7 @@ extern "C"
 
 typedef void (*OnDone)(void*);
 
-bool urph_fin_core_init(OnDone);
+bool urph_fin_core_init(OnDone, void* caller_provided_param);
 void urph_fin_core_close();
 
 // Funds

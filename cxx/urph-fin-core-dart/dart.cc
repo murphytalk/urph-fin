@@ -56,7 +56,7 @@ DART_EXPORT bool dart_urph_fin_core_init()
         // Copy to heap to make it outlive the function scope.
         const Work* work_ptr = new Work(work);
         notify_dart(send_port_, work_ptr); 
-    });
+    }, nullptr);
 }
 
 DART_EXPORT void dart_urph_fin_load_assets()
