@@ -275,7 +275,7 @@ public:
     virtual ~IDataStorage(){}
     virtual void get_broker(const char* name, OnBroker onBroker, void*param) = 0;
     virtual void get_brokers(OnAllBrokers onAllBrokers, void* param) = 0;
-    virtual void get_funds(int funds_num,char* fund_update_date, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam) = 0;
+    virtual void get_funds(int funds_num,char* fund_update_date, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam,std::function<void()> clean_func) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual void get_known_stocks(OnStrings onStrings, void *ctx) = 0;
     virtual void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param) = 0;
@@ -324,15 +324,17 @@ public:
         });
     }
 
-    void get_funds(int funds_num, char* fund_update_date,const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam){
+    void get_funds(int funds_num, char* fund_update_date,const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam,
+                   std::function<void()> clean_func){
         // self delete upon finish
-        auto *p = static_cast<FundsBuilder*>(FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam](FundsBuilder::Alloc* fund_alloc){
+        auto *p = static_cast<FundsBuilder*>(FundsBuilder::create(funds_num,[onFunds, onFundsCallerProvidedParam,clean_func](FundsBuilder::Alloc* fund_alloc){
             std::sort(fund_alloc->head(), fund_alloc->head() + fund_alloc->allocated_num(),[](fund& f1, fund& f2){
                 auto byBroker = strcmp(f1.broker,f2.broker);
                 auto v = byBroker == 0 ? strcmp(f1.name, f2.name) : byBroker;
                 return v < 0;
             });
             onFunds(new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head()), onFundsCallerProvidedParam);
+            clean_func();
         }));
         dao->get_funds(p, funds_num, fund_update_date, fund_ids_head);
     }

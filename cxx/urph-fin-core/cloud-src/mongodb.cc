@@ -186,7 +186,7 @@ public:
         });
     }
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
-        post_task([this, builder, funds_num, fund_update_date, fund_names_head](mongocxx::client *client){
+        post_task([=](mongocxx::client *client){
         for(int i = 0 ; i< funds_num ; ++i){
             const char* fund_name = fund_names_head[i];
             const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );

@@ -325,11 +325,11 @@ void free_broker(broker* b)
     delete static_cast<Broker*>(b);
 }
 
-void get_funds(int num, char* fund_update_date,const char **fund_ids, OnFunds onFunds, void*param)
+void get_funds(int num, char* fund_update_date,const char **fund_ids, OnFunds onFunds, void*param,std::function<void()> clean_func)
 {
     assert(storage != nullptr);
     TRY
-    storage->get_funds(num, fund_update_date,fund_ids, onFunds, param);
+    storage->get_funds(num, fund_update_date,fund_ids, onFunds, param, clean_func);
     CATCH_NO_RET
 }
 
@@ -343,7 +343,7 @@ struct get_active_funds_async_helper
 
     get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx){}
 
-    void run(){
+    void run(std::function<void()> clean_func){
         const auto ** ids = new const char* [fund_num];
         const char ** ids_head = ids;
         for(auto* broker: all_broker_pointers){
@@ -351,16 +351,16 @@ struct get_active_funds_async_helper
                 *ids++ = *it;
             }
         }
-        get_funds(fund_num, fund_update_date, ids_head, onFunds, param);
-
-        //delete []ids_head;
-
-        //delete this;
+        get_funds(fund_num, fund_update_date, ids_head, onFunds, param,[clean_func,ids_head, this](){
+            clean_func();
+            delete []ids_head;
+            delete this;
+        });
     }
 };
 
 
-void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_async_helper* h)
+void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_async_helper* h, std::function<void()> clean_func)
 {
     // prerequisite: all brokers have their funds updated on the same day
     h->fund_update_date = brokers->begin()->funds_update_date;
@@ -368,15 +368,16 @@ void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_
         h->fund_num += b.size(Broker::active_fund_tag());
         h->all_broker_pointers.push_back(&b);
     }
-    h->run();
+    h->run(clean_func);
 }
 
 void get_active_funds_from_all_brokers(all_brokers *bks, bool free_the_brokers, OnFunds onFunds, void*param)
 {
     auto *helper = new get_active_funds_async_helper(onFunds, param);
     auto *brokers = static_cast<AllBrokers*>(bks);
-    do_get_active_funds_from_all_brokers(brokers, helper);
-    if(free_the_brokers) delete brokers;
+    do_get_active_funds_from_all_brokers(brokers, helper, [free_the_brokers, brokers](){
+        if(free_the_brokers) delete brokers;
+    });
 }
 
 void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
@@ -393,15 +394,13 @@ void get_active_funds(const char* broker_name, OnFunds onFunds, void*param)
             h->fund_num = the_broker->size(Broker::active_fund_tag());
             h->fund_update_date = the_broker->funds_update_date;
             h->all_broker_pointers.push_back(the_broker);
-            h->run();
-            delete the_broker;
+            h->run([the_broker](){delete the_broker;});
         }, helper);
     }else{
         get_brokers([](all_brokers* bks, void* ctx){
             auto *brokers = static_cast<AllBrokers*>(bks);
             auto *h = reinterpret_cast<get_active_funds_async_helper*>(ctx) ;
-            do_get_active_funds_from_all_brokers(brokers, h);
-            delete brokers;
+            do_get_active_funds_from_all_brokers(brokers, h, [brokers](){delete brokers;});
         }, helper);
     }
 
