@@ -187,56 +187,56 @@ public:
     }
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
         post_task([=](mongocxx::client *client){
-        for(int i = 0 ; i< funds_num ; ++i){
-            const char* fund_name = fund_names_head[i];
-            const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
-            if(fund){
-                LDEBUG(tag, "found fund " << fund_name);
-                const auto& fund_doc = *fund;
-                const auto& tx = fund_doc["tx"].get_document().view()[fund_update_date].get_document().view();
-                const std::string_view broker = tx["broker"].get_string();
-                const int amt = tx["amount"].get_int32();
-                const double capital = safe_get_double(tx["capital"]);
-                const double market_value = safe_get_double(tx["market_value"]);
-                const double price = safe_get_double(tx["price"]);
-                const double profit = market_value - capital;
-                const double roi = profit / capital;
-                const timestamp date = tx["date"].get_int32();
-                LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << fund_name );
-                builder->add_fund(
-                    broker, fund_name,
-                    amt,
-                    capital,
-                    market_value,
-                    price,
-                    profit,
-                    roi,
-                    date
-                );
-                if(builder->alloc->has_enough_counter()) builder->succeed();
+            for(int i = 0 ; i< funds_num ; ++i){
+                const char* fund_name = fund_names_head[i];
+                const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
+                if(fund){
+                    LDEBUG(tag, "found fund " << fund_name);
+                    const auto& fund_doc = *fund;
+                    const auto& tx = fund_doc["tx"].get_document().view()[fund_update_date].get_document().view();
+                    const std::string_view broker = tx["broker"].get_string();
+                    const int amt = tx["amount"].get_int32();
+                    const double capital = safe_get_double(tx["capital"]);
+                    const double market_value = safe_get_double(tx["market_value"]);
+                    const double price = safe_get_double(tx["price"]);
+                    const double profit = market_value - capital;
+                    const double roi = profit / capital;
+                    const timestamp date = tx["date"].get_int32();
+                    LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << fund_name );
+                    builder->add_fund(
+                        broker, fund_name,
+                        amt,
+                        capital,
+                        market_value,
+                        price,
+                        profit,
+                        roi,
+                        date
+                    );
+                    if(builder->alloc->has_enough_counter()) builder->succeed();
+                }
+                else{
+                    LERROR(tag, "Missing fund " << fund_name);
+                }
             }
-            else{
-                LERROR(tag, "Missing fund " << fund_name);
-            }
-        }
         });
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
         post_task([=](mongocxx::client *client){
-        bsoncxx::builder::basic::document query_builder{};
-        query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
-            bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
-        )));
-
-
-        auto sb = std::make_unique<StringsBuilder>(INSTRUMENT_COLLECTION.count_documents(query_builder.view()));
-
-        auto cursor = INSTRUMENT_COLLECTION.find(query_builder.extract());
-        for (auto doc_view : cursor) {
-            sb->add(doc_view["name"].get_string());
-        }
-        onStrings(sb->strings, ctx);
+            bsoncxx::builder::basic::document query_builder{};
+            query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
+                bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
+            )));
+    
+    
+            auto sb = StringsBuilder(INSTRUMENT_COLLECTION.count_documents(query_builder.view()));
+    
+            auto cursor = INSTRUMENT_COLLECTION.find(query_builder.extract());
+            for (auto doc_view : cursor) {
+                sb.add(doc_view["name"].get_string());
+            }
+            onStrings(sb.strings, ctx);
         });
     }
 
