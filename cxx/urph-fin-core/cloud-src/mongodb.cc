@@ -117,7 +117,7 @@ public:
 
     typedef bsoncxx::document::view BrokerType;
     void get_broker_by_name(const char *broker, std::function<void(const BrokerType&)> onBrokerData) {
-        post_task([broker, this, &onBrokerData](mongocxx::client *client){
+        post_task([=](mongocxx::client *client){
             const auto b = BROKER_COLLECTION.find_one( document{} << "name" << broker << finalize );
             if(b){
                 onBrokerData(*b);
@@ -186,7 +186,7 @@ public:
         });
     }
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
-        /*
+        post_task([this, builder, funds_num, fund_update_date, fund_names_head](mongocxx::client *client){
         for(int i = 0 ; i< funds_num ; ++i){
             const char* fund_name = fund_names_head[i];
             const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
@@ -219,11 +219,11 @@ public:
                 LERROR(tag, "Missing fund " << fund_name);
             }
         }
-        */
+        });
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
-        /*
+        post_task([=](mongocxx::client *client){
         bsoncxx::builder::basic::document query_builder{};
         query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
             bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
@@ -237,7 +237,7 @@ public:
             sb->add(doc_view["name"].get_string());
         }
         onStrings(sb->strings, ctx);
-        */
+        });
     }
 
     void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param){

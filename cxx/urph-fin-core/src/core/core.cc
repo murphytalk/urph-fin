@@ -353,9 +353,9 @@ struct get_active_funds_async_helper
         }
         get_funds(fund_num, fund_update_date, ids_head, onFunds, param);
 
-        delete []ids_head;
+        //delete []ids_head;
 
-        delete this;
+        //delete this;
     }
 };
 
