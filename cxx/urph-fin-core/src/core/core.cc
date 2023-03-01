@@ -23,9 +23,15 @@
 #include "../utils.hxx"
 #include "core_internal.hxx"
 
+#ifdef YAHOO_FINANCE
+#include "../../mkt-data-src/yahoo-finance/quote.hpp"
+#endif
+
 namespace{
     const char core_log_tag[] = "urph-fin-core";
 }
+
+
 // dont forget to free
 char* copy_str(const char* str, int size)
 {
@@ -264,7 +270,10 @@ Overview::~Overview()
 
 namespace{
     IDataStorage *storage = nullptr;
+    BS::thread_pool* thread_pool = nullptr;
 }
+
+BS::thread_pool* get_thread_pool(){ return thread_pool; }
 
 bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
 {
@@ -280,6 +289,7 @@ bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
 
     try{
         storage = create_cloud_instance(onInitDone, caller_provided_param);
+        thread_pool = new BS::thread_pool();
         return true;
     }
     catch(const std::exception& e){
@@ -292,7 +302,11 @@ void urph_fin_core_close()
 {
     LINFO(core_log_tag, "Freeing storage ... ");
     delete storage;
-    LINFO(core_log_tag, "freed!");
+    LINFO(core_log_tag, "Storage freed!");
+    
+    LINFO(core_log_tag, "Shutting down thread pool ... ");
+    delete thread_pool;
+    LINFO(core_log_tag, "Thread pool shutdown!");
 }
 
 #define TRY try{
@@ -508,9 +522,12 @@ void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
 
 void get_latest_quote_caller_ownership(const char* symbol, OnQuotes onQuotes, void* caller_provided_param)
 {
-    assert(storage != nullptr);
     TRY
+#ifdef YAHOO_FINANCE
+    YahooFinance::Quote q(symbol);
+#else
     storage->get_latest_quote_caller_ownership(symbol, onQuotes, caller_provided_param);
+#endif    
     CATCH_NO_RET
 }
 

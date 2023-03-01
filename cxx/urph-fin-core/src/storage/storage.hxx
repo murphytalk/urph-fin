@@ -278,7 +278,6 @@ public:
     virtual void get_funds(int funds_num,char* fund_update_date, const char **fund_ids_head, OnFunds onFunds, void* onFundsCallerProvidedParam,std::function<void()> clean_func) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual void get_known_stocks(OnStrings onStrings, void *ctx) = 0;
-    virtual void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param) = 0;
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
     virtual void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
                 OnDone onDone,void* caller_provided_param) = 0;
@@ -366,9 +365,6 @@ public:
         else{
             dao->get_latest_quotes(builder, num, symbols_head);
         }
-    }
-    void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param){
-        return dao->get_latest_quote_caller_ownership(symbol, onQuotes, caller_provided_param);
     }
     void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
                 OnDone onDone,void* caller_provided_param){

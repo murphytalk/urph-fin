@@ -6,6 +6,10 @@
 #include <condition_variable>
 #include "urph-fin-core.hxx"
 
+#include <BS_thread_pool.hpp>
+
+BS::thread_pool* get_thread_pool();
+
 //// Overview calculation Start
 class StockPortfolio;
 class AssetItem

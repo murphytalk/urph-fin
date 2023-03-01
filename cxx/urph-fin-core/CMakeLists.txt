@@ -170,6 +170,15 @@ if(USE_YAHOO_FINANCE)
     list(APPEND extra_libs libcurl)
 endif()
 
+FetchContent_Declare(
+    thread-pool
+    GIT_REPOSITORY https://github.com/bshoshany/thread-pool.git
+    GIT_TAG v3.3.0
+)
+FetchContent_MakeAvailable(thread-pool)
+include_directories(${thread-pool_SOURCE_DIR})
+ 
+
 add_src_libs_ (src the_SRC)
 list(APPEND the_SRC ${cloud_src})
 list(APPEND the_SRC ${mkt_src})
