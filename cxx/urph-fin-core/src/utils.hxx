@@ -13,11 +13,12 @@
 #elif defined (AIX_LOG)
 
 #include <aixlog.hpp>
+#include <thread>
 
-#define LINFO(tag, stream_expr)  LOG(INFO)  << stream_expr << "\n";
-#define LWARN(tag, stream_expr)  LOG(WARN)  << stream_expr << "\n";
-#define LERROR(tag, stream_expr) LOG(ERROR) << stream_expr << "\n";
-#define LDEBUG(tag, stream_expr) LOG(DEBUG) << stream_expr << "\n";
+#define LINFO(tag, stream_expr)  LOG(INFO)  << "[" << std::this_thread::get_id() << "] " << stream_expr << "\n";
+#define LWARN(tag, stream_expr)  LOG(WARN)  << "[" << std::this_thread::get_id() << "] " << stream_expr << "\n";
+#define LERROR(tag, stream_expr) LOG(ERROR) << "[" << std::this_thread::get_id() << "] " << stream_expr << "\n";
+#define LDEBUG(tag, stream_expr) LOG(DEBUG) << "[" << std::this_thread::get_id() << "] " << stream_expr << "\n";
 
 #else
 
