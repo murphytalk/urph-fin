@@ -210,20 +210,24 @@ public:
                 builder->prepare_stock_alloc(count);
                 return builder; 
             },
-            [builder, broker](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
-                const std::string_view& symbol = doc_view["name"].get_string();
+            [](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
+                const std::string_view& my_symbol = doc_view["name"].get_string();
+                const std::string_view& ccy = doc_view["ccy"].get_string();
+                b->add_stock(my_symbol, ccy);
 
                 const auto& tx = doc_view["tx"].get_document().view();
-                bsoncxx::builder::basic::document filter{};
-                if(broker != nullptr){
-                    filter.append(bsoncxx::builder::basic::kvp("broker", broker));
+                for(auto& tx_obj: tx){
+                    const auto& v = tx_obj.get_document().view();
+                    const timestamp date = v["date"].get_int32();
+                    const double price = safe_get_double(v["price"]);
+                    const double shares = safe_get_double(v["shares"]);
+                    const double fee = safe_get_double(v["fee"]);
+                    const std::string_view& type = v["type"].get_string();
+                    const std::string_view& my_broker = v["broker"].get_string();
+                    b->addTx(my_broker, my_symbol, type, price, shares, fee, date);
                 }
-                //auto cursor = tx.find(filter.view())
-
-                //b->add_stock();
             },
-            [=](void*){
-            } 
+            [=](void*){} 
         );
      }
 private:

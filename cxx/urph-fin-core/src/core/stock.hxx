@@ -18,7 +18,7 @@ public:
         symbol = nullptr;
         currency = nullptr;
     }
-    Stock(const std::string& n, const std::string& ccy);
+    Stock(const std::string_view& n, const std::string_view& ccy);
     Stock& operator=(Stock&&);
     ~Stock();
 private:
@@ -27,7 +27,7 @@ private:
 
 class StockTx: public stock_tx{
 public: 
-    StockTx(const std::string& b, double s, double p, double f, const std::string side,timestamp );
+    StockTx(const std::string_view& b, double s, double p, double f, const std::string_view& side,timestamp );
     ~StockTx();
     const char* Side() const{
         return side == BUY ? "BUY" :  (side == SELL ? "SELL" : "SPLIT");

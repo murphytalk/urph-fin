@@ -4,7 +4,7 @@
 
 #include "../utils.hxx"
 
-Stock::Stock(const std::string& n, const std::string& ccy)
+Stock::Stock(const std::string_view& n, const std::string_view& ccy)
 {
     symbol = copy_str(n);
     currency = copy_str(ccy);
@@ -31,7 +31,7 @@ Stock::~Stock()
     free();
 }
 
-StockTx::StockTx(const std::string& b, double s, double p, double f, const std::string sd, timestamp dt)
+StockTx::StockTx(const std::string_view& b, double s, double p, double f, const std::string_view& sd, timestamp dt)
 {
     broker = copy_str(b);
     shares = s;

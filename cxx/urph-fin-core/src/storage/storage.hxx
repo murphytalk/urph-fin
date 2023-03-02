@@ -174,7 +174,7 @@ public:
     }
 
     StockAlloc* stock_alloc;
-    Stock* add_stock(const std::string& symbol, const std::string& ccy){
+    Stock* add_stock(const std::string_view& symbol, const std::string_view& ccy){
         LDEBUG(storage_log_tag, "adding stock " << symbol << "@" << ccy);
         return new (stock_alloc->next()) Stock(symbol, ccy);
     }
@@ -198,16 +198,16 @@ public:
         }
         --unfinished_stocks;
     }
-    void addTx(const std::string& broker,const std::string& symbol, const std::string& type, const double price, const double shares, const double fee, const timestamp date){
+    void addTx(const std::string_view& broker,const std::string_view& symbol, const std::string_view& type, const double price, const double shares, const double fee, const timestamp date){
         LDEBUG(storage_log_tag, "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares);
-        const auto s = tx.find(symbol);
+        const auto s = tx.find(std::string(symbol));
         if(s != tx.end()){
             const auto& tx_alloc = s->second;
             new (tx_alloc->next()) StockTx(broker, shares, price, fee, type, date);
             LDEBUG(storage_log_tag, "Added tx@" << date << " for " << symbol << " broker=" << broker);
             check_completion(tx_alloc);
         }
-        else throw std::runtime_error("Cannot find tx for stock " + symbol);
+        else throw std::runtime_error("Cannot find tx for stock " + std::string(symbol));
     }
     void incr_counter(const std::string& symbol){
         LDEBUG(storage_log_tag, "Increasing counter for " << symbol);
