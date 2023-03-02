@@ -1,3 +1,4 @@
+#include <type_traits>
 #include <vector>
 #include <functional>
 #include <string>
@@ -5,6 +6,7 @@
 #include <memory>
 
 #include "../src/utils.hxx"
+#include "bsoncxx/document/view.hpp"
 #include "core/stock.hxx"
 #include "storage/storage.hxx"
 #include "core/core_internal.hxx"
@@ -62,7 +64,7 @@ class MongoDbDao
     #define INSTRUMENT_COLLECTION DB[INSTRUMENT]
 
 
-    std::mutex mutex;
+    std::mutex mongo_conn_mutex;
     std::unique_ptr<mongocxx::client> client;
 public:
     MongoDbDao(OnDone onInitDone, void* caller_provided_param)
@@ -75,15 +77,16 @@ public:
 
     typedef bsoncxx::document::view BrokerType;
     void get_broker_by_name(const char *broker, std::function<void(const BrokerType&)> onBrokerData) {
-        get_thread_pool()->submit([=](){
-            std::lock_guard<std::mutex> lock(mutex);
+        // cast to void to deliberately ignore the [[nodiscard]] attribute
+        (void)get_thread_pool()->submit([=](){
+            std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             const auto b = BROKER_COLLECTION.find_one( document{} << "name" << broker << finalize );
             if(b){
                 onBrokerData(*b);
             }
         });
     }
-    
+
     std::string_view get_broker_name(const BrokerType& broker) {
         return broker["name"].get_string().value;
     }
@@ -134,8 +137,8 @@ public:
          }
     }
     void get_brokers(std::function<void(AllBrokerBuilder<MongoDbDao, BrokerType>*)> onAllBrokersBuilder){
-        get_thread_pool()->submit([=](){
-            std::lock_guard<std::mutex> lock(mutex);
+        (void)get_thread_pool()->submit([=](){
+            std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             auto *all = new AllBrokerBuilder<MongoDbDao, BrokerType>(5 /*init value, will get increased automatically*/);
             auto cursor = BROKER_COLLECTION.find({});
             for(const auto broker: cursor){
@@ -146,8 +149,8 @@ public:
         });
     }
     void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
-        get_thread_pool()->submit([=](){
-            std::lock_guard<std::mutex> lock(mutex);
+        (void)get_thread_pool()->submit([=](){
+            std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             for(int i = 0 ; i< funds_num ; ++i){
                 const char* fund_name = fund_names_head[i];
                 const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
@@ -155,7 +158,7 @@ public:
                     LDEBUG(tag, "found fund " << fund_name);
                     const auto& fund_doc = *fund;
                     const auto& tx = fund_doc["tx"].get_document().view()[fund_update_date].get_document().view();
-                    const std::string_view broker = tx["broker"].get_string();
+                    const std::string_view& broker = tx["broker"].get_string();
                     const int amt = tx["amount"].get_int32();
                     const double capital = safe_get_double(tx["capital"]);
                     const double market_value = safe_get_double(tx["market_value"]);
@@ -184,22 +187,15 @@ public:
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
-        get_thread_pool()->submit([=](){
-            std::lock_guard<std::mutex> lock(mutex);
-            bsoncxx::builder::basic::document query_builder{};
-            query_builder.append(bsoncxx::builder::basic::kvp("type", bsoncxx::builder::basic::make_document(
-                bsoncxx::builder::basic::kvp("$in", bsoncxx::builder::basic::make_array("Stock", "ETF"))
-            )));
-    
-    
-            auto sb = StringsBuilder(INSTRUMENT_COLLECTION.count_documents(query_builder.view()));
-    
-            auto cursor = INSTRUMENT_COLLECTION.find(query_builder.extract());
-            for (auto doc_view : cursor) {
-                sb.add(doc_view["name"].get_string());
-            }
-            onStrings(sb.strings, ctx);
-        });
+        get_stock_and_etf<StringsBuilder>(
+            nullptr, nullptr, true,
+            [](int count) { return new StringsBuilder(count); },
+            [](StringsBuilder* b, const bsoncxx::document::view& doc_view){ b->add(doc_view["name"].get_string()); },
+            [=](StringsBuilder* b){
+                onStrings(b->strings, ctx);
+                delete b;
+            } 
+        );
     }
 
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
@@ -208,6 +204,74 @@ public:
                 OnDone onDone, void *caller_provided_param) {}
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
     {
+        get_stock_and_etf<StockPortfolioBuilder>(
+            symbol, broker, true,
+            [builder](int count) { 
+                builder->prepare_stock_alloc(count);
+                return builder; 
+            },
+            [builder, broker](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
+                const std::string_view& symbol = doc_view["name"].get_string();
+
+                const auto& tx = doc_view["tx"].get_document().view();
+                bsoncxx::builder::basic::document filter{};
+                if(broker != nullptr){
+                    filter.append(bsoncxx::builder::basic::kvp("broker", broker));
+                }
+                //auto cursor = tx.find(filter.view())
+
+                //b->add_stock();
+            },
+            [=](void*){
+            } 
+        );
+     }
+private:
+    template<typename T>
+    void get_stock_and_etf(
+            const char* symbol,
+            const char* broker,
+            bool countTotalNum,
+            std::function<T*(int)> onTotalNum, 
+            std::function<void(T*, const bsoncxx::document::view&)> onInstrument, 
+            std::function<void(T* context)> onFinish)
+    {
+        (void)get_thread_pool()->submit([=](){
+            std::lock_guard<std::mutex> lock(mongo_conn_mutex);
+            bsoncxx::builder::stream::document query_builder;
+            query_builder << "type" << 
+                open_document << 
+                    "$in" << 
+                        open_array
+                            << "Stock" << "ETF" << 
+                        close_array <<
+                close_document;
+
+            if(symbol != nullptr){
+                query_builder << "name" << symbol;
+            }
+
+            if(broker != nullptr){
+                query_builder << "tx"  <<
+                    open_document << 
+                        "$elemMatch" << 
+                            open_document <<
+                                "broker" <<
+                                    open_document <<
+                                        "$eq" << broker <<
+                                    close_document <<
+                            close_document <<
+                    close_document;
+            }
+
+            auto collection = INSTRUMENT_COLLECTION;
+            T* context = countTotalNum ? onTotalNum(collection.count_documents(query_builder.view())) : nullptr;
+            auto cursor = collection.find(query_builder.extract());
+            for (auto doc_view : cursor) {
+                onInstrument(context, doc_view);
+            }
+            onFinish(context);
+        });
     }
 };
 

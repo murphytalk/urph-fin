@@ -303,7 +303,7 @@ void urph_fin_core_close()
     LINFO(core_log_tag, "Freeing storage ... ");
     delete storage;
     LINFO(core_log_tag, "Storage freed!");
-    
+
     LINFO(core_log_tag, "Shutting down thread pool ... ");
     delete thread_pool;
     LINFO(core_log_tag, "Thread pool shutdown!");
@@ -527,7 +527,7 @@ void get_latest_quote_caller_ownership(const char* symbol, OnQuotes onQuotes, vo
     YahooFinance::Quote q(symbol);
 #else
     storage->get_latest_quote_caller_ownership(symbol, onQuotes, caller_provided_param);
-#endif    
+#endif
     CATCH_NO_RET
 }
 
