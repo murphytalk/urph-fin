@@ -187,8 +187,10 @@ public:
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
+        auto projection = new bsoncxx::builder::stream::document();
+        *projection << "_id" << 0 << "name" << 1 ;
         get_stock_and_etf<StringsBuilder>(
-            nullptr, nullptr, true,
+            nullptr, nullptr, true, projection,
             [](int count) { return new StringsBuilder(count); },
             [](StringsBuilder* b, const bsoncxx::document::view& doc_view){ b->add(doc_view["name"].get_string()); },
             [=](StringsBuilder* b){
@@ -205,7 +207,7 @@ public:
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
     {
         get_stock_and_etf<StockPortfolioBuilder>(
-            symbol, broker, true,
+            symbol, broker, true, nullptr,
             [builder](int count) { 
                 builder->prepare_stock_alloc(count);
                 return builder; 
@@ -236,12 +238,14 @@ private:
             const char* symbol,
             const char* broker,
             bool countTotalNum,
+            bsoncxx::builder::stream::document* projection,
             std::function<T*(int)> onTotalNum, 
             std::function<void(T*, const bsoncxx::document::view&)> onInstrument, 
             std::function<void(T* context)> onFinish)
     {
         (void)get_thread_pool()->submit([=](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
+
             bsoncxx::builder::stream::document query_builder;
             query_builder << "type" << 
                 open_document << 
@@ -270,11 +274,20 @@ private:
 
             auto collection = INSTRUMENT_COLLECTION;
             T* context = countTotalNum ? onTotalNum(collection.count_documents(query_builder.view())) : nullptr;
-            auto cursor = collection.find(query_builder.extract());
+
+            mongocxx::options::find opts{};
+            if(projection != nullptr){
+                opts.projection(projection->view());
+            }
+
+            auto cursor = collection.find(query_builder.extract(), opts);
             for (auto doc_view : cursor) {
+                //auto has = doc_view.find("type") != doc_view.end();
+                //LINFO(tag, "has type = " << has);
                 onInstrument(context, doc_view);
             }
             onFinish(context);
+            delete projection;
         });
     }
 };
