@@ -272,6 +272,8 @@ private:
                     close_document;
             }
 
+            // do not append finalize,otherwise the operators will be treated as normal field
+            
             auto collection = INSTRUMENT_COLLECTION;
             T* context = countTotalNum ? onTotalNum(collection.count_documents(query_builder.view())) : nullptr;
 

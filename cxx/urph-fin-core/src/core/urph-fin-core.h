@@ -155,8 +155,7 @@ struct quotes
     quote* first;
 };
 typedef void (*OnQuotes)(quotes*, void* param);
-void get_quotes_async(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param);
-quotes* get_quotes(int num, const char **symbols_head);
+void get_quotes(strings* symbols, OnQuotes onQuotes, void* caller_provided_param);
 void free_quotes(quotes* q);
 
 

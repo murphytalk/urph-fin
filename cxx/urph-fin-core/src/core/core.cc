@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <thread>
+#include <chrono>
 
 #include "../storage/storage.hxx"
 #include "urph-fin-core.hxx"
@@ -22,6 +23,8 @@
 
 #include "../utils.hxx"
 #include "core_internal.hxx"
+
+#include "../storage/storage.hxx"
 
 #ifdef YAHOO_FINANCE
 #include "../../mkt-data-src/yahoo-finance/quote.hpp"
@@ -472,6 +475,57 @@ stock_balance get_stock_balance(stock_tx_list* tx)
     return p->calc();
 }
 
+#ifdef YAHOO_FINANCE
+const int BACK_DAYS = 3;
+void get_quotes(strings* symbols, OnQuotes onQuotes, void* caller_provided_param)
+{
+    assert(storage != nullptr);
+
+    using Payload = std::pair<OnQuotes, void*>;
+
+    if(symbols == nullptr){
+        auto* payload = new Payload(onQuotes, caller_provided_param);
+        storage->get_known_stocks([](auto* stocks, void* ctx){
+           auto payload = reinterpret_cast<Payload*>(ctx);
+           get_quotes(stocks, payload->first, payload->second);
+        }, payload);
+    }
+    else{
+        (void)get_thread_pool()->submit([=](){
+            Strings* sym = static_cast<Strings*>(symbols);
+            auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(sym->capacity,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
+                onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
+            }));
+
+
+            for(auto name: *sym){
+                LDEBUG(core_log_tag, "Getting quote for " << name);
+                YahooFinance::Quote q(name);
+                auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
+                auto from  = to - std::chrono::hours(24 * BACK_DAYS);
+                q.getHistoricalCsv(
+                    std::chrono::system_clock::to_time_t(from),
+                    std::chrono::system_clock::to_time_t(to),
+                    "1d"
+                );
+                auto spots = q.nbSpots();
+                if(spots == 0){
+                    LERROR(core_log_tag, "No quote for " << name << " since " << BACK_DAYS << " days ago");
+                }
+                else{
+                    auto s = q.getSpot(spots - 1);
+                    builder->add_quote(name, s.getDate(), s.getClose());
+                }
+            }
+
+            builder->succeed();
+            delete sym;
+        });
+    }
+}
+
+#else
+
 void get_quotes_async(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param)
 {
     assert(storage != nullptr);
@@ -507,10 +561,11 @@ quotes* get_quotes(int num, const char **symbols_head)
     }
     return all_quotes;
 }
+#endif
 
 void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
 {
-    get_quotes_async(0, nullptr,[](quotes* all_quotes, void* ctx){
+    get_quotes(nullptr,[](quotes* all_quotes, void* ctx){
         auto* q = reinterpret_cast<QuoteBySymbol*>(ctx);
         auto *all = static_cast<Quotes*>(all_quotes);
         for(auto const& quote: *all){
@@ -518,17 +573,6 @@ void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
         }
         q->notify(all_quotes);
     }, &quotes_by_symbol);
-}
-
-void get_latest_quote_caller_ownership(const char* symbol, OnQuotes onQuotes, void* caller_provided_param)
-{
-    TRY
-#ifdef YAHOO_FINANCE
-    YahooFinance::Quote q(symbol);
-#else
-    storage->get_latest_quote_caller_ownership(symbol, onQuotes, caller_provided_param);
-#endif
-    CATCH_NO_RET
 }
 
 
