@@ -61,7 +61,10 @@ static void get_quotes(std::function<void()> onQuotesLoaded)
             all_quotes = aq;
             onQuotesLoaded();
         });
-        get_all_quotes(*quotes_by_symbol);
+        get_all_quotes(*quotes_by_symbol, [](int current, int all){
+            int percentage = 100 * current / all ;
+            std::cout << "..." << percentage << "% " << std::flush;
+        });
     }
     else onQuotesLoaded();
 }

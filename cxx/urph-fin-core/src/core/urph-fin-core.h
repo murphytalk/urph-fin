@@ -154,8 +154,10 @@ struct quotes
     int num;
     quote* first;
 };
+
+typedef void (*OnProgress)(int/*current*/, int/*total*/);
 typedef void (*OnQuotes)(quotes*, void* param);
-void get_quotes(strings* symbols, OnQuotes onQuotes, void* caller_provided_param);
+void get_quotes(strings* symbols, OnProgress onProgress, OnQuotes onQuotes, void* caller_provided_param);
 void free_quotes(quotes* q);
 
 

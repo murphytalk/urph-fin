@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <thread>
 #include <chrono>
+#include <tuple>
 
 #include "../storage/storage.hxx"
 #include "urph-fin-core.hxx"
@@ -477,17 +478,18 @@ stock_balance get_stock_balance(stock_tx_list* tx)
 
 #ifdef YAHOO_FINANCE
 const int BACK_DAYS = 3;
-void get_quotes(strings* symbols, OnQuotes onQuotes, void* caller_provided_param)
+void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void* caller_provided_param)
 {
     assert(storage != nullptr);
 
-    using Payload = std::pair<OnQuotes, void*>;
+    using Payload = std::tuple<OnProgress,OnQuotes, void*>;
 
     if(symbols == nullptr){
-        auto* payload = new Payload(onQuotes, caller_provided_param);
+        auto* payload = new Payload(onProgress, onQuotes, caller_provided_param);
         storage->get_known_stocks([](auto* stocks, void* ctx){
-           auto payload = reinterpret_cast<Payload*>(ctx);
-           get_quotes(stocks, payload->first, payload->second);
+           auto *payload = reinterpret_cast<Payload*>(ctx);
+           get_quotes(stocks, std::get<0>(*payload), std::get<1>(*payload), std::get<2>(*payload));
+           //delete payload;
         }, payload);
     }
     else{
@@ -497,9 +499,10 @@ void get_quotes(strings* symbols, OnQuotes onQuotes, void* caller_provided_param
                 onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
             }));
 
-
+            int i = 0;
             for(auto name: *sym){
                 LDEBUG(core_log_tag, "Getting quote for " << name);
+                onProgress(++i, sym->capacity);
                 YahooFinance::Quote q(name);
                 auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
                 auto from  = to - std::chrono::hours(24 * BACK_DAYS);
@@ -563,9 +566,9 @@ quotes* get_quotes(int num, const char **symbols_head)
 }
 #endif
 
-void get_all_quotes(QuoteBySymbol& quotes_by_symbol)
+void get_all_quotes(QuoteBySymbol& quotes_by_symbol, OnProgress OnProgress)
 {
-    get_quotes(nullptr,[](quotes* all_quotes, void* ctx){
+    get_quotes(nullptr, OnProgress, [](quotes* all_quotes, void* ctx){
         auto* q = reinterpret_cast<QuoteBySymbol*>(ctx);
         auto *all = static_cast<Quotes*>(all_quotes);
         for(auto const& quote: *all){
@@ -633,7 +636,7 @@ void AllAssets::load(){
             me->notify(AllAssets::Loaded::Brokers);
     }, this);
 
-    get_all_quotes(*quotes_by_symbol);
+    get_all_quotes(*quotes_by_symbol, [](int current, int total){});
 }
 
 void AllAssets::notify(AllAssets::Loaded loaded){

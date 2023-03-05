@@ -12,7 +12,7 @@
 #include "core/core_internal.hxx"
 
 #include <cstdint>
-#include <iostream>
+#include <algorithm>
 #include <vector>
 #include <memory>
 #include <thread>
@@ -52,6 +52,20 @@ namespace{
     double safe_get_double(const bsoncxx::document::element& e){
         const auto& v = e.get_value();
         return v.type() == bsoncxx::type::k_int32 ? (double)v.get_int32() : v.get_double();
+    }
+    timestamp safe_get_timestamp(const bsoncxx::document::element& e){
+        const auto& v = e.get_value();
+        switch (v.type())
+        {
+        case bsoncxx::type::k_double:
+            return (timestamp)v.get_double();
+        case bsoncxx::type::k_int32:
+            return v.get_int32();
+        case bsoncxx::type::k_int64:
+            return v.get_int64();
+        default:
+            return 0;
+        }
     }
 }
 
@@ -216,17 +230,23 @@ public:
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
                 b->add_stock(my_symbol, ccy);
-
                 const auto& tx = doc_view["tx"].get_document().view();
+                auto tx_num = std::distance(tx.begin(), tx.end());
+                b->prepare_tx_alloc(std::string(my_symbol), tx_num);
                 for(auto& tx_obj: tx){
-                    const auto& v = tx_obj.get_document().view();
-                    const timestamp date = v["date"].get_int32();
-                    const double price = safe_get_double(v["price"]);
-                    const double shares = safe_get_double(v["shares"]);
-                    const double fee = safe_get_double(v["fee"]);
-                    const std::string_view& type = v["type"].get_string();
-                    const std::string_view& my_broker = v["broker"].get_string();
-                    b->addTx(my_broker, my_symbol, type, price, shares, fee, date);
+                    try{
+                        const auto& v = tx_obj.get_document().view();
+                        const double price = safe_get_double(v["price"]);
+                        const timestamp date = safe_get_timestamp(v["date"]);
+                        const double shares = safe_get_double(v["shares"]);
+                        const double fee = safe_get_double(v["fee"]);
+                        const std::string_view& type = v["type"].get_string();
+                        const std::string_view& my_broker = v["broker"].get_string();
+                        b->addTx(my_broker, my_symbol, type, price, shares, fee, date);
+                    }
+                    catch(const std::exception& ex){
+                        LERROR(log, "failed to get stock tx " << ex.what());
+                    }
                 }
             },
             [=](void*){} 
@@ -273,7 +293,7 @@ private:
             }
 
             // do not append finalize,otherwise the operators will be treated as normal field
-            
+
             auto collection = INSTRUMENT_COLLECTION;
             T* context = countTotalNum ? onTotalNum(collection.count_documents(query_builder.view())) : nullptr;
 
