@@ -238,10 +238,15 @@ public:
                         const auto& v = tx_obj.get_document().view();
                         const double price = safe_get_double(v["price"]);
                         const timestamp date = safe_get_timestamp(v["date"]);
-                        const double shares = safe_get_double(v["shares"]);
-                        const double fee = safe_get_double(v["fee"]);
                         const std::string_view& type = v["type"].get_string();
                         const std::string_view& my_broker = v["broker"].get_string();
+
+                        double shares = 0;
+                        double fee = 0;
+                        if(type != "SPLIT"){
+                            shares = safe_get_double(v["shares"]);
+                            fee = safe_get_double(v["fee"]);
+                        }
                         b->addTx(my_broker, my_symbol, type, price, shares, fee, date);
                     }
                     catch(const std::exception& ex){
