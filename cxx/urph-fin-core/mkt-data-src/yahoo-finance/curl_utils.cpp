@@ -3,6 +3,7 @@
 
 #include <curl/curl.h>
 #include <sstream>
+#include <iostream>
 
 size_t writeCallback(char *content, size_t size, size_t nmemb, void *userdata) {
     // Append the content to user data
@@ -29,6 +30,7 @@ std::string downloadYahooCsv(
             + "&period2=" + ss2.str()
             + "&interval=" + interval
             + "&events=history";
+            std::cout<<url <<std::endl;
 
     CURL* curl = curl_easy_init();
     std::string responseBuffer;

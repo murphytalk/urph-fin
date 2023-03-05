@@ -503,7 +503,7 @@ void get_quotes(strings* symbols, OnQuotes onQuotes, void* caller_provided_param
                 YahooFinance::Quote q(name);
                 auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
                 auto from  = to - std::chrono::hours(24 * BACK_DAYS);
-                q.getHistoricalCsv(
+                q.getHistoricalSpots(
                     std::chrono::system_clock::to_time_t(from),
                     std::chrono::system_clock::to_time_t(to),
                     "1d"
