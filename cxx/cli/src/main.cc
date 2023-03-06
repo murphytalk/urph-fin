@@ -98,7 +98,7 @@ static void print_stock_list(ostream& out, stock_portfolio*p)
         ++row;
         double fx_rate = 1.0;
         if(strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy)/sizeof(char)) != 0){
-            const auto& r = get_rate(stockWithTx.instrument->currency + std::string(jpy));
+            const auto& r = get_rate(stockWithTx.instrument->currency + std::string(jpy) + "=X");
             fx_rate = r.first;
             fx_date = r.second;
         }

@@ -492,7 +492,12 @@ stock_balance get_stock_balance(stock_tx_list* tx)
 }
 
 #ifdef YAHOO_FINANCE
-const int BACK_DAYS = 3;
+namespace{
+    const int BACK_DAYS = 3;
+    const char usdjpy[] = "USDJPY=X";
+    const char cnyjpy[] = "CNYJPY=X";
+    const char hkdjpy[] = "HKDJPY=X";
+}
 void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void* caller_provided_param)
 {
     assert(storage != nullptr);
@@ -510,6 +515,13 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
     else{
         (void)get_thread_pool()->submit([=](){
             Strings* sym = static_cast<Strings*>(symbols);
+
+            // add the FX pairs
+            sym->increase_capacity(3);
+            sym->add(usdjpy);
+            sym->add(cnyjpy);
+            sym->add(hkdjpy);
+
             auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(sym->capacity,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
                 onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
             }));
