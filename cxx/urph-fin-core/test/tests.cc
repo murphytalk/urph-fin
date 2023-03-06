@@ -26,6 +26,33 @@ TEST(TestStrings, Basic)
     delete[] head;
 }
 
+TEST(TestStrings, IncreaseCapacity)
+{
+    const char *expected[] = {"123", "456", "789", "abc" ,"ABC"};
+
+    Strings ss(3);
+    ss.add(expected[0]);
+    ss.add(expected[1]);
+    ss.add(expected[2]);
+
+    ASSERT_EQ(3, ss.size());
+
+    ss.increase_capacity(2);
+    ss.add(expected[3]);
+    ss.add(expected[4]);
+
+    ASSERT_EQ(5, ss.size());
+    int i = 0;
+    char **pp = ss.to_str_array();
+    char **head = pp;
+    for (char *p : ss)
+    {
+        ASSERT_STREQ(expected[i], p);
+        ASSERT_STREQ(expected[i++], *pp++);
+    }
+    delete[] head;
+}
+
 TEST(TestStock, Basic)
 {
     Stock s1(std::string("SYM"), std::string("USD"));

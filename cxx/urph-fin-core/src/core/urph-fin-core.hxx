@@ -145,6 +145,7 @@ public:
     explicit Strings(int n);
     ~Strings();
     void add(const std::string_view& s);
+    void increase_capacity(int additional);
     int size() const;
     inline char** begin() { return strs; }
     inline char** end()   { return last_str; }

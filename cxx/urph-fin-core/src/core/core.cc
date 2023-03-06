@@ -84,6 +84,21 @@ void Strings::add(const std::string_view& i)
     *last_str++ = copy_str(i);
 }
 
+void Strings::increase_capacity(int additional)
+{
+    if(additional <=0 )  return;
+
+    capacity += additional;
+    char** new_strs = new char*[capacity];
+    char** new_head = new_strs;
+    for(char** p=strs; p!=last_str; ++p){
+        *new_strs++=*p;
+    }
+    delete []strs;
+    strs = new_head;
+    last_str = new_strs;
+}
+
 int Strings::size() const
 {
     return last_str - strs;
