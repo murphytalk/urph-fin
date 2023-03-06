@@ -216,8 +216,10 @@ public:
 
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void get_latest_quotes(LatestQuotesBuilder *builder) {}
+
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
                 OnDone onDone, void *caller_provided_param) {}
+
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
     {
         get_stock_and_etf<StockPortfolioBuilder>(
@@ -254,7 +256,7 @@ public:
                     }
                 }
             },
-            [=](void*){} 
+            [](void*){} 
         );
      }
 private:

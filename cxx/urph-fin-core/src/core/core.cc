@@ -489,7 +489,7 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
         storage->get_known_stocks([](auto* stocks, void* ctx){
            auto *payload = reinterpret_cast<Payload*>(ctx);
            get_quotes(stocks, std::get<0>(*payload), std::get<1>(*payload), std::get<2>(*payload));
-           //delete payload;
+           delete payload;
         }, payload);
     }
     else{
