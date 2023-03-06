@@ -57,7 +57,8 @@ static quotes* all_quotes = nullptr;
 static void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if(all_quotes == nullptr){
-        quotes_by_symbol = new QuoteBySymbol([&onQuotesLoaded](quotes* aq){
+        // cannot capture the callback function obj by reference as it will be executed in another thread after the passed in obj goes out of scope
+        quotes_by_symbol = new QuoteBySymbol([onQuotesLoaded = std::move(onQuotesLoaded)](quotes* aq){
             all_quotes = aq;
             onQuotesLoaded();
         });
