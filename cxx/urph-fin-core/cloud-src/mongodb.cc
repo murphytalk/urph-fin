@@ -92,7 +92,7 @@ public:
     typedef bsoncxx::document::view BrokerType;
     void get_broker_by_name(const char *broker, std::function<void(const BrokerType&)> onBrokerData) {
         // cast to void to deliberately ignore the [[nodiscard]] attribute
-        (void)get_thread_pool()->submit([=](){
+        (void)get_thread_pool()->submit([this, broker, onBrokerData=std::move(onBrokerData)](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             const auto b = BROKER_COLLECTION.find_one( document{} << "name" << broker << finalize );
             if(b){
@@ -151,7 +151,7 @@ public:
          }
     }
     void get_brokers(std::function<void(AllBrokerBuilder<MongoDbDao, BrokerType>*)> onAllBrokersBuilder){
-        (void)get_thread_pool()->submit([=](){
+        (void)get_thread_pool()->submit([this,onAllBrokersBuilder=std::move(onAllBrokersBuilder)](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             auto *all = new AllBrokerBuilder<MongoDbDao, BrokerType>(5 /*init value, will get increased automatically*/);
             auto cursor = BROKER_COLLECTION.find({});
@@ -268,7 +268,8 @@ private:
             std::function<void(T*, const bsoncxx::document::view&)> onInstrument, 
             std::function<void(T* context)> onFinish)
     {
-        (void)get_thread_pool()->submit([=](){
+        (void)get_thread_pool()->submit([this, symbol, broker, countTotalNum, projection, 
+                                         onTotalNum=std::move(onTotalNum),onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
 
             bsoncxx::builder::stream::document query_builder;
