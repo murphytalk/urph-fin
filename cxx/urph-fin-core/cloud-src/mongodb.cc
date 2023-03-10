@@ -210,7 +210,7 @@ public:
             [=](StringsBuilder* b){
                 onStrings(b->strings, ctx);
                 delete b;
-            } 
+            }
         );
     }
 
@@ -224,9 +224,9 @@ public:
     {
         get_stock_and_etf<StockPortfolioBuilder>(
             symbol, broker, true, nullptr,
-            [builder](int count) { 
+            [builder](int count) {
                 builder->prepare_stock_alloc(count);
-                return builder; 
+                return builder;
             },
             [](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
@@ -256,7 +256,7 @@ public:
                     }
                 }
             },
-            [](void*){} 
+            [](void*){}
         );
      }
 private:
@@ -265,21 +265,21 @@ private:
             const char* symbol,
             const char* broker,
             bool countTotalNum,
-            bsoncxx::builder::stream::document* projection,
-            std::function<T*(int)> onTotalNum, 
-            std::function<void(T*, const bsoncxx::document::view&)> onInstrument, 
+            bsoncxx::builder::stream::document* projection, //will be freed by this function
+            std::function<T*(int)> onTotalNum,
+            std::function<void(T*, const bsoncxx::document::view&)> onInstrument,
             std::function<void(T* context)> onFinish)
     {
-        (void)get_thread_pool()->submit([this, symbol, broker, countTotalNum, projection, 
+        (void)get_thread_pool()->submit([this, symbol, broker, countTotalNum, projection,
                                          onTotalNum=std::move(onTotalNum),onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
 
             bsoncxx::builder::stream::document query_builder;
-            query_builder << "type" << 
-                open_document << 
-                    "$in" << 
+            query_builder << "type" <<
+                open_document <<
+                    "$in" <<
                         open_array
-                            << "Stock" << "ETF" << 
+                            << "Stock" << "ETF" <<
                         close_array <<
                 close_document;
 
@@ -289,8 +289,8 @@ private:
 
             if(broker != nullptr){
                 query_builder << "tx"  <<
-                    open_document << 
-                        "$elemMatch" << 
+                    open_document <<
+                        "$elemMatch" <<
                             open_document <<
                                 "broker" <<
                                     open_document <<

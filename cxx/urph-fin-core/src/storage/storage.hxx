@@ -92,7 +92,6 @@ public:
     }
 };
 
-// before JavaScript alike future/promise is available, I would rather to deal with callback hells instead of using the current STL's future/promise.
 template<typename DAO, typename BrokerType>
 static void create_broker(
     DAO* dao,
