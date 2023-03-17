@@ -8,6 +8,7 @@
 #include "../src/utils.hxx"
 #include "bsoncxx/document/view.hpp"
 #include "core/stock.hxx"
+#include "mongocxx/cursor.hpp"
 #include "storage/storage.hxx"
 #include "core/core_internal.hxx"
 
@@ -36,11 +37,12 @@
 #include <bsoncxx/builder/stream/array.hpp>
 
 
-using bsoncxx::builder::stream::close_array;
 using bsoncxx::builder::stream::close_document;
 using bsoncxx::builder::stream::document;
 using bsoncxx::builder::stream::finalize;
 using bsoncxx::builder::stream::open_array;
+using bsoncxx::builder::stream::array;
+using bsoncxx::builder::stream::close_array;
 using bsoncxx::builder::stream::open_document;
 
 namespace{
@@ -203,9 +205,8 @@ public:
     void get_known_stocks(OnStrings onStrings, void *ctx) {
         auto projection = new bsoncxx::builder::stream::document();
         *projection << "_id" << 0 << "name" << 1 ;
-        get_stock_and_etf<StringsBuilder>(
-            nullptr, nullptr, true, projection,
-            [](int count) { return new StringsBuilder(count); },
+        get_stock_and_etf<StringsBuilder>(new StringsBuilder(0),
+            nullptr, nullptr,  projection,
             [](StringsBuilder* b, const bsoncxx::document::view& doc_view){ b->add(doc_view["name"].get_string()); },
             [=](StringsBuilder* b){
                 onStrings(b->strings, ctx);
@@ -222,12 +223,11 @@ public:
 
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
     {
+        builder->prepare_stock_alloc_dont_know_total_num(10);
+        auto projection = new bsoncxx::builder::stream::document();
+        *projection << "_id" << 0 ;
         get_stock_and_etf<StockPortfolioBuilder>(
-            symbol, broker, true, nullptr,
-            [builder](int count) {
-                builder->prepare_stock_alloc(count);
-                return builder;
-            },
+            builder, symbol, broker, projection,
             [](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
@@ -256,66 +256,111 @@ public:
                     }
                 }
             },
-            [](void*){}
+            [](StockPortfolioBuilder *b){ b->complete(); }
         );
      }
 private:
     template<typename T>
     void get_stock_and_etf(
+            T* context,
             const char* symbol,
             const char* broker,
-            bool countTotalNum,
             bsoncxx::builder::stream::document* projection, //will be freed by this function
-            std::function<T*(int)> onTotalNum,
             std::function<void(T*, const bsoncxx::document::view&)> onInstrument,
             std::function<void(T* context)> onFinish)
     {
-        (void)get_thread_pool()->submit([this, symbol, broker, countTotalNum, projection,
-                                         onTotalNum=std::move(onTotalNum),onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
+        (void)get_thread_pool()->submit([this, context,symbol, broker, projection,
+                                         onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
+
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
+/*
+            document filter_builder{};
 
-            bsoncxx::builder::stream::document query_builder;
-            query_builder << "type" <<
-                open_document <<
-                    "$in" <<
-                        open_array
-                            << "Stock" << "ETF" <<
-                        close_array <<
-                close_document;
-
-            if(symbol != nullptr){
-                query_builder << "name" << symbol;
+            if ( symbol != nullptr) {
+                filter_builder << "name" << symbol;
             }
 
-            if(broker != nullptr){
-                query_builder << "tx"  <<
-                    open_document <<
-                        "$elemMatch" <<
-                            open_document <<
-                                "broker" <<
-                                    open_document <<
-                                        "$eq" << broker <<
-                                    close_document <<
-                            close_document <<
-                    close_document;
+            if (broker != nullptr) {
+                filter_builder << "tx" << open_document << "$elemMatch" << open_document << "broker" << broker << close_document << close_document;
             }
 
-            // do not append finalize,otherwise the operators will be treated as normal field
+            filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
+*/
 
-            auto collection = INSTRUMENT_COLLECTION;
-            T* context = countTotalNum ? onTotalNum(collection.count_documents(query_builder.view())) : nullptr;
 
-            mongocxx::options::find opts{};
+/*
             if(projection != nullptr){
                 opts.projection(projection->view());
             }
-
-            auto cursor = collection.find(query_builder.extract(), opts);
-            for (auto doc_view : cursor) {
+*/
+            auto iterate_stock = [context,&onInstrument](mongocxx::cursor&& cursor){
+              for (auto doc_view : cursor){
                 //auto has = doc_view.find("type") != doc_view.end();
                 //LINFO(tag, "has type = " << has);
                 onInstrument(context, doc_view);
+              }
+            };
+
+
+            if(broker == nullptr){
             }
+            else{
+                /* basically this native query
+                db.instrument.aggregate([
+                  {
+                    "$match": {
+                      "name": "NFLX"
+                    }
+                  },
+                  {
+                    "$addFields": {
+                      "tx": {
+                        "$filter": {
+                          "input": { "$objectToArray": "$tx" },
+                          "as": "tx_doc",
+                          "cond": { "$eq": [ "$$tx_doc.v.broker", "IB" ] }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "$addFields": {
+                      "tx": { "$arrayToObject": "$tx" }
+                    }
+                  },
+                  {
+                    "$project": {
+                      "_id": 0,
+                    }
+                  }
+                ])
+                */
+                mongocxx::pipeline pipeline{};
+                pipeline.match(document{} << "name" << symbol << finalize);
+
+                auto doc = document{} << "tx" << open_document <<
+                    "$filter" << open_document <<
+                        "input" << open_document <<
+                            "$objectToArray" << "$tx" << close_document <<
+                        "as" << "tx_doc" <<
+                        "cond" << open_document <<
+                            "$eq" << open_array << "$$tx_doc.v.broker" << broker << close_array <<
+                        close_document << close_document << close_document << finalize;
+                pipeline.add_fields(doc.view());
+
+
+                auto doc2 = document {} << "tx" << open_document <<
+                    "$arrayToObject" << "$tx" << close_document <<  finalize;
+                pipeline.add_fields(doc2.view());
+
+                if(projection != nullptr){
+                    pipeline.project(projection->view());
+                }
+
+                iterate_stock(INSTRUMENT_COLLECTION.aggregate(pipeline));
+            }
+
+
             onFinish(context);
             delete projection;
         });

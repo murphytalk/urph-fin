@@ -182,7 +182,12 @@ public:
         unfinished_stocks = n;
         stock_alloc = new StockAlloc(n);
     }
-    void prepare_tx_alloc(const std::string& symbol, int num){
+    void prepare_stock_alloc_dont_know_total_num(int n) {
+        LDEBUG(storage_log_tag, "Assuming " << n << " stocks\n");
+        unfinished_stocks = -1;
+        stock_alloc = new StockAlloc(n);
+    }
+     void prepare_tx_alloc(const std::string& symbol, int num){
         LDEBUG(storage_log_tag, "Got " << num << " tx for " << symbol);
         if(num == 0){
             check_completion(nullptr);
@@ -204,7 +209,10 @@ public:
             const auto& tx_alloc = s->second;
             new (tx_alloc->next()) StockTx(broker, shares, price, fee, type, date);
             LDEBUG(storage_log_tag, "Added tx@" << date << " for " << symbol << " broker=" << broker);
-            check_completion(tx_alloc);
+            if(unfinished_stocks >= 0){
+                // only calls this when we know the extact stock num in advance
+                check_completion(tx_alloc);
+            }
         }
         else throw std::runtime_error("Cannot find tx for stock " + std::string(symbol));
     }
@@ -217,6 +225,11 @@ public:
         }
     }
     inline void failed(){
+        delete this;
+    }
+
+    void complete(){
+        onSuccess(stock_alloc, tx);
         delete this;
     }
 
@@ -261,8 +274,7 @@ private:
             LDEBUG(storage_log_tag, "Enough tx , remaining stocks = " << unfinished_stocks);
             if(unfinished_stocks == 0){
                 // no more pending
-                onSuccess(stock_alloc, tx);
-                delete this;
+                complete();
             }
         }
     }
