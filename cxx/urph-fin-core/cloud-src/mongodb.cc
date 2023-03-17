@@ -282,13 +282,13 @@ private:
               }
             };
 
+            document filter_builder{};
+            filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
 
             if(broker == nullptr){
-                document filter_builder{};
                 if ( symbol != nullptr) {
                     filter_builder << "name" << symbol;
                 }
-                filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
 
                 mongocxx::options::find opts{};
                 if(projection != nullptr){
@@ -328,7 +328,7 @@ private:
                 ])
                 */
                 mongocxx::pipeline pipeline{};
-                pipeline.match(document{} << "name" << symbol << finalize);
+                pipeline.match(filter_builder << "name" << symbol << finalize);
 
                 auto filter = document{} << "tx" << open_document <<
                     "$filter" << open_document <<
