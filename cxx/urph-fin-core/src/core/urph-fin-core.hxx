@@ -144,7 +144,7 @@ class Strings: public strings{
 public:
     explicit Strings(int n);
     ~Strings();
-    void add(const std::string_view& s);
+    void add(const std::string_view& s, float increment_ratio = 0.5);
     void increase_capacity(int additional);
     int size() const;
     inline char** begin() { return strs; }

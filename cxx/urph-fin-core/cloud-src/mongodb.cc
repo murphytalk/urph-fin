@@ -205,7 +205,7 @@ public:
     void get_known_stocks(OnStrings onStrings, void *ctx) {
         auto projection = new bsoncxx::builder::stream::document();
         *projection << "_id" << 0 << "name" << 1 ;
-        get_stock_and_etf<StringsBuilder>(new StringsBuilder(0),
+        get_stock_and_etf<StringsBuilder>(new StringsBuilder(10),
             nullptr, nullptr,  projection,
             [](StringsBuilder* b, const bsoncxx::document::view& doc_view){ b->add(doc_view["name"].get_string()); },
             [=](StringsBuilder* b){

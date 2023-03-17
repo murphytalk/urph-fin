@@ -32,7 +32,7 @@
 #endif
 
 namespace{
-    const char core_log_tag[] = "urph-fin-core";
+    const char tag[] = "urph-fin-core";
 }
 
 
@@ -74,19 +74,18 @@ Strings::Strings(int n)
     last_str = strs;
 }
 
-void Strings::add(const std::string_view& i)
+void Strings::add(const std::string_view& i, float increment_ratio )
 {
     if(size() == capacity){
-        std::stringstream ss;
-        ss << "Could not add string [" << i << "] : exceeding capacity " << capacity;
-        throw std::runtime_error(ss.str());
+        increase_capacity(std::ceil(capacity *  increment_ratio));
     }
     *last_str++ = copy_str(i);
 }
 
 void Strings::increase_capacity(int additional)
 {
-    if(additional <=0 )  return;
+    if(additional <= 0 )  return;
+    LDEBUG(tag, "increase strings capacity by " << additional << " from " << capacity);
 
     capacity += additional;
     char** new_strs = new char*[capacity];
@@ -117,10 +116,10 @@ char** Strings::to_str_array()
 Strings::~Strings()
 {
     for(char** p=strs; p!=last_str; ++p){
-        LDEBUG(core_log_tag, *p << ",");
+        LDEBUG(tag, *p << ",");
         delete []*p;
     }
-    LDEBUG(core_log_tag," deleted");
+    LDEBUG(tag," deleted. capacity=" << capacity << ",allocated=" <<size());
     delete []strs;
 }
 
@@ -131,7 +130,7 @@ void free_strings(strings* ss)
 
 Broker::Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
-    LDEBUG(core_log_tag, "broker constructor: " << n);
+    LDEBUG(tag, "broker constructor: " << n);
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
@@ -140,7 +139,7 @@ Broker::Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_ba
 }
 
 Broker::~Broker(){
-    LDEBUG(core_log_tag, "freeing broker " << name << " : cash balances:");
+    LDEBUG(tag, "freeing broker " << name << " : cash balances:");
     delete[] name;
 
     delete[] funds_update_date;
@@ -148,9 +147,9 @@ Broker::~Broker(){
     free_placement_allocated_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;
 
-    LDEBUG(core_log_tag, " - active funds");
+    LDEBUG(tag, " - active funds");
     free_strings(active_fund_ids);
-    LDEBUG(core_log_tag, " - active funds freed!");
+    LDEBUG(tag, " - active funds freed!");
 }
 
 AllBrokers::AllBrokers(int n, broker* broker)
@@ -161,7 +160,7 @@ AllBrokers::AllBrokers(int n, broker* broker)
 
 AllBrokers::~AllBrokers()
 {
-    LDEBUG(core_log_tag, "freeing " << num << " brokers");
+    LDEBUG(tag, "freeing " << num << " brokers");
     free_placement_allocated_structs<AllBrokers, Broker>(this);
     delete []first_broker;
 }
@@ -304,7 +303,7 @@ bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
     auto sink = std::make_shared<AixLog::SinkFile>(log_lvl, log_file == nullptr ? "urph-fin.log" :log_file);
     AixLog::Log::init({sink});
 #endif
-   LDEBUG(core_log_tag, "urph-fin-core initializing");
+   LDEBUG(tag, "urph-fin-core initializing");
 
     try{
         storage = create_cloud_instance(onInitDone, caller_provided_param);
@@ -312,20 +311,20 @@ bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
         return true;
     }
     catch(const std::exception& e){
-        LERROR(core_log_tag, "Failed to init storage service: " << e.what());
+        LERROR(tag, "Failed to init storage service: " << e.what());
         return false;
     }
 }
 
 void urph_fin_core_close()
 {
-    LINFO(core_log_tag, "Freeing storage ... ");
+    LINFO(tag, "Freeing storage ... ");
     delete storage;
-    LINFO(core_log_tag, "Storage freed!");
+    LINFO(tag, "Storage freed!");
 
-    LINFO(core_log_tag, "Shutting down thread pool ... ");
+    LINFO(tag, "Shutting down thread pool ... ");
     delete thread_pool;
-    LINFO(core_log_tag, "Thread pool shutdown!");
+    LINFO(tag, "Thread pool shutdown!");
 }
 
 #define TRY try{
@@ -528,7 +527,7 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
 
             int i = 0;
             for(auto name: *sym){
-                LDEBUG(core_log_tag, "Getting quote for " << name);
+                LDEBUG(tag, "Getting quote for " << name);
                 onProgress(++i, sym->capacity);
                 YahooFinance::Quote q(name);
                 auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
@@ -540,7 +539,7 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
                 );
                 auto spots = q.nbSpots();
                 if(spots == 0){
-                    LERROR(core_log_tag, "No quote for " << name << " since " << BACK_DAYS << " days ago");
+                    LERROR(tag, "No quote for " << name << " since " << BACK_DAYS << " days ago");
                 }
                 else{
                     auto s = q.getSpot(spots - 1);
@@ -842,7 +841,7 @@ static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
         return assets->second;
     }
     else{
-        LERROR(core_log_tag, "Cannot find assets by handle " << asset_handle);
+        LERROR(tag, "Cannot find assets by handle " << asset_handle);
         return nullptr;
     }
 }
