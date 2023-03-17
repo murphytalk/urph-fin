@@ -273,26 +273,7 @@ private:
                                          onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
 
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
-/*
-            document filter_builder{};
 
-            if ( symbol != nullptr) {
-                filter_builder << "name" << symbol;
-            }
-
-            if (broker != nullptr) {
-                filter_builder << "tx" << open_document << "$elemMatch" << open_document << "broker" << broker << close_document << close_document;
-            }
-
-            filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
-*/
-
-
-/*
-            if(projection != nullptr){
-                opts.projection(projection->view());
-            }
-*/
             auto iterate_stock = [context,&onInstrument](mongocxx::cursor&& cursor){
               for (auto doc_view : cursor){
                 //auto has = doc_view.find("type") != doc_view.end();
@@ -303,6 +284,17 @@ private:
 
 
             if(broker == nullptr){
+                document filter_builder{};
+                if ( symbol != nullptr) {
+                    filter_builder << "name" << symbol;
+                }
+                filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
+
+                mongocxx::options::find opts{};
+                if(projection != nullptr){
+                    opts.projection(projection->view());
+                }
+                iterate_stock(INSTRUMENT_COLLECTION.find(filter_builder.view(), opts));
             }
             else{
                 /* basically this native query
@@ -338,7 +330,7 @@ private:
                 mongocxx::pipeline pipeline{};
                 pipeline.match(document{} << "name" << symbol << finalize);
 
-                auto doc = document{} << "tx" << open_document <<
+                auto filter = document{} << "tx" << open_document <<
                     "$filter" << open_document <<
                         "input" << open_document <<
                             "$objectToArray" << "$tx" << close_document <<
@@ -346,12 +338,12 @@ private:
                         "cond" << open_document <<
                             "$eq" << open_array << "$$tx_doc.v.broker" << broker << close_array <<
                         close_document << close_document << close_document << finalize;
-                pipeline.add_fields(doc.view());
+                pipeline.add_fields(filter.view());
 
 
-                auto doc2 = document {} << "tx" << open_document <<
+                auto back2tx = document {} << "tx" << open_document <<
                     "$arrayToObject" << "$tx" << close_document <<  finalize;
-                pipeline.add_fields(doc2.view());
+                pipeline.add_fields(back2tx.view());
 
                 if(projection != nullptr){
                     pipeline.project(projection->view());
