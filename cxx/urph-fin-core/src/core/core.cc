@@ -629,13 +629,13 @@ namespace{
 
     const char assets_tag[] = "assets";
 }
-AllAssets::AllAssets(std::function<void()> onLoaded){
+AllAssets::AllAssets(std::function<void()> onLoaded, OnProgress onProgress){
     notifyLoaded = onLoaded;
     quotes_by_symbol = nullptr;
-    load();
+    load(onProgress);
 }
 
-void AllAssets::load(){
+void AllAssets::load(OnProgress onProgress){
     quotes_by_symbol = new QuoteBySymbol([this](quotes* all_quotes){
         this->q = static_cast<::Quotes*>(all_quotes);
         this->notify(AllAssets::Loaded::Quotes);
@@ -664,7 +664,7 @@ void AllAssets::load(){
             me->notify(AllAssets::Loaded::Brokers);
     }, this);
 
-    get_all_quotes(*quotes_by_symbol, [](int current, int total){});
+    get_all_quotes(*quotes_by_symbol, onProgress);
 }
 
 void AllAssets::notify(AllAssets::Loaded loaded){
@@ -824,10 +824,10 @@ std::map<AssetHandle, AllAssets*> all_assets_by_handle;
 AssetHandle next_asset_handle = 0;
 }
 
-void load_assets(OnAssetLoaded onLoaded, void* ctx)
+void load_assets(OnAssetLoaded onLoaded, void* ctx,OnProgress onProgress)
 {
     AssetHandle h = ++next_asset_handle;
-    all_assets_by_handle[h] = new AllAssets([&onLoaded,h, ctx]{ onLoaded(ctx, h); });
+    all_assets_by_handle[h] = new AllAssets([onLoaded=std::move(onLoaded),h, ctx]{ onLoaded(ctx, h); }, onProgress);
 }
 
 const Quote* AllAssets::get_latest_quote(const char* symbol) const

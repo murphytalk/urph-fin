@@ -61,7 +61,7 @@ struct fund{
     double price;
     double profit;
     double ROI;
-    timestamp date; 
+    timestamp date;
 };
 
 struct fund_portfolio{
@@ -104,8 +104,8 @@ struct stock_tx
     double fee;
     double shares;
     double price;
-    SIDE side; 
-    timestamp date; 
+    SIDE side;
+    timestamp date;
 };
 
 struct stock_tx_list
@@ -160,17 +160,16 @@ typedef void (*OnQuotes)(quotes*, void* param);
 void get_quotes(strings* symbols, OnProgress onProgress, OnQuotes onQuotes, void* caller_provided_param);
 void free_quotes(quotes* q);
 
-
 void add_stock_tx(const char* broker, const char* symbol, double shares, double price, double fee,const char* side, timestamp date, OnDone, void*);
 
 /*
-  - item_name = Asset  
+  - item_name = Asset
     - overview_item_container_container
       name = Stock
       item_name = Broker
       - overview_item_container
         name = StockBroker1
-        item_name = Currency 
+        item_name = Currency
         -overview_item
          name  = JPY
          value = 1,000
@@ -181,7 +180,7 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
          value_in_main_ccy = 100,000
       - overview_item_container
         name = StockBroker2
-        item_name = Currency 
+        item_name = Currency
         -overview_item
          name  = JPY
          value = 1,000
@@ -195,7 +194,7 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
       item_name = Broker
       - overview_item_container
         name = FundBroker1
-        item_name = Currency 
+        item_name = Currency
         -overview_item
          name  = JPY
          value = 1,000
@@ -206,7 +205,7 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
          value_in_main_ccy = 100,000
       - overview_item_container
         name = FundBroker2
-        item_name = Currency 
+        item_name = Currency
         -overview_item
          name  = JPY
          value = 1,000
@@ -258,7 +257,7 @@ struct overview{
 
 typedef int AssetHandle;
 typedef void (*OnAssetLoaded)(void*param, AssetHandle h);
-void load_assets(OnAssetLoaded onLoaded, void* ctx);
+void load_assets(OnAssetLoaded onLoaded, void* ctx, OnProgress onProgress);
 
 strings* get_all_ccy(AssetHandle handle);
 

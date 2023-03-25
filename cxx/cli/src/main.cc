@@ -56,6 +56,12 @@ static std::string percentage(T value)
 
 static QuoteBySymbol *quotes_by_symbol = nullptr;
 static quotes *all_quotes = nullptr;
+
+static void print_progresss(int current, int all){
+    int percentage = 100 * current / all ;
+    std::cout << "..." << percentage << "% " << std::flush;
+}
+
 static void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if (all_quotes == nullptr)
@@ -65,10 +71,7 @@ static void get_quotes(std::function<void()> onQuotesLoaded)
                                              {
             all_quotes = aq;
             onQuotesLoaded(); });
-        get_all_quotes(*quotes_by_symbol, [](int current, int all)
-                       {
-            int percentage = 100 * current / all ;
-            std::cout << "..." << percentage << "% " << std::flush; });
+        get_all_quotes(*quotes_by_symbol, print_progresss);
     }
     else
         onQuotesLoaded();
@@ -285,13 +288,12 @@ static void main_menu()
             {
                 if (ah == 0)
                 {
-                    load_assets([](void *p, AssetHandle h)
-                                {
+                    load_assets([](void *p, AssetHandle h){
                         ostream* o = reinterpret_cast<ostream*>(p);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
-                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); },
-                                &out);
+                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); 
+                    },&out,print_progresss);
                 }
                 else
                     list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
