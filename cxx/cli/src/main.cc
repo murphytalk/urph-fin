@@ -11,7 +11,6 @@
 #include <cmath>
 #include <ctime>
 
-
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
@@ -35,9 +34,11 @@ static std::string format_timestamp(timestamp t)
     return to_simple_string(pt);
 }
 
-template<typename T> static std::string format_with_commas(T value)
+template <typename T>
+static std::string format_with_commas(T value)
 {
-    if(std::isnan(value)) return "N/A";
+    if (std::isnan(value))
+        return "N/A";
 
     std::stringstream ss;
     ss.imbue(std::locale(""));
@@ -45,7 +46,8 @@ template<typename T> static std::string format_with_commas(T value)
     return ss.str();
 }
 
-template<typename T> static std::string percentage(T value)
+template <typename T>
+static std::string percentage(T value)
 {
     std::stringstream ss;
     ss << value * 100 << "%";
@@ -53,21 +55,23 @@ template<typename T> static std::string percentage(T value)
 }
 
 static QuoteBySymbol *quotes_by_symbol = nullptr;
-static quotes* all_quotes = nullptr;
+static quotes *all_quotes = nullptr;
 static void get_quotes(std::function<void()> onQuotesLoaded)
 {
-    if(all_quotes == nullptr){
+    if (all_quotes == nullptr)
+    {
         // cannot capture the callback function obj by reference as it will be executed in another thread after the passed in obj goes out of scope
-        quotes_by_symbol = new QuoteBySymbol([onQuotesLoaded = std::move(onQuotesLoaded)](quotes* aq){
+        quotes_by_symbol = new QuoteBySymbol([onQuotesLoaded = std::move(onQuotesLoaded)](quotes *aq)
+                                             {
             all_quotes = aq;
-            onQuotesLoaded();
-        });
-        get_all_quotes(*quotes_by_symbol, [](int current, int all){
+            onQuotesLoaded(); });
+        get_all_quotes(*quotes_by_symbol, [](int current, int all)
+                       {
             int percentage = 100 * current / all ;
-            std::cout << "..." << percentage << "% " << std::flush;
-        });
+            std::cout << "..." << percentage << "% " << std::flush; });
     }
-    else onQuotesLoaded();
+    else
+        onQuotesLoaded();
 }
 
 static const char jpy[] = "JPY";
@@ -75,80 +79,89 @@ static inline double to_jpy(double fx_rate, double value)
 {
     return std::isnan(fx_rate) || std::isnan(value) ? std::nan("") : fx_rate * value;
 }
-static std::pair<double,timestamp> get_rate(const std::string& symbol)
+static std::pair<double, timestamp> get_rate(const std::string &symbol)
 {
     auto it = quotes_by_symbol->mapping.find(symbol);
-    return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""),0L) : std::make_pair(it->second->rate, it->second->date);
+    return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""), 0L) : std::make_pair(it->second->rate, it->second->date);
 }
 
-static void print_stock_list(ostream& out, stock_portfolio*p)
+static void print_stock_list(ostream &out, stock_portfolio *p)
 {
     Table table;
     table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee", "Date"});
-    auto *port = static_cast<StockPortfolio*>(p);
+    auto *port = static_cast<StockPortfolio *>(p);
     double market_value_sum_jpy, profit_sum_jpy = 0.0;
     int row = 0;
 
     timestamp fx_date = 0L;
-    for(auto const& stockWithTx: *port){
-        auto* tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
-//        LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
+    for (auto const &stockWithTx : *port)
+    {
+        auto *tx_list = static_cast<StockTxList *>(stockWithTx.tx_list);
+        //        LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
         auto balance = tx_list->calc();
-        if(balance.shares == 0) continue;
+        if (balance.shares == 0)
+            continue;
         ++row;
         double fx_rate = 1.0;
-        if(strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy)/sizeof(char)) != 0){
-            const auto& r = get_rate(stockWithTx.instrument->currency + std::string(jpy) + "=X");
+        if (strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy) / sizeof(char)) != 0)
+        {
+            const auto &r = get_rate(stockWithTx.instrument->currency + std::string(jpy) + "=X");
             fx_rate = r.first;
             fx_date = r.second;
         }
-        double market_value, profit,profit_jpy = std::nan("");
-        const auto& r = get_rate(stockWithTx.instrument->symbol);
+        double market_value, profit, profit_jpy = std::nan("");
+        const auto &r = get_rate(stockWithTx.instrument->symbol);
         double price = r.first;
         timestamp quote_date = r.second;
-        if(!std::isnan(price) && !std::isnan(fx_rate)){
-            market_value =  price * balance.shares;
+        if (!std::isnan(price) && !std::isnan(fx_rate))
+        {
+            market_value = price * balance.shares;
             profit = (price - balance.vwap) * balance.shares;
             profit_jpy = fx_rate * profit;
             market_value_sum_jpy += fx_rate * market_value;
             profit_sum_jpy += profit_jpy;
         }
-        else{
-//            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
+        else
+        {
+            //            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
         }
-        table.add_row({
-            stockWithTx.instrument->symbol,
-            stockWithTx.instrument->currency,
-            format_with_commas(balance.vwap),
-            format_with_commas(price),
-            format_with_commas(balance.shares),
-            format_with_commas(market_value),
-            format_with_commas(to_jpy(fx_rate, market_value)),
-            format_with_commas(profit),
-            format_with_commas(profit_jpy),
-            format_with_commas(balance.liquidated),
-            format_with_commas(to_jpy(fx_rate, balance.liquidated)),
-            format_with_commas(balance.fee),
-            format_timestamp(quote_date)
-        });
-        if(!std::isnan(profit) && profit < 0){
+        table.add_row({stockWithTx.instrument->symbol,
+                       stockWithTx.instrument->currency,
+                       format_with_commas(balance.vwap),
+                       format_with_commas(price),
+                       format_with_commas(balance.shares),
+                       format_with_commas(market_value),
+                       format_with_commas(to_jpy(fx_rate, market_value)),
+                       format_with_commas(profit),
+                       format_with_commas(profit_jpy),
+                       format_with_commas(balance.liquidated),
+                       format_with_commas(to_jpy(fx_rate, balance.liquidated)),
+                       format_with_commas(balance.fee),
+                       format_timestamp(quote_date)});
+        if (!std::isnan(profit) && profit < 0)
+        {
             table[row][7].format().font_color(Color::red);
             table[row][8].format().font_color(Color::red);
         }
     }
     ++row;
     table.add_row({"SUM", "", "", "", "", "", format_with_commas(market_value_sum_jpy), "", format_with_commas(profit_sum_jpy), "", "", "FX Date", format_timestamp(fx_date)});
-    if(profit_sum_jpy<0) table[row][8].format().font_color(Color::red);
+    if (profit_sum_jpy < 0)
+        table[row][8].format().font_color(Color::red);
     table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
     free_stock_portfolio(p);
-    for(auto i = 2 ; i <= 11 ;++i) table.column(i).format().font_align(FontAlign::right);
+    for (auto i = 2; i <= 11; ++i)
+        table.column(i).format().font_align(FontAlign::right);
     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-    out << "\n" << table << endl;
+    out << "\n"
+        << table << endl;
 }
 
-static void list_stock_tx(const char* broker,const char* symbol, ostream& out)
+static void list_stock_tx(const char *broker, const char *symbol, ostream &out)
 {
-    get_stock_portfolio(broker, symbol,[](stock_portfolio*p, void* param){
+    get_stock_portfolio(
+        broker, symbol, [](stock_portfolio *p, void *param)
+        {
         ostream* out = reinterpret_cast<ostream*>(param);
         Table table;
         table.add_row({"Symbol","Date", "Broker", "Type", "Price", "Shares", "Fee"});
@@ -175,18 +188,17 @@ static void list_stock_tx(const char* broker,const char* symbol, ostream& out)
         free_stock_portfolio(p);
         table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
         for(auto i = 4 ; i <= 6 ;++i) table.column(i).format().font_align(FontAlign::right);
-        *out << "\n" << table << endl;
-    }, &out);
+        *out << "\n" << table << endl; },
+        &out);
 }
 
-const char* groupName [] = {
-    "Asset", "Broker", "Currency"
-};
+const char *groupName[] = {
+    "Asset", "Broker", "Currency"};
 
 static std::string main_ccy = "JPY";
 static AssetHandle ah = 0;
 
-static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
+static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream &out)
 {
     Table table;
 
@@ -197,54 +209,65 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream& out)
 
     table.add_row({groupName[lvl1], groupName[lvl2], groupName[lvl3], "Market Value", mkt_value_main_ccy.str(), "Profit", profit_main_ccy.str()});
 
-   auto *o = static_cast<Overview*>(get_overview(ah, main_ccy.c_str(), lvl1, lvl2, lvl3));
+    auto *o = static_cast<Overview *>(get_overview(ah, main_ccy.c_str(), lvl1, lvl2, lvl3));
 
     int row = 0;
-    for(auto& l1: *o){
+    for (auto &l1 : *o)
+    {
         ++row;
         table.add_row({l1.name, "", "", "", format_with_commas(l1.value_sum_in_main_ccy), "", format_with_commas(l1.profit_sum_in_main_ccy)});
-        if(l1.profit_sum_in_main_ccy < 0){
+        if (l1.profit_sum_in_main_ccy < 0)
+        {
             table[row][6].format().font_color(Color::red);
         }
-        for(auto& l2: l1){
-            if(l2.value_sum_in_main_ccy == 0) continue;
+        for (auto &l2 : l1)
+        {
+            if (l2.value_sum_in_main_ccy == 0)
+                continue;
             ++row;
-            table.add_row({"", l2.name,"", "", format_with_commas(l2.value_sum_in_main_ccy), "", format_with_commas(l2.profit_sum_in_main_ccy)});
-            if(l2.profit_sum_in_main_ccy < 0){
+            table.add_row({"", l2.name, "", "", format_with_commas(l2.value_sum_in_main_ccy), "", format_with_commas(l2.profit_sum_in_main_ccy)});
+            if (l2.profit_sum_in_main_ccy < 0)
+            {
                 table[row][6].format().font_color(Color::red);
             }
-            for(auto& l3: l2){
-                if(l3.value_in_main_ccy == 0) continue;
+            for (auto &l3 : l2)
+            {
+                if (l3.value_in_main_ccy == 0)
+                    continue;
                 ++row;
                 table.add_row({"", "", l3.name, format_with_commas(l3.value), format_with_commas(l3.value_in_main_ccy), format_with_commas(l3.profit), format_with_commas(l3.profit_in_main_ccy)});
-                if(l3.profit<0){
+                if (l3.profit < 0)
+                {
                     table[row][5].format().font_color(Color::red);
                     table[row][6].format().font_color(Color::red);
                 }
             }
         }
     }
-    table.add_row({"SUM", "","", "", format_with_commas(o->value_sum_in_main_ccy), "", format_with_commas(o->profit_sum_in_main_ccy)});
+    table.add_row({"SUM", "", "", "", format_with_commas(o->value_sum_in_main_ccy), "", format_with_commas(o->profit_sum_in_main_ccy)});
     ++row;
     table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
 
     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-    for(auto i = 3 ; i <= 6 ;++i) table.column(i).format().font_align(FontAlign::right);
-    out << "\n" << table << endl;
+    for (auto i = 3; i <= 6; ++i)
+        table.column(i).format().font_align(FontAlign::right);
+    out << "\n"
+        << table << endl;
     delete o;
 }
 
-static GROUP to_lvl_group(std::string& lvl)
+static GROUP to_lvl_group(std::string &lvl)
 {
-    switch(lvl[0]){
-        case 'a':
-        case 'A':
-            return GROUP_BY_ASSET;
-        case 'b':
-        case 'B':
-            return GROUP_BY_BROKER;
-        default:
-            return GROUP_BY_CCY;
+    switch (lvl[0])
+    {
+    case 'a':
+    case 'A':
+        return GROUP_BY_ASSET;
+    case 'b':
+    case 'B':
+        return GROUP_BY_BROKER;
+    default:
+        return GROUP_BY_CCY;
     }
 }
 
@@ -252,41 +275,45 @@ static void main_menu()
 {
     try
     {
-        auto rootMenu = make_unique< cli::Menu >( "home" );
+        auto rootMenu = make_unique<cli::Menu>("home");
 
-        auto overViewMenu = make_unique<cli::Menu >( "ov" );
+        auto overViewMenu = make_unique<cli::Menu>("ov");
 
         overViewMenu->Insert(
             "ls",
-            [](ostream& out){
-                if(ah == 0){
-                    load_assets([](void *p, AssetHandle h){
+            [](ostream &out)
+            {
+                if (ah == 0)
+                {
+                    load_assets([](void *p, AssetHandle h)
+                                {
                         ostream* o = reinterpret_cast<ostream*>(p);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
-                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o);
-                    }, &out);
+                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); },
+                                &out);
                 }
-                else list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
+                else
+                    list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
             },
-            "List by Asset-Broker-Currency => shortcut for: cs a b c"
-        );
+            "List by Asset-Broker-Currency => shortcut for: cs a b c");
 
         overViewMenu->Insert(
             "cs",
-            [](ostream& out, std::string lvl1, std::string lvl2, std::string lvl3){
-                list_overview(to_lvl_group(lvl1),to_lvl_group(lvl2),to_lvl_group(lvl3), out);
+            [](ostream &out, std::string lvl1, std::string lvl2, std::string lvl3)
+            {
+                list_overview(to_lvl_group(lvl1), to_lvl_group(lvl2), to_lvl_group(lvl3), out);
             },
-            "custom list by lv1-lvl2-lvl3, a=>Asset b=>Broker c=>Currency"
-        );
-
+            "custom list by lv1-lvl2-lvl3, a=>Asset b=>Broker c=>Currency");
 
         rootMenu->Insert(std::move(overViewMenu));
 
         rootMenu->Insert(
             "bk",
-            [](ostream& os){
-                get_brokers([](auto* bks, void* ctx){
+            [](ostream &os)
+            {
+                get_brokers([](auto *bks, void *ctx)
+                            {
                     ostream* out = reinterpret_cast<ostream*>(ctx);
                     AllBrokers *brokers = static_cast<AllBrokers*>(bks);
 
@@ -318,16 +345,18 @@ static void main_menu()
                     table[0].format()
                         .font_style({FontStyle::bold})
                         .font_align(FontAlign::center);
-                    *out << "\n" << table << endl;
-                }, &os);
+                    *out << "\n" << table << endl; },
+                            &os);
             },
-            "List broker summary"
-        );
+            "List broker summary");
 
         rootMenu->Insert(
             "fund",
-            [](ostream& out, string broker_name){
-                get_active_funds( broker_name == "all" ? nullptr : broker_name.c_str(),[](fund_portfolio* fp, void *param){
+            [](ostream &out, string broker_name)
+            {
+                get_active_funds(
+                    broker_name == "all" ? nullptr : broker_name.c_str(), [](fund_portfolio *fp, void *param)
+                    {
                     ostream* out = reinterpret_cast<ostream*>(param);
                     Table table;
                     table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit", "ROI", "Date"});
@@ -358,19 +387,18 @@ static void main_menu()
                     for(auto i = 2 ; i <= 7 ;++i) table.column(i).format().font_align(FontAlign::right);
                     table.column(1).format().multi_byte_characters(true);
                     table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-                    *out << "\n" << table << endl;
-                }, &out);
-
+                    *out << "\n" << table << endl; },
+                    &out);
             },
-            "List mutual funds portfolio by broker, all use all for all funds"
-        );
+            "List mutual funds portfolio by broker, all use all for all funds");
 
-
-        auto stockMenu = make_unique<cli::Menu >( "stock" );
+        auto stockMenu = make_unique<cli::Menu>("stock");
         stockMenu->Insert(
             "known",
-            [](ostream& o){
-                get_known_stocks([](auto* stocks, void* ctx){
+            [](ostream &o)
+            {
+                get_known_stocks([](auto *stocks, void *ctx)
+                                 {
                     auto* out = reinterpret_cast<ostream*>(ctx);
                     Table table;
                     table.add_row({"Symbol"});
@@ -380,65 +408,69 @@ static void main_menu()
                         table.add_row({n});
                     }
                     free_strings(stocks);
-                    *out << "\n" << table << endl;
-                }, &o);
+                    *out << "\n" << table << endl; },
+                                 &o);
             },
-            "List all known stocks"
-        );
+            "List all known stocks");
         stockMenu->Insert(
             "ls",
-            [](ostream& out){
-                get_quotes([&out](){
-                    get_stock_portfolio(nullptr, nullptr,[](stock_portfolio*p, void* param){
+            [](ostream &out)
+            {
+                get_quotes([&out]()
+                           { get_stock_portfolio(
+                                 nullptr, nullptr, [](stock_portfolio *p, void *param)
+                                 {
                         auto* o = reinterpret_cast<ostream*>(param);
-                        print_stock_list(*o, p);
-                   }, &out);}
-                );
+                        print_stock_list(*o, p); },
+                                 &out); });
             },
-            "List stock balance"
-        );
+            "List stock balance");
         stockMenu->Insert(
             "sym",
-            [](ostream& out, string const& symbol){
-                get_quotes([&out,&symbol](){
-                    get_stock_portfolio(nullptr, symbol.c_str(),[](stock_portfolio*p, void* param){
-                        auto* o = reinterpret_cast<ostream*>(param);
-                        print_stock_list(*o, p);
-                    }, &out);}
-                );
+            [](ostream &out, string const &symbol)
+            {
+                get_quotes([&out, &symbol]()
+                           { get_stock_portfolio(
+                                 nullptr, symbol.c_str(),
+                                 [](stock_portfolio *p, void *param){
+                                    auto* o = reinterpret_cast<ostream*>(param);
+                                    print_stock_list(*o, p); },
+                                    &out);
+                            });
             },
-            "List specified stock's balance"
-        );
+            "List specified stock's balance");
         stockMenu->Insert(
             "tx",
-            [](ostream& out, string symbol){
+            [](ostream &out, string symbol)
+            {
                 list_stock_tx(nullptr, symbol == "all" ? nullptr : symbol.c_str(), out);
             },
-            "List specified stock's transactions, or use all for all stocks"
-        );
+            "List specified stock's transactions, or use all for all stocks");
         stockMenu->Insert(
             "btx",
-            [](ostream& out, string broker){
+            [](ostream &out, string broker)
+            {
                 list_stock_tx(broker.c_str(), nullptr, out);
             },
-            "List specified broker's transactions"
-        );
+            "List specified broker's transactions");
         stockMenu->Insert(
             "bstx",
-            [](ostream& out, string broker, string symbol){
+            [](ostream &out, string broker, string symbol)
+            {
                 list_stock_tx(broker.c_str(), symbol.c_str(), out);
             },
-            "List transactions by broker and symbol"
-        );
+            "List transactions by broker and symbol");
         stockMenu->Insert(
             "add",
-            [](ostream& out, string broker, string symbol, double shares, double price, double fee,string side, string yyyy_mm_dd){
+            [](ostream &out, string broker, string symbol, double shares, double price, double fee, string side, string yyyy_mm_dd)
+            {
                 using namespace boost::gregorian;
                 using namespace boost::posix_time;
                 using namespace boost;
 
                 to_upper(side);
-                if(side != "BUY" && side != "SELL" && side != "SPLIT"){
+                if (side != "BUY" && side != "SELL" && side != "SPLIT")
+                {
                     out << "Unknown side " << side << "\n";
                     return;
                 }
@@ -448,40 +480,36 @@ static void main_menu()
 
                 out << "Adding broker=" << broker << " symbol=" << symbol
                     << " shares=" << shares << " price=" << price << " side=" << side << " date=" << d << "\n";
-                add_stock_tx(broker.c_str(), symbol.c_str(), shares, price, fee, side.c_str(), t, [](void *param){
+                add_stock_tx(
+                    broker.c_str(), symbol.c_str(), shares, price, fee, side.c_str(), t, [](void *param)
+                    {
                     ostream* out = reinterpret_cast<ostream*>(param);
-                    *out << "Added\n";
-                }, &out);
+                    *out << "Added\n"; },
+                    &out);
             },
-            "Add new transaction : broker symbol shares price fee side date(yyyy-mm-dd)"
-        );
-
+            "Add new transaction : broker symbol shares price fee side date(yyyy-mm-dd)");
 
         rootMenu->Insert(std::move(stockMenu));
 
-
-        cli::Cli cli( std::move(rootMenu) );
+        cli::Cli cli(std::move(rootMenu));
         // global exit action
-        cli.ExitAction( [](auto& out){
-            out << "Goodbye.\n";
-        });
+        cli.ExitAction([](auto &out)
+                       { out << "Goodbye.\n"; });
 
         cli::LoopScheduler scheduler;
         cli::CliLocalTerminalSession localSession(cli, scheduler, std::cout, 200);
         localSession.ExitAction(
-            [&scheduler](auto& out) // session exit action
+            [&scheduler](auto &out) // session exit action
             {
                 free_quotes(all_quotes);
-                if(ah>0) free_assets(ah);
+                if (ah > 0)
+                    free_assets(ah);
                 scheduler.Stop();
-            }
-        );
-
+            });
 
         scheduler.Run();
-
     }
-    catch(const std::exception& e)
+    catch (const std::exception &e)
     {
         std::cerr << e.what() << '\n';
     }
@@ -493,20 +521,23 @@ static std::condition_variable cv;
 
 int main(int argc, char *argv[])
 {
-    if(!urph_fin_core_init([](void*){
+    if (!urph_fin_core_init([](void *)
+                            {
         {
             std::lock_guard<std::mutex> lk(m);
             init_done = true;
         }
-        cv.notify_one();
-    },nullptr)){
-        cout<<"Failed to init";
+        cv.notify_one(); },
+                            nullptr))
+    {
+        cout << "Failed to init";
         return 1;
     }
 
     {
         std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk, []{return init_done;});
+        cv.wait(lk, []
+                { return init_done; });
     }
 
     main_menu();
