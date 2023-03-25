@@ -429,7 +429,7 @@ static void main_menu()
             "sym",
             [](ostream &out, string const &symbol)
             {
-                get_quotes([&out, &symbol]()
+                get_quotes([&out, symbol]()
                            { get_stock_portfolio(
                                  nullptr, symbol.c_str(),
                                  [](stock_portfolio *p, void *param){
