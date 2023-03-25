@@ -513,6 +513,7 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
     }
     else{
         (void)get_thread_pool()->submit([=](){
+            LDEBUG(tag, "get quotes start");
             Strings* sym = static_cast<Strings*>(symbols);
 
             // add the FX pairs
@@ -549,6 +550,7 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
 
             builder->succeed();
             delete sym;
+            LDEBUG(tag, "get quotes end");
         });
     }
 }

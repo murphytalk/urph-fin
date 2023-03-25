@@ -260,7 +260,7 @@ public:
         );
      }
 private:
-    #define MV_STR(p) std::move(std::string(p== nullptr?"":p))
+    #define MV_STR(p) std::move(std::string(p == nullptr?"":p))
     template<typename T>
     void get_stock_and_etf(
             T* context,
@@ -270,6 +270,7 @@ private:
             std::function<void(T*, const bsoncxx::document::view&)> onInstrument,
             std::function<void(T* context)> onFinish)
     {
+        LDEBUG(tag, "get stock&etf: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
         (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), projection,
                                          onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
 
