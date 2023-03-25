@@ -260,6 +260,7 @@ public:
         );
      }
 private:
+    #define MV_STR(p) std::move(std::string(p== nullptr?"":p))
     template<typename T>
     void get_stock_and_etf(
             T* context,
@@ -269,7 +270,7 @@ private:
             std::function<void(T*, const bsoncxx::document::view&)> onInstrument,
             std::function<void(T* context)> onFinish)
     {
-        (void)get_thread_pool()->submit([this, context,symbol, broker, projection,
+        (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), projection,
                                          onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
 
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
@@ -281,13 +282,14 @@ private:
                 onInstrument(context, doc_view);
               }
             };
-
-            document filter_builder{};
+           document filter_builder{};
             filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
 
-            if(broker == nullptr){
-                if ( symbol != nullptr) {
+            if(broker.size() == 0){
+                LDEBUG(tag, "broker not specified");
+                if ( symbol.size() !=0 ) {
                     filter_builder << "name" << symbol;
+                    LDEBUG(tag, "sym = " << symbol);
                 }
 
                 mongocxx::options::find opts{};
