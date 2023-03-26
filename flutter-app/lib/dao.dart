@@ -132,7 +132,13 @@ final regOnAssetsLoadedCallback = dl.lookupFunction<
     Void Function(Pointer<NativeFunction<Void Function(Pointer<Void>, Int32)>>),
     void Function(Pointer<NativeFunction<Void Function(Pointer<Void>, Int32)>>)>('register_asset_loaded_callback');
 
-final _urphFinLoadAssets = dl.lookupFunction<Void Function(), void Function()>('dart_urph_fin_load_assets');
+// native
+typedef ProgressCallback = Void Function(Int32 totalSteps, Int32 completedSteps);
+// dart
+typedef ProgressCallbackFunc = void Function(int totalSteps, int completedSteps);
+final _urphFinLoadAssets = dl.lookupFunction<Void Function(Pointer<NativeFunction<ProgressCallback>>),
+    void Function(Pointer<NativeFunction<ProgressCallback>>)>('dart_urph_fin_load_assets');
+
 final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(int)>('free_assets');
 
 final _urphFinGetOverview = dl.lookupFunction<Pointer<Overview> Function(Int32, Pointer<Utf8>, Uint8, Uint8, Uint8),
@@ -146,10 +152,10 @@ void _onAssetLoadedCB(Pointer<Void> p, int handle) {
   _assetsHandleCompleter?.complete(handle);
 }
 
-Future<int> getAssets() {
+Future<int> getAssets(ProgressCallbackFunc quoteLoadingProgress) {
   final completer = Completer<int>();
   _assetsHandleCompleter = completer;
-  _urphFinLoadAssets();
+  _urphFinLoadAssets(Pointer.fromFunction<ProgressCallback>(quoteLoadingProgress));
   return completer.future;
 }
 

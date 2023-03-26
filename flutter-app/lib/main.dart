@@ -23,6 +23,10 @@ Future<Pointer<Void>> initUrphFin() {
   return c.future;
 }
 
+void _quote_loading_progress(int total, int cur) {
+  print('$cur of $total');
+}
+
 const theTitle = 'UrphFin';
 
 void main() {
@@ -67,7 +71,7 @@ class _AssetsManager {
     _assetHandle = Completer<int>();
     _initCloudFuture.then((_) {
       setState(() => _status = _Status.loadingAssets);
-      _assetsFuture = getAssets();
+      _assetsFuture = getAssets(_quote_loading_progress);
       _assetsFuture.then((handle) {
         _status = _Status.loadedAssets;
         _assets = handle;
