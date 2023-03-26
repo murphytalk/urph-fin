@@ -1,3 +1,4 @@
+#include "dart_api.h"
 #include <functional>
 #include <iostream>
 
@@ -11,70 +12,83 @@ DART_EXPORT intptr_t InitializeDartApiDL(void *data)
     return Dart_InitializeApiDL(data);
 }
 
-static Dart_Port send_port_;
+namespace {
+  Dart_Port send_port_;
+  OnDone on_init_done_callback;
+  OnAssetLoaded on_asset_loaded_callback;
 
-static OnDone on_init_done_callback;
+  typedef std::function<void()> Work;
+
+  // Notify Dart through a port that the C lib has pending async callbacks.
+  //
+  // Expects heap allocated `work` so delete can be called on it.
+  //
+  // The `send_port` should be from the dart isolate which registered the callback.
+  void notify_dart(Dart_Port send_port, const Work *work)
+  {
+      const intptr_t work_addr = reinterpret_cast<intptr_t>(work);
+      std::cout << "C   :  Posting message port=" << send_port << ",work=" << work << std::endl;
+
+      Dart_CObject dart_object;
+      dart_object.type = Dart_CObject_kInt64;
+      dart_object.value.as_int64 = work_addr;
+
+      const bool result = Dart_PostCObject_DL(send_port, &dart_object);
+      if (!result)
+      {
+          std::cerr << "C   :  Posting message to port failed." << std::endl;
+      }
+  }
+
+  void execute_callback_via_dart(const Work& work){
+    // Copy to heap to make it outlive the function scope.
+    const Work* work_ptr = new Work(work);
+    notify_dart(send_port_, work_ptr);
+  }
+
+  //todo: replace with context
+  OnProgress progress_callback;
+}
+
 DART_EXPORT void register_init_callback(Dart_Port send_port, OnDone cb)
 {
     send_port_ = send_port;
     on_init_done_callback = cb;
 }
 
-static OnAssetLoaded on_asset_loaded_callback;
 DART_EXPORT void register_asset_loaded_callback(OnAssetLoaded cb)
 {
     on_asset_loaded_callback = cb;
 }
 
 
-typedef std::function<void()> Work;
-// Notify Dart through a port that the C lib has pending async callbacks.
-//
-// Expects heap allocated `work` so delete can be called on it.
-//
-// The `send_port` should be from the dart isolate which registered the callback.
-static void notify_dart(Dart_Port send_port, const Work *work)
-{
-    const intptr_t work_addr = reinterpret_cast<intptr_t>(work);
-    std::cout << "C   :  Posting message port=" << send_port << ",work=" << work << std::endl;
-
-    Dart_CObject dart_object;
-    dart_object.type = Dart_CObject_kInt64;
-    dart_object.value.as_int64 = work_addr;
-
-    const bool result = Dart_PostCObject_DL(send_port, &dart_object);
-    if (!result)
-    {
-        std::cerr << "C   :  Posting message to port failed." << std::endl;
-    }
-}
 
 DART_EXPORT bool dart_urph_fin_core_init()
 {
     return urph_fin_core_init([](void *p){
         const Work work = [p](){on_init_done_callback(p);};
-        // Copy to heap to make it outlive the function scope.
-        const Work* work_ptr = new Work(work);
-        notify_dart(send_port_, work_ptr); 
+        execute_callback_via_dart(work);
     }, nullptr);
 }
 
-DART_EXPORT void dart_urph_fin_load_assets()
+DART_EXPORT void dart_urph_fin_load_assets(OnProgress progress)
 {
+    progress_callback = progress;
     load_assets([](void *p, AssetHandle h){
         const Work work = [p,h](){on_asset_loaded_callback(p,h);};
-        // Copy to heap to make it outlive the function scope.
-        const Work* work_ptr = new Work(work);
-        notify_dart(send_port_, work_ptr); 
-    },nullptr, [](int cur,int total){/*todo*/});
+        execute_callback_via_dart(work);
+    },nullptr, [](int total, int cur){
+      const Work work = [total, cur](){progress_callback(total, cur);};
+        execute_callback_via_dart(work);
+    });
 }
 
 
 // execute the dart side registered callback in the dart isolate which initiates the native call
 //      Dart isolate                          Native thread
-// 
+//
 //      native_call(callback)
-//      [native code] req to process data     
+//      [native code] req to process data
 //                                            processing finished, got data
 //                                            wraps callback in work and capture the parameters (result)
 //                                            notify dart with the work pointer
