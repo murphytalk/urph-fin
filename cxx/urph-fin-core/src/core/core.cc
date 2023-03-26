@@ -724,13 +724,13 @@ double AllAssets::to_main_ccy(double value, const char* ccy, const char* main_cc
         return value;
     }
 
-    auto fx = quotes_by_symbol->mapping.find(std::string(ccy) + main_ccy);
+    auto fx = quotes_by_symbol->mapping.find(std::string(ccy) + main_ccy + "=X");
     if(fx != quotes_by_symbol->mapping.end()){
         return value * fx->second->rate;
     }
     else{
         // try the other convention
-        auto fx2 = quotes_by_symbol->mapping.find(std::string(main_ccy) + ccy);
+        auto fx2 = quotes_by_symbol->mapping.find(std::string(main_ccy) + ccy + "=X");
         if(fx == quotes_by_symbol->mapping.end()) return std::nan("");
         return value / fx2->second->rate;
     }
