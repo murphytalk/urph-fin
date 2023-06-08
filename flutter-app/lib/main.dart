@@ -71,7 +71,7 @@ class _AssetsManager {
     _assetHandle = Completer<int>();
     _initCloudFuture.then((_) {
       setState(() => _status = _Status.loadingAssets);
-      _assetsFuture = getAssets(_quote_loading_progress);
+      _assetsFuture = getAssets(Pointer.fromFunction<ProgressCallback>(_quote_loading_progress));
       _assetsFuture.then((handle) {
         _status = _Status.loadedAssets;
         _assets = handle;

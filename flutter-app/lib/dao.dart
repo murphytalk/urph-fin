@@ -152,10 +152,10 @@ void _onAssetLoadedCB(Pointer<Void> p, int handle) {
   _assetsHandleCompleter?.complete(handle);
 }
 
-Future<int> getAssets(ProgressCallbackFunc quoteLoadingProgress) {
+Future<int> getAssets(Pointer<NativeFunction<ProgressCallback>> quoteLoadingProgress) {
   final completer = Completer<int>();
   _assetsHandleCompleter = completer;
-  _urphFinLoadAssets(Pointer.fromFunction<ProgressCallback>(quoteLoadingProgress));
+  _urphFinLoadAssets(quoteLoadingProgress);
   return completer.future;
 }
 

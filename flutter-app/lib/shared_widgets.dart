@@ -21,7 +21,7 @@ class AwaitWidget extends StatelessWidget {
         child: CircularProgressIndicator(),
       ),
       DefaultTextStyle(
-          style: Theme.of(context).textTheme.headline2!,
+          style: Theme.of(context).textTheme.displayMedium!,
           textAlign: TextAlign.center,
           child: Padding(
               padding: const EdgeInsets.only(top: 16),
@@ -37,6 +37,6 @@ class QuoteWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(child: Text(_symbol));
+    return Text(_symbol);
   }
 }
