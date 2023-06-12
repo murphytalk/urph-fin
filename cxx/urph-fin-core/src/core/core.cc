@@ -497,17 +497,17 @@ namespace{
     const char cnyjpy[] = "CNYJPY=X";
     const char hkdjpy[] = "HKDJPY=X";
 }
-void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void* caller_provided_param)
+void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQuotes onQuotes, void* quotes_context)
 {
     assert(storage != nullptr);
 
-    using Payload = std::tuple<OnProgress,OnQuotes, void*>;
+    using Payload = std::tuple<OnProgress,void*, OnQuotes, void*>;
 
     if(symbols == nullptr){
-        auto* payload = new Payload(onProgress, onQuotes, caller_provided_param);
+        auto* payload = new Payload(onProgress, progress_ctx , onQuotes, quotes_context);
         storage->get_known_stocks([](auto* stocks, void* ctx){
            auto *payload = reinterpret_cast<Payload*>(ctx);
-           get_quotes(stocks, std::get<0>(*payload), std::get<1>(*payload), std::get<2>(*payload));
+           get_quotes(stocks, std::get<0>(*payload), std::get<1>(*payload),std::get<2>(*payload), std::get<3>(*payload));
            delete payload;
         }, payload);
     }
@@ -522,14 +522,14 @@ void get_quotes(strings* symbols, OnProgress onProgress,OnQuotes onQuotes, void*
             sym->add(cnyjpy);
             sym->add(hkdjpy);
 
-            auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(sym->capacity,[onQuotes, caller_provided_param](LatestQuotesBuilder::Alloc* alloc){
-                onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), caller_provided_param);
+            auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(sym->capacity,[onQuotes, quotes_context](LatestQuotesBuilder::Alloc* alloc){
+                onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), quotes_context);
             }));
 
             int i = 0;
             for(auto name: *sym){
                 LDEBUG(tag, "Getting quote for " << name);
-                onProgress(++i, sym->capacity);
+                onProgress(progress_ctx, ++i, sym->capacity);
                 YahooFinance::Quote q(name);
                 auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
                 auto from  = to - std::chrono::hours(24 * BACK_DAYS);
@@ -594,9 +594,9 @@ quotes* get_quotes(int num, const char **symbols_head)
 }
 #endif
 
-void get_all_quotes(QuoteBySymbol& quotes_by_symbol, OnProgress OnProgress)
+void get_all_quotes(QuoteBySymbol& quotes_by_symbol, OnProgress OnProgress, void* progress_ctx)
 {
-    get_quotes(nullptr, OnProgress, [](quotes* all_quotes, void* ctx){
+    get_quotes(nullptr, OnProgress, progress_ctx, [](quotes* all_quotes, void* ctx){
         auto* q = reinterpret_cast<QuoteBySymbol*>(ctx);
         auto *all = static_cast<Quotes*>(all_quotes);
         for(auto const& quote: *all){
@@ -629,13 +629,14 @@ namespace{
 
     const char assets_tag[] = "assets";
 }
-AllAssets::AllAssets(std::function<void()> onLoaded, OnProgress onProgress){
+
+AllAssets::AllAssets(std::function<void()> onLoaded, OnProgress onProgress, void* progress_ctx){
     notifyLoaded = onLoaded;
     quotes_by_symbol = nullptr;
-    load(onProgress);
+    load(onProgress, progress_ctx);
 }
 
-void AllAssets::load(OnProgress onProgress){
+void AllAssets::load(OnProgress onProgress, void* progress_ctx){
     quotes_by_symbol = new QuoteBySymbol([this](quotes* all_quotes){
         this->q = static_cast<::Quotes*>(all_quotes);
         this->notify(AllAssets::Loaded::Quotes);
@@ -664,7 +665,7 @@ void AllAssets::load(OnProgress onProgress){
             me->notify(AllAssets::Loaded::Brokers);
     }, this);
 
-    get_all_quotes(*quotes_by_symbol, onProgress);
+    get_all_quotes(*quotes_by_symbol, onProgress, progress_ctx);
 }
 
 void AllAssets::notify(AllAssets::Loaded loaded){
@@ -824,10 +825,10 @@ std::map<AssetHandle, AllAssets*> all_assets_by_handle;
 AssetHandle next_asset_handle = 0;
 }
 
-void load_assets(OnAssetLoaded onLoaded, void* ctx,OnProgress onProgress)
+void load_assets(OnAssetLoaded onLoaded, void* ctx,OnProgress onProgress, void* progressCtx)
 {
     AssetHandle h = ++next_asset_handle;
-    all_assets_by_handle[h] = new AllAssets([onLoaded=std::move(onLoaded),h, ctx]{ onLoaded(ctx, h); }, onProgress);
+    all_assets_by_handle[h] = new AllAssets([onLoaded=std::move(onLoaded), h, ctx, onProgress=std::move(onProgress), progressCtx]{ onLoaded(ctx, h); }, onProgress, progressCtx);
 }
 
 const Quote* AllAssets::get_latest_quote(const char* symbol) const

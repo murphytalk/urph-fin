@@ -155,9 +155,9 @@ struct quotes
     quote* first;
 };
 
-typedef void (*OnProgress)(int/*current*/, int/*total*/);
+typedef void (*OnProgress)(void* /*context*/,int/*current*/, int/*total*/);
 typedef void (*OnQuotes)(quotes*, void* param);
-void get_quotes(strings* symbols, OnProgress onProgress, OnQuotes onQuotes, void* caller_provided_param);
+void get_quotes(strings* symbols, OnProgress onProgress, void* progress_ctx, OnQuotes onQuotes, void* quote_ctx);
 void free_quotes(quotes* q);
 
 void add_stock_tx(const char* broker, const char* symbol, double shares, double price, double fee,const char* side, timestamp date, OnDone, void*);
@@ -257,7 +257,7 @@ struct overview{
 
 typedef int AssetHandle;
 typedef void (*OnAssetLoaded)(void*param, AssetHandle h);
-void load_assets(OnAssetLoaded onLoaded, void* ctx, OnProgress onProgress);
+void load_assets(OnAssetLoaded onLoaded, void* ctx, OnProgress onProgress, void* progress_ctx);
 
 strings* get_all_ccy(AssetHandle handle);
 

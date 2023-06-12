@@ -57,7 +57,7 @@ static std::string percentage(T value)
 static QuoteBySymbol *quotes_by_symbol = nullptr;
 static quotes *all_quotes = nullptr;
 
-static void print_progresss(int current, int all){
+static void print_progress(void*, int current, int all){
     int percentage = 100 * current / all ;
     std::cout << "..." << percentage << "% " << std::flush;
 }
@@ -71,7 +71,7 @@ static void get_quotes(std::function<void()> onQuotesLoaded)
                                              {
             all_quotes = aq;
             onQuotesLoaded(); });
-        get_all_quotes(*quotes_by_symbol, print_progresss);
+        get_all_quotes(*quotes_by_symbol, print_progress, nullptr);
     }
     else
         onQuotesLoaded();
@@ -85,7 +85,7 @@ static inline double to_jpy(double fx_rate, double value)
 static std::pair<double, timestamp> get_rate(const std::string &symbol)
 {
     auto it = quotes_by_symbol->mapping.find(symbol);
-    return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""), 0L) : std::make_pair(it->second->rate, it->second->date);
+    return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""), (timestamp)0L) : std::make_pair(it->second->rate, it->second->date);
 }
 
 static void print_stock_list(ostream &out, stock_portfolio *p)
@@ -293,7 +293,7 @@ static void main_menu()
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
                         list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); 
-                    },&out,print_progresss);
+                    },&out,print_progress, nullptr);
                 }
                 else
                     list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);

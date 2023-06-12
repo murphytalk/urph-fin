@@ -62,12 +62,12 @@ public:
         Stocks = 4,
         Funds = 8
     };
-    explicit AllAssets(std::function<void()> onLoaded,OnProgress onProgress);
+    explicit AllAssets(std::function<void()> onLoaded,OnProgress onProgress, void* progressCtx);
     // for unit tests
     AllAssets(QuoteBySymbol& quotes, AllBrokers *brokers, FundPortfolio* fp, StockPortfolio* sp);
     ~AllAssets();
 
-    void load(OnProgress onProgress);
+    void load(OnProgress onProgress, void* progress_ctx);
     void notify(Loaded loadedData);
 
     double to_main_ccy(double value, const char* ccy, const char* main_ccy);

@@ -1,4 +1,5 @@
 #include "dart_api.h"
+#include "dart_native_api.h"
 #include <functional>
 #include <iostream>
 
@@ -45,9 +46,6 @@ namespace {
     const Work* work_ptr = new Work(work);
     notify_dart(send_port_, work_ptr);
   }
-
-  //todo: replace with context
-  OnProgress progress_callback;
 }
 
 DART_EXPORT void register_init_callback(Dart_Port send_port, OnDone cb)
@@ -71,16 +69,31 @@ DART_EXPORT bool dart_urph_fin_core_init()
     }, nullptr);
 }
 
-DART_EXPORT void dart_urph_fin_load_assets(OnProgress progress)
+namespace{
+void send_progress(Dart_Port port, int cur, int total)
 {
-    progress_callback = progress;
+      Dart_CObject dart_object;
+      dart_object.type = Dart_CObject_kDouble;
+      dart_object.value.as_double = (double)cur/total;
+      std::cout<<"total=" << total << ",cur=" << cur << ",progress=" << dart_object.value.as_double << std::endl;
+      const bool result = Dart_PostCObject_DL(port, &dart_object);
+      if (!result)
+      {
+          std::cerr << "C   :  Posting progress to port failed." << std::endl;
+      }
+}
+}
+
+DART_EXPORT void dart_urph_fin_load_assets(Dart_Port port)
+{
+    static_assert(sizeof(Dart_Port) == sizeof(void*), "Dart_Port is not the same size as void*");
     load_assets([](void *p, AssetHandle h){
         const Work work = [p,h](){on_asset_loaded_callback(p,h);};
         execute_callback_via_dart(work);
-    },nullptr, [](int total, int cur){
-      const Work work = [total, cur](){progress_callback(total, cur);};
-        execute_callback_via_dart(work);
-    });
+    }, nullptr, [](void* ctx, int cur,int total){
+        auto port = reinterpret_cast<Dart_Port>(ctx);
+        send_progress(port, cur, total);
+    }, reinterpret_cast<void*>(port));
 }
 
 

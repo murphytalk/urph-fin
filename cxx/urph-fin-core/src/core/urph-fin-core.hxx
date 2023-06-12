@@ -228,7 +228,7 @@ public:
     std::unordered_map<std::string, const Quote*> mapping;
     inline void add(const std::string& sym, const Quote* q) {  mapping[sym] = q; }
 };
-void get_all_quotes(QuoteBySymbol& quotes_by_symbol, OnProgress OnProgress);
+void get_all_quotes(QuoteBySymbol& quotes_by_symbol, OnProgress OnProgress, void* progress_ctx);
 
 class OverviewItem : public overview_item{
 public:
