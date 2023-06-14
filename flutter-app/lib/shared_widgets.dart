@@ -11,14 +11,17 @@ Widget financeValueText(String ccy, double value,
 
 class AwaitWidget extends StatelessWidget {
   final String caption;
-  const AwaitWidget({super.key, required this.caption});
+  final double? progress;
+  const AwaitWidget({super.key, required this.caption, this.progress});
   @override
   Widget build(BuildContext context) {
     return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      const SizedBox(
+      SizedBox(
         width: 60,
         height: 60,
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(
+          value: progress,
+        ),
       ),
       DefaultTextStyle(
           style: Theme.of(context).textTheme.displayMedium!,

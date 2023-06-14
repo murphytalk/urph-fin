@@ -15,12 +15,20 @@ DynamicLibrary _dlopenPlatformSpecific(String name, {String path = ""}) {
 }
 
 final dl = _dlopenPlatformSpecific('urph-fin-core-dart');
+
 void requestExecuteCallback(dynamic message) {
   final int workAddress = message;
   final work = Pointer<Work>.fromAddress(workAddress);
   log("Dart:   Calling into C to execute callback ($work).");
   executeCallback(work);
   log("Dart:   Done with callback.");
+}
+
+int _progressPort = 0;
+ProgressCallbackFunc _onProgress = (_) {};
+void onProgressFromNativeLib(dynamic message) {
+  final double progress = message;
+  _onProgress(progress);
 }
 
 final executeCallback =
@@ -30,7 +38,7 @@ final executeCallback =
 final urphFinInitNative = dl.lookupFunction<Bool Function(), bool Function()>('dart_urph_fin_core_init');
 final urphFinClose = dl.lookupFunction<Void Function(), void Function()>('urph_fin_core_close');
 
-final regOnInitDoneCallback = dl.lookupFunction<
+final _regOnInitDoneCallback = dl.lookupFunction<
     Void Function(Int64 sendPort, Pointer<NativeFunction<Void Function(Pointer<Void>)>>),
     void Function(int sendPort, Pointer<NativeFunction<Void Function(Pointer<Void>)>>)>('register_init_callback');
 
@@ -43,10 +51,13 @@ void setupFFI(Pointer<NativeFunction<Void Function(Pointer<Void>)>> initDoneCall
   log("initApi $r");
 
   final interactiveCppRequests = ReceivePort()..listen(requestExecuteCallback);
-  final int nativePort = interactiveCppRequests.sendPort.nativePort;
+  final int nativeWorkerPort = interactiveCppRequests.sendPort.nativePort;
 
-  regOnInitDoneCallback(nativePort, initDoneCallbackFP);
-  regOnAssetsLoadedCallback(Pointer.fromFunction<Void Function(Pointer<Void>, Int32)>(_onAssetLoadedCB));
+  _regOnInitDoneCallback(nativeWorkerPort, initDoneCallbackFP);
+  _regOnAssetsLoadedCallback(Pointer.fromFunction<Void Function(Pointer<Void>, Int32)>(_onAssetLoadedCB));
+
+  final onProgress = ReceivePort()..listen(onProgressFromNativeLib);
+  _progressPort = onProgress.sendPort.nativePort;
 
   final initResult = urphFinInitNative();
   log('urph-fin init result: $initResult');
@@ -128,16 +139,14 @@ class Overview extends Struct {
   external Pointer<OverviewItemContainerContainer> first;
 }
 
-final regOnAssetsLoadedCallback = dl.lookupFunction<
+final _regOnAssetsLoadedCallback = dl.lookupFunction<
     Void Function(Pointer<NativeFunction<Void Function(Pointer<Void>, Int32)>>),
     void Function(Pointer<NativeFunction<Void Function(Pointer<Void>, Int32)>>)>('register_asset_loaded_callback');
 
-// native
-typedef ProgressCallback = Void Function(Int32 totalSteps, Int32 completedSteps);
-// dart
-typedef ProgressCallbackFunc = void Function(int totalSteps, int completedSteps);
-final _urphFinLoadAssets = dl.lookupFunction<Void Function(Pointer<NativeFunction<ProgressCallback>>),
-    void Function(Pointer<NativeFunction<ProgressCallback>>)>('dart_urph_fin_load_assets');
+typedef ProgressCallbackFunc = void Function(double percentage);
+
+final _urphFinLoadAssets =
+    dl.lookupFunction<Void Function(Int64 sendPort), void Function(int sendPort)>('dart_urph_fin_load_assets');
 
 final urphFinFreeAssets = dl.lookupFunction<Void Function(Int32), void Function(int)>('free_assets');
 
@@ -152,10 +161,11 @@ void _onAssetLoadedCB(Pointer<Void> p, int handle) {
   _assetsHandleCompleter?.complete(handle);
 }
 
-Future<int> getAssets(Pointer<NativeFunction<ProgressCallback>> quoteLoadingProgress) {
+Future<int> getAssets(ProgressCallbackFunc quoteLoadingProgress) {
   final completer = Completer<int>();
   _assetsHandleCompleter = completer;
-  _urphFinLoadAssets(quoteLoadingProgress);
+  _onProgress = quoteLoadingProgress;
+  _urphFinLoadAssets(_progressPort);
   return completer.future;
 }
 

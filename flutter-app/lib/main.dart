@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ffi';
+import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
@@ -21,10 +22,6 @@ Future<Pointer<Void>> initUrphFin() {
   _urphFinInitCompleter = c;
   setupFFI(Pointer.fromFunction<Void Function(Pointer<Void>)>(onUrphFinInitDone));
   return c.future;
-}
-
-void _quote_loading_progress(int total, int cur) {
-  print('$cur of $total');
 }
 
 const theTitle = 'UrphFin';
@@ -60,6 +57,8 @@ class _AssetsManager {
     }
   }
 
+  double? progress;
+
   late int _assets;
   int get assets {
     return _status != _Status.loadedAssets ? 0 : _assets;
@@ -71,7 +70,9 @@ class _AssetsManager {
     _assetHandle = Completer<int>();
     _initCloudFuture.then((_) {
       setState(() => _status = _Status.loadingAssets);
-      _assetsFuture = getAssets(Pointer.fromFunction<ProgressCallback>(_quote_loading_progress));
+      _assetsFuture = getAssets((prg) {
+        setState(() => progress = prg);
+      });
       _assetsFuture.then((handle) {
         _status = _Status.loadedAssets;
         _assets = handle;
@@ -166,9 +167,15 @@ class _MyAppState extends State<MyApp> {
               ),
             );
           } else {
-            child = AwaitWidget(caption: _assetsManager.status);
+            child = Directionality(
+              textDirection: ui.TextDirection.ltr,
+              child: AwaitWidget(
+                caption: _assetsManager.status,
+                progress: _assetsManager.progress,
+              ),
+            );
           }
-          return Center(child: child);
+          return child;
         });
   }
 }
