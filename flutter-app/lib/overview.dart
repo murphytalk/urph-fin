@@ -17,7 +17,7 @@ class OverviewWidget extends StatefulWidget {
   State<OverviewWidget> createState() => _OverviewWidgetState();
 }
 
-const mainCcy = 'JPY';
+const _mainCcy = 'JPY';
 
 enum Level {
   lvl1,
@@ -96,34 +96,55 @@ class TableItems {
   }
 
   List<TableRow> populateTableRows(OverviewGroup lvl1, OverviewGroup lvl2, OverviewGroup leaf) {
+    const padding = EdgeInsets.only(left: 5.0, right: 5.0);
+    const tableRowHeight = 40.0;
+
+    Widget fmtCell(Widget content, AlignmentGeometry alignment) {
+      return SizedBox(
+          height: tableRowHeight, child: Padding(padding: padding, child: Align(alignment: alignment, child: content)));
+    }
+
     List<TableRow> rows = [
       TableRow(children: [
-        Text(
-          getOverviewGroupName(lvl1),
-          style: _headerTxtStyle,
-        ),
-        Text(
-          getOverviewGroupName(lvl2),
-          style: _headerTxtStyle,
-        ),
-        Text(
-          getOverviewGroupName(leaf),
-          style: _headerTxtStyle,
-        ),
-        Text(
-          'Market Value',
-          style: _headerTxtStyle,
-          textAlign: TextAlign.right,
-        ),
-        financeValueText(mainCcy, _valueInMainCcy,
-            positiveValueColor: _sumColors[0], negativeValueColor: _sumLossColors[0]),
-        Text(
-          'Profit',
-          style: _headerTxtStyle,
-          textAlign: TextAlign.right,
-        ),
-        financeValueText(mainCcy, _profitInMainCcy,
-            positiveValueColor: _sumColors[0], negativeValueColor: _sumLossColors[0]),
+        fmtCell(
+            Text(
+              getOverviewGroupName(lvl1),
+              style: _headerTxtStyle,
+            ),
+            Alignment.center),
+        fmtCell(
+            Text(
+              getOverviewGroupName(lvl2),
+              style: _headerTxtStyle,
+            ),
+            Alignment.center),
+        fmtCell(
+            Text(
+              getOverviewGroupName(leaf),
+              style: _headerTxtStyle,
+            ),
+            Alignment.center),
+        fmtCell(
+            Text(
+              'Market Value',
+              style: _headerTxtStyle,
+              textAlign: TextAlign.right,
+            ),
+            Alignment.center),
+        fmtCell(
+            financeValueText(_mainCcy, _valueInMainCcy,
+                positiveValueColor: _sumColors[0], negativeValueColor: _sumLossColors[0]),
+            Alignment.centerRight),
+        fmtCell(
+            Text(
+              'Profit',
+              style: _headerTxtStyle,
+            ),
+            Alignment.center),
+        fmtCell(
+            financeValueText(_mainCcy, _profitInMainCcy,
+                positiveValueColor: _sumColors[0], negativeValueColor: _sumLossColors[0]),
+            Alignment.centerRight),
       ])
     ];
 
@@ -150,15 +171,15 @@ class TableItems {
           Container(), // lvl2 name
           Container(), // lvl3 name
           Container(), // Market value
-          TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(mainCcy, item.valueInMainCcy,
-                  positiveValueColor: _sumColors[1], negativeValueColor: _sumLossColors[1])),
+          fmtCell(
+              financeValueText(_mainCcy, item.valueInMainCcy,
+                  positiveValueColor: _sumColors[1], negativeValueColor: _sumLossColors[1]),
+              Alignment.centerRight),
           Container(), // Profit
-          TableCell(
-              verticalAlignment: TableCellVerticalAlignment.middle,
-              child: financeValueText(mainCcy, item.profitInMainCcy,
-                  positiveValueColor: _sumColors[1], negativeValueColor: _sumLossColors[1])),
+          fmtCell(
+              financeValueText(_mainCcy, item.profitInMainCcy,
+                  positiveValueColor: _sumColors[1], negativeValueColor: _sumLossColors[1]),
+              Alignment.centerRight),
         ]));
       } else {
         if (item.level == Level.lvl2) {
@@ -169,15 +190,15 @@ class TableItems {
               textWithIconButton(item),
               Container(), // lvl3 name
               Container(), // Market value
-              TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: financeValueText(mainCcy, item.valueInMainCcy,
-                      positiveValueColor: _sumColors[2], negativeValueColor: _sumLossColors[2])),
+              fmtCell(
+                  financeValueText(_mainCcy, item.valueInMainCcy,
+                      positiveValueColor: _sumColors[2], negativeValueColor: _sumLossColors[2]),
+                  Alignment.centerRight),
               Container(), // Profit
-              TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: financeValueText(mainCcy, item.profitInMainCcy,
-                      positiveValueColor: _sumColors[2], negativeValueColor: _sumLossColors[2])),
+              fmtCell(
+                  financeValueText(_mainCcy, item.profitInMainCcy,
+                      positiveValueColor: _sumColors[2], negativeValueColor: _sumLossColors[2]),
+                  Alignment.centerRight),
             ]));
           }
         } else if (greatParent?.expanded ?? false) {
@@ -186,18 +207,13 @@ class TableItems {
             final name = item.name;
             final ccy = item.ccy;
             rows.add(TableRow(children: [
-              Container(), // lvl1 name
+              Container(height: tableRowHeight), // lvl1 name
               Container(), // lvl2 name
-              Text(name),
-              TableCell(verticalAlignment: TableCellVerticalAlignment.middle, child: financeValueText(ccy, item.value)),
-              TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: financeValueText(mainCcy, item.valueInMainCcy)),
-              TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.middle, child: financeValueText(ccy, item.profit)),
-              TableCell(
-                  verticalAlignment: TableCellVerticalAlignment.middle,
-                  child: financeValueText(mainCcy, item.profitInMainCcy)),
+              fmtCell(Text(name), Alignment.centerLeft),
+              fmtCell(financeValueText(ccy, item.value), Alignment.centerRight),
+              fmtCell(financeValueText(_mainCcy, item.valueInMainCcy), Alignment.centerRight),
+              fmtCell(financeValueText(ccy, item.profit), Alignment.centerRight),
+              fmtCell(financeValueText(_mainCcy, item.profitInMainCcy), Alignment.centerRight)
             ]));
           }
         }
@@ -244,7 +260,7 @@ class _PieChartData {
     Color initColor,
     this._setState,
   ) {
-    final sumPtr = loadData(assetHandler, mainCcy);
+    final sumPtr = loadData(assetHandler, _mainCcy);
     final sum = sumPtr.ref;
     for (int i = 0; i < sum.num; ++i) {
       final ovItem = sum.first[i];
@@ -328,7 +344,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
   }
 
   void _populateOverviewTable(int assetHandler) {
-    final ov = getOverview(assetHandler, mainCcy, _levels[0], _levels[1], _levels[2]);
+    final ov = getOverview(assetHandler, _mainCcy, _levels[0], _levels[1], _levels[2]);
     _items?.loadFromOverview(ov);
     urphFinFreeOverview(ov);
   }
@@ -431,20 +447,17 @@ class _OverviewWidgetState extends State<OverviewWidget> {
               child: SingleChildScrollView(
             child: Padding(
                 padding: const EdgeInsets.only(left: 20, right: 20),
-                child: Table(
-                    columnWidths: {
-                      0: FixedColumnWidth(
-                          getGroupTextSize(ctx, headerTxtStyle, _levels[0]).width + headerPaddingWithButton),
-                      1: FixedColumnWidth(
-                          getGroupTextSize(ctx, headerTxtStyle, _levels[1]).width + headerPaddingWithButton),
-                      2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _levels[2]).width + headerPadding),
-                      3: const FlexColumnWidth(1),
-                      4: const FlexColumnWidth(1),
-                      5: const FlexColumnWidth(1),
-                      6: const FlexColumnWidth(1),
-                    },
-                    //border: TableBorder.all(),
-                    children: _populateDataTable(ctx, headerTxtStyle, asset))),
+                child: Table(columnWidths: {
+                  0: FixedColumnWidth(
+                      getGroupTextSize(ctx, headerTxtStyle, _levels[0]).width + headerPaddingWithButton),
+                  1: FixedColumnWidth(
+                      getGroupTextSize(ctx, headerTxtStyle, _levels[1]).width + headerPaddingWithButton),
+                  2: FixedColumnWidth(getGroupTextSize(ctx, headerTxtStyle, _levels[2]).width + headerPadding),
+                  3: const FlexColumnWidth(1),
+                  4: const FlexColumnWidth(1),
+                  5: const FlexColumnWidth(1),
+                  6: const FlexColumnWidth(1),
+                }, border: TableBorder.all(), children: _populateDataTable(ctx, headerTxtStyle, asset))),
           ))
         ],
       );

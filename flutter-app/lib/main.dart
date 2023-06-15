@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:urph_fin/utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:urph_fin/dao.dart' hide Overview;

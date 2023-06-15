@@ -529,7 +529,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
             int i = 0;
             for(auto name: *sym){
                 LDEBUG(tag, "Getting quote for " << name);
-                onProgress(progress_ctx, ++i, sym->capacity);
+                onProgress(progress_ctx, ++i, sym->size());
                 YahooFinance::Quote q(name);
                 auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
                 auto from  = to - std::chrono::hours(24 * BACK_DAYS);
