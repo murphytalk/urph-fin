@@ -357,11 +357,11 @@ void free_broker(broker* b)
     delete static_cast<Broker*>(b);
 }
 
-void get_funds(int num, char* fund_update_date,const char **fund_ids, OnFunds onFunds, void*param,std::function<void()> clean_func)
+void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void*param,std::function<void()> clean_func)
 {
     assert(storage != nullptr);
     TRY
-    storage->get_funds(num, fund_update_date,fund_ids, onFunds, param, clean_func);
+    storage->get_funds(params, onFunds, param, clean_func);
     CATCH_NO_RET
 }
 
@@ -376,16 +376,14 @@ struct get_active_funds_async_helper
     get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx){}
 
     void run(std::function<void()> clean_func){
-        const auto ** ids = new const char* [fund_num];
-        const char ** ids_head = ids;
+        std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
         for(auto* broker: all_broker_pointers){
             for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
-                *ids++ = *it;
+                fund_params.emplace_back(*it, broker->funds_update_date);
             }
         }
-        get_funds(fund_num, fund_update_date, ids_head, onFunds, param,[clean_func,ids_head, this](){
+        get_funds(fund_params, onFunds, param,[clean_func, this](){
             clean_func();
-            delete []ids_head;
             delete this;
         });
     }

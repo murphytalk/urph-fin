@@ -164,16 +164,16 @@ public:
             onAllBrokersBuilder(all);
         });
     }
-    void get_funds(FundsBuilder *builder, int funds_num, char* fund_update_date, const char ** fund_names_head) {
+    void get_funds(FundsBuilder *builder, std::vector<FundsParam>&& params){
         (void)get_thread_pool()->submit([=](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
-            for(int i = 0 ; i< funds_num ; ++i){
-                const char* fund_name = fund_names_head[i];
+            for(const auto& param: params){
+                const char* fund_name = param.name.c_str();
                 const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
                 if(fund){
                     LDEBUG(tag, "found fund " << fund_name);
                     const auto& fund_doc = *fund;
-                    const auto& tx = fund_doc["tx"].get_document().view()[fund_update_date].get_document().view();
+                    const auto& tx = fund_doc["tx"].get_document().view()[param.update_date].get_document().view();
                     const std::string_view& broker = tx["broker"].get_string();
                     const int amt = tx["amount"].get_int32();
                     const double capital = safe_get_double(tx["capital"]);
@@ -193,7 +193,9 @@ public:
                         roi,
                         date
                     );
-                    if(builder->alloc->has_enough_counter()) builder->succeed();
+                    if(builder->alloc->has_enough_counter()) builder->succeed(); else{
+                        LDEBUG(tag, "not enough counter, waiting for more");
+                    }
                 }
                 else{
                     LERROR(tag, "Missing fund " << fund_name);

@@ -171,7 +171,7 @@ public:
     std::string get_broker_name(const BrokerType&) { return std::string("");}
     void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){}
     void get_brokers(std::function<void(AllBrokerBuilder<MockedStocksDao, BrokerType>*)>){}
-    void get_funds(FundsBuilder *, int, char* ,const char **) {}
+    void get_funds(FundsBuilder *builder, std::vector<FundsParam>&& params){}
     void get_known_stocks(OnStrings, void *ctx) {}
     void get_latest_quotes(LatestQuotesBuilder *builder, int num, const char **symbols_head) {}
     void get_latest_quotes(LatestQuotesBuilder *builder) {}
