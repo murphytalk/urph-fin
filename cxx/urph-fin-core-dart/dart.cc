@@ -75,7 +75,7 @@ void send_progress(Dart_Port port, int cur, int total)
       Dart_CObject dart_object;
       dart_object.type = Dart_CObject_kDouble;
       dart_object.value.as_double = (double)cur/total;
-      std::cout<<"total=" << total << ",cur=" << cur << ",progress=" << dart_object.value.as_double << std::endl;
+      //std::cout<<"total=" << total << ",cur=" << cur << ",progress=" << dart_object.value.as_double << std::endl;
       const bool result = Dart_PostCObject_DL(port, &dart_object);
       if (!result)
       {

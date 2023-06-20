@@ -377,8 +377,21 @@ struct get_active_funds_async_helper
 
     void run(std::function<void()> clean_func){
         std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
+        char* latest_update_date = nullptr;
         for(auto* broker: all_broker_pointers){
+            LDEBUG(tag, "broker " << broker->name << " has funds on " << broker->funds_update_date);
+            if(latest_update_date == nullptr || strcmp(latest_update_date, broker->funds_update_date) < 0){
+                latest_update_date = broker->funds_update_date;
+            }
+        }
+        LDEBUG(tag, "latest fund update date " << latest_update_date);
+        for(auto* broker: all_broker_pointers){
+            if(strcmp(latest_update_date, broker->funds_update_date) != 0){
+                LDEBUG(tag, "broker " << broker->name << " has no active funds on " << latest_update_date << ", last update date was " << broker->funds_update_date);
+                continue;
+            }
             for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
+                LDEBUG(tag, "Adding fund " << *it << " of " << broker->name);
                 fund_params.emplace_back(*it, broker->funds_update_date);
             }
         }
