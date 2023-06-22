@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:ffi/ffi.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:urph_fin/utils.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:urph_fin/dao.dart' hide Overview;
@@ -23,14 +24,60 @@ Future<Pointer<Void>> initUrphFin() {
   return c.future;
 }
 
-const theTitle = 'UrphFin';
+const _theTitle = 'UrphFin';
+const _saveWinPosTimerIntervalSeconds = 10;
+const _configWinPos = 'WinPos';
+
+class _WinListener extends WindowListener{
+  Rect _lastPos = const Rect.fromLTWH(0,0,0,0);
+  Rect _savedPos = const Rect.fromLTWH(0,0,0,0);
+
+  _WinListener(){
+    Timer.periodic(const Duration(seconds: _saveWinPosTimerIntervalSeconds), (_) {_savePos();});
+  }
+
+  void _rememberPos(){
+    windowManager.getBounds().then((rect) => {_lastPos = rect });
+  }
+
+  void _savePos(){
+    if(_savedPos != _lastPos) {
+      final winPos = '${_lastPos.left},${_lastPos.top},${_lastPos.width},${_lastPos.height}';
+      //print('window resized: ${winPos}');
+      SharedPreferences.getInstance().then((pref) => pref.setString(_configWinPos, winPos));
+      _savedPos = _lastPos;
+    }
+  }
+
+  void restoreWinPos(){
+    SharedPreferences.getInstance().then((pref) {
+        final pos = pref.getString(_configWinPos);
+        if(pos != null){
+          final values = pos.split(',');
+          final l = double.parse(values[0]);
+          final t = double.parse(values[1]);
+          final w = double.parse(values[2]);
+          final h = double.parse(values[3]);
+          windowManager.setBounds(Rect.fromLTWH(l, t, w, h));
+        }
+    });
+  }
+
+  @override
+  void onWindowMove() { _rememberPos(); }
+  @override
+  void onWindowResize() { _rememberPos();}
+}
 
 void main() {
   runApp(const MyApp());
   windowManager.waitUntilReadyToShow().then((_) async {
     //await windowManager.setAsFrameless();
-    await windowManager.setTitle(theTitle);
+    await windowManager.setTitle(_theTitle);
   });
+  final cfg = _WinListener();
+  windowManager.addListener(cfg);
+  cfg.restoreWinPos();
 }
 
 enum _Status {
