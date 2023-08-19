@@ -338,7 +338,7 @@ class _OverviewWidgetState extends State<OverviewWidget> {
     super.initState();
 
     _assetPieData =
-        _PieChartData(widget.assetsHandle, 0, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
+        _PieChartData(widget.assetsHandle, 1, getSumGroupByAsset, Colors.indigo, (callback) => setState(callback));
     _brokerPieData = _PieChartData(
         widget.assetsHandle, 0, getSumGroupByBroker, Colors.greenAccent, (callback) => setState(callback));
   }
