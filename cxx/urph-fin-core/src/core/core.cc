@@ -357,7 +357,7 @@ void free_broker(broker* b)
     delete static_cast<Broker*>(b);
 }
 
-void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void*param,std::function<void()> clean_func)
+void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void*param,const std::function<void()>& clean_func)
 {
     assert(storage != nullptr);
     TRY
@@ -375,7 +375,7 @@ struct get_active_funds_async_helper
 
     get_active_funds_async_helper(OnFunds f, void *ctx):onFunds(f), param(ctx){}
 
-    void run(std::function<void()> clean_func){
+    void run(const std::function<void()>& clean_func){
         std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
         char* latest_update_date = nullptr;
         for(auto* broker: all_broker_pointers){

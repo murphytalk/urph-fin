@@ -291,7 +291,7 @@ public:
     virtual ~IDataStorage(){}
     virtual void get_broker(const char* name, OnBroker onBroker, void*param) = 0;
     virtual void get_brokers(OnAllBrokers onAllBrokers, void* param) = 0;
-    virtual void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void* onFundsCallerProvidedParam,std::function<void()> clean_func) = 0;
+    virtual void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void* onFundsCallerProvidedParam,const std::function<void()>& clean_func) = 0;
     virtual void get_stock_portfolio(const char* broker, const char* symbol, OnAllStockTx onAllStockTx, void* caller_provided_param) = 0;
     virtual void get_known_stocks(OnStrings onStrings, void *ctx) = 0;
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
@@ -339,7 +339,7 @@ public:
         });
     }
 
-    void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void* onFundsCallerProvidedParam,std::function<void()> clean_func){
+    void get_funds(std::vector<FundsParam>& params, OnFunds onFunds, void* onFundsCallerProvidedParam,const std::function<void()>& clean_func){
         // self delete upon finish
         auto *p = static_cast<FundsBuilder*>(FundsBuilder::create(params.size(),[onFunds, onFundsCallerProvidedParam,clean_func](FundsBuilder::Alloc* fund_alloc){
             std::sort(fund_alloc->head(), fund_alloc->head() + fund_alloc->allocated_num(),[](fund& f1, fund& f2){
