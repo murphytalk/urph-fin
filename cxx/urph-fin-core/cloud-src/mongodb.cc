@@ -113,7 +113,7 @@ public:
 
         const auto& cashObj = broker_query_result["cash"].get_document().view();
 
-        auto addCash = [&cashObj,this](BrokerBuilder &b)
+        auto addCash = [&cashObj](BrokerBuilder &b)
         {
             for (const auto &c : cashObj)
             {
@@ -221,7 +221,9 @@ public:
     void get_latest_quotes(LatestQuotesBuilder *builder) {}
 
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
-                OnDone onDone, void *caller_provided_param) {}
+                OnDone onDone, void *caller_provided_param) {
+        
+    }
 
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
     {
@@ -285,7 +287,7 @@ private:
                 onInstrument(context, doc_view);
               }
             };
-           document filter_builder{};
+            document filter_builder{};
             filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
 
             if(broker.size() == 0){

@@ -37,7 +37,7 @@ namespace{
 
 
 // dont forget to free
-char* copy_str(const char* str, int size)
+char* copy_str(const char* str, size_t size)
 {
     auto* p = new char[size + 1];
     strncpy(p, str, size);
@@ -82,14 +82,14 @@ void Strings::add(const std::string_view& i, float increment_ratio )
     *last_str++ = copy_str(i);
 }
 
-void Strings::increase_capacity(int additional)
+void Strings::increase_capacity(long additional)
 {
     if(additional <= 0 )  return;
     LDEBUG(tag, "increase strings capacity by " << additional << " from " << capacity);
 
     capacity += additional;
-    char** new_strs = new char*[capacity];
-    char** new_head = new_strs;
+    auto** new_strs = new char*[capacity];
+    auto** new_head = new_strs;
     for(char** p=strs; p!=last_str; ++p){
         *new_strs++=*p;
     }
@@ -98,7 +98,7 @@ void Strings::increase_capacity(int additional)
     last_str = new_strs;
 }
 
-int Strings::size() const
+long Strings::size() const
 {
     return last_str - strs;
 }
@@ -377,8 +377,8 @@ struct get_active_funds_async_helper
 
     void run(const std::function<void()>& clean_func){
         std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
-        char* latest_update_date = nullptr;
-        for(auto* broker: all_broker_pointers){
+        const char* latest_update_date = nullptr;
+        for(const auto* broker: all_broker_pointers){
             LDEBUG(tag, "broker " << broker->name << " has funds on " << broker->funds_update_date);
             if(latest_update_date == nullptr || strcmp(latest_update_date, broker->funds_update_date) < 0){
                 latest_update_date = broker->funds_update_date;
@@ -403,7 +403,7 @@ struct get_active_funds_async_helper
 };
 
 
-void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_async_helper* h, std::function<void()> clean_func)
+void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_async_helper* h, const std::function<void()>& clean_func)
 {
     // prerequisite: all brokers have their funds updated on the same day
     h->fund_update_date = brokers->begin()->funds_update_date;
@@ -515,17 +515,17 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
     using Payload = std::tuple<OnProgress,void*, OnQuotes, void*>;
 
     if(symbols == nullptr){
-        auto* payload = new Payload(onProgress, progress_ctx , onQuotes, quotes_context);
+        auto* p = new Payload(onProgress, progress_ctx , onQuotes, quotes_context);
         storage->get_known_stocks([](auto* stocks, void* ctx){
            auto *payload = reinterpret_cast<Payload*>(ctx);
            get_quotes(stocks, std::get<0>(*payload), std::get<1>(*payload),std::get<2>(*payload), std::get<3>(*payload));
            delete payload;
-        }, payload);
+        }, p);
     }
     else{
         (void)get_thread_pool()->submit([=](){
             LDEBUG(tag, "get quotes start");
-            Strings* sym = static_cast<Strings*>(symbols);
+            auto* const sym = static_cast<Strings* const>(symbols);
 
             // add the FX pairs
             sym->increase_capacity(3);
@@ -641,9 +641,7 @@ namespace{
     const char assets_tag[] = "assets";
 }
 
-AllAssets::AllAssets(std::function<void()> onLoaded, OnProgress onProgress, void* progress_ctx){
-    notifyLoaded = onLoaded;
-    quotes_by_symbol = nullptr;
+AllAssets::AllAssets(const std::function<void()>& onLoaded, OnProgress onProgress, void* progress_ctx):notifyLoaded(onLoaded), quotes_by_symbol(nullptr){
     load(onProgress, progress_ctx);
 }
 
@@ -662,8 +660,8 @@ void AllAssets::load(OnProgress onProgress, void* progress_ctx){
 
     get_brokers([](all_brokers* b, void* param){
             // if this lambda captures any closures its signature won't match the raw C function pointer declaration
-            AllAssets *me = reinterpret_cast<AllAssets*>(param);
-            AllBrokers *brokers = static_cast<AllBrokers*>(b);
+            auto *me = reinterpret_cast<AllAssets*>(param);
+            auto *brokers = static_cast<AllBrokers*>(b);
             me->load_cash(brokers);
 
             get_active_funds_from_all_brokers(brokers,true, [](fund_portfolio* fp, void *param){

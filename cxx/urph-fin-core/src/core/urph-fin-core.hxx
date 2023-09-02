@@ -145,8 +145,8 @@ public:
     explicit Strings(int n);
     ~Strings();
     void add(const std::string_view& s, float increment_ratio = 0.5);
-    void increase_capacity(int additional);
-    int size() const;
+    void increase_capacity(long additional);
+    long size() const;
     inline char** begin() { return strs; }
     inline char** end()   { return last_str; }
     // caller is responsible for freeing the mem
