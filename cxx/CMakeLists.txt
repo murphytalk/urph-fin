@@ -31,4 +31,8 @@ set(USE_YAHOO_FINANCE ON)
 
 add_subdirectory (urph-fin-core)
 add_subdirectory (cli)
-add_subdirectory (urph-fin-core-dart)
+
+execute_process(COMMAND uname -a OUTPUT_VARIABLE OS_TYPE OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT OS_TYPE MATCHES "microsoft")
+    add_subdirectory (urph-fin-core-dart)
+endif()
