@@ -131,8 +131,8 @@ public:
 
         auto funds_update_date_element = broker_query_result["funds_update_date"];
         if(funds_update_date_element){
-            const auto& funds_update_date = funds_update_date_element.get_value().get_string().value;
-            LDEBUG(tag, " last funds update date: " << funds_update_date );
+            const auto& funds_update_date = funds_update_date_element.get_string();
+            LDEBUG(tag, " last funds update date: " << funds_update_date.value );
 
             const auto& funds = broker_query_result["active_funds"].get_document().view()[funds_update_date].get_array().value;
 
