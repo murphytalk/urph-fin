@@ -128,7 +128,7 @@ public:
             return new (alloc->next())
 #endif
                 Broker(n, ccy_num, first_ccy_balance, fund_update_date, active_funds);
-        }, [](Broker* broker){ LDEBUG(storage_log_tag, "broker created") });
+        }, [](Broker* broker){ LDEBUG(storage_log_tag, "broker created"); });
     }
 };
 
