@@ -122,7 +122,6 @@ if(USE_MONGODB)
     endforeach()
 
 
-
     option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
     set(ENABLE_STATIC ON)
     set(ENABLE_TESTS OFF)
@@ -139,6 +138,10 @@ if(USE_MONGODB)
         GIT_TAG 1.23.2
     )
     FetchContent_MakeAvailable(mongodb-c-driver)
+
+    # mongocxx version below does not inlucde <cstdint> and will have compile error
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include cstdint" CACHE STRING "" FORCE)
+
 
     FetchContent_Declare(
         mongodb-cxx-driver
