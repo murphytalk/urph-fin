@@ -102,7 +102,8 @@
         "valarray": "cpp",
         "__verbose_abort": "cpp",
         "regex": "cpp",
-        "__availability": "cpp"
+        "__availability": "cpp",
+        "shared_mutex": "cpp"
     },
     "cSpell.words": [
         "Firestore",
