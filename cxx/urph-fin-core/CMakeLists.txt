@@ -136,14 +136,14 @@ if(USE_MONGODB)
     FetchContent_Declare(
         mongodb-c-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
-        GIT_TAG 1.23.2
+        GIT_TAG 1.25.4
     )
     FetchContent_MakeAvailable(mongodb-c-driver)
 
     FetchContent_Declare(
         mongodb-cxx-driver
         GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
-        GIT_TAG r3.7.0
+        GIT_TAG r3.9.0
     )
     FetchContent_MakeAvailable(mongodb-cxx-driver)
 
