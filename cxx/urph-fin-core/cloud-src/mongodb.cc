@@ -36,6 +36,9 @@
 #include <bsoncxx/builder/stream/document.hpp>
 #include <bsoncxx/builder/stream/array.hpp>
 
+#include <chrono>
+#include <iomanip>
+#include <ctime>
 
 using bsoncxx::builder::stream::close_document;
 using bsoncxx::builder::stream::document;
@@ -69,6 +72,21 @@ namespace{
             return 0;
         }
     }
+
+    std::string formatUnixEpochToYYYYMMDD(const char* prefix , int64_t epoch) {
+        // Convert Unix epoch to time_t
+        std::time_t time = static_cast<time_t>(epoch);
+
+        // Convert time_t to tm struct
+        std::tm* tm_ptr = std::gmtime(&time);
+
+        // Use stringstream for formatting
+        std::stringstream ss;
+        ss << prefix << std::put_time(tm_ptr, "%Y%m%d");
+
+        return ss.str();
+    }
+
 }
 
 #include "../generated-code/mongodb.cc"
@@ -222,7 +240,28 @@ public:
 
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
                 OnDone onDone, void *caller_provided_param) {
-        
+        bsoncxx::builder::stream::document subdocument_builder{};
+        subdocument_builder << "broker" << broker
+                            << "instrument_id" << symbol
+                            << "date" << date
+                            << "fee" << fee
+                            << "price" << price
+                            << "shares" << shares
+                            << "type" << side;
+
+        // The update command
+        bsoncxx::builder::stream::document update_builder{};
+        update_builder << "$set" << bsoncxx::builder::stream::open_document 
+                    << formatUnixEpochToYYYYMMDD("tx.",date) << subdocument_builder.view()
+                    << bsoncxx::builder::stream::close_document;
+
+        // The filter to find the document you want to update
+        bsoncxx::builder::stream::document filter_builder{};
+        filter_builder << "name" << symbol; 
+
+        // Perform the update operation
+        INSTRUMENT_COLLECTION.update_one(filter_builder.view(), update_builder.view());
+
     }
 
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
