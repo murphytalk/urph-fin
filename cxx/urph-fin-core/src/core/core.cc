@@ -45,12 +45,12 @@ char* copy_str(const char* str, size_t size)
     return p;
 }
 
-inline char* copy_str(const std::string_view& str)
+char* copy_str(const std::string_view& str)
 {
     return copy_str(str.data(), str.size());
 }
 
-inline char* copy_str(const std::string& str)
+char* copy_str(const std::string& str)
 {
     return copy_str(str.c_str(), str.size());
 }
