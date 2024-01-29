@@ -22,6 +22,7 @@
 #include <cli/loopscheduler.h>
 #include <cli/cli.h>
 #include <tabulate/table.hpp>
+#include <cxxopts.hpp>
 
 using namespace std;
 using namespace tabulate;
@@ -57,8 +58,9 @@ static std::string percentage(T value)
 static QuoteBySymbol *quotes_by_symbol = nullptr;
 static quotes *all_quotes = nullptr;
 
-static void print_progress(void*, int current, int all){
-    int percentage = 100 * current / all ;
+static void print_progress(void *, int current, int all)
+{
+    int percentage = 100 * current / all;
     std::cout << "..." << percentage << "% " << std::flush;
 }
 
@@ -288,12 +290,13 @@ static void main_menu()
             {
                 if (ah == 0)
                 {
-                    load_assets([](void *p, AssetHandle h){
+                    load_assets([](void *p, AssetHandle h)
+                                {
                         ostream* o = reinterpret_cast<ostream*>(p);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
-                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); 
-                    },&out,print_progress, nullptr);
+                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); },
+                                &out, print_progress, nullptr);
                 }
                 else
                     list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
@@ -434,11 +437,11 @@ static void main_menu()
                 get_quotes([&out, symbol]()
                            { get_stock_portfolio(
                                  nullptr, symbol.c_str(),
-                                 [](stock_portfolio *p, void *param){
+                                 [](stock_portfolio *p, void *param)
+                                 {
                                     auto* o = reinterpret_cast<ostream*>(param);
                                     print_stock_list(*o, p); },
-                                    &out);
-                            });
+                                 &out); });
             },
             "List specified stock's balance");
         stockMenu->Insert(
@@ -523,26 +526,42 @@ static std::condition_variable cv;
 
 int main(int argc, char *argv[])
 {
-    if (!urph_fin_core_init([](void *)
-                            {
-        {
-            std::lock_guard<std::mutex> lk(m);
-            init_done = true;
-        }
-        cv.notify_one(); },
-                            nullptr))
+    cxxopts::Options options("urph-fin-cli", "The urph-fin console app");
+    options.add_options()
+        ("x,tx","trade history", cxxopts::value<bool>()->default_value("false"))
+        ("h,help", "Print usage")
+    ;
+
+    auto result = options.parse(argc, argv);
+
+    if (result.count("help"))
     {
+      std::cout << options.help() << std::endl;
+      exit(0);
+    }
+
+    if (!urph_fin_core_init([](void *){
+            {
+                std::lock_guard<std::mutex> lk(m);
+                init_done = true;
+            }
+            cv.notify_one(); 
+        },nullptr)){
         cout << "Failed to init";
         return 1;
     }
 
     {
         std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk, []
-                { return init_done; });
+        cv.wait(lk, []{ return init_done; });
     }
 
-    main_menu();
+    if(result["tx"].as<bool>()){
+        std::cout << "tx";
+    }
+    else{
+        main_menu();
+    }
 
     urph_fin_core_close();
     return 0;

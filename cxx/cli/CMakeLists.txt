@@ -21,11 +21,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(tabulate)
 
+FetchContent_Declare(
+  cxxopts
+  GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
+  GIT_TAG v3.1.1
+)
+FetchContent_MakeAvailable(cxxopts)
+
+
 add_executable(${target} ${the_SRC})
 
 target_include_directories(${target} 
     PRIVATE ${cli_SOURCE_DIR}/include
     PRIVATE ${tabulate_SOURCE_DIR}/include
+    PRIVATE ${cxxopts_SOURCE_DIR}/include
 )
 
 target_link_libraries(${target} urph-fin-core ${CMAKE_THREAD_LIBS_INIT})
