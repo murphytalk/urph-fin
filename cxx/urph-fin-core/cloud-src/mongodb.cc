@@ -376,6 +376,8 @@ private:
                 mongocxx::pipeline pipeline{};
                 pipeline.match(filter_builder << "name" << symbol << finalize);
 
+                pipeline.sort(document{} << "name" << 1 << finalize);
+
                 auto filter = document{} << "tx" << open_document <<
                     "$filter" << open_document <<
                         "input" << open_document <<

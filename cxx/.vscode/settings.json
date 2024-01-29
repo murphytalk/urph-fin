@@ -103,7 +103,10 @@
         "__verbose_abort": "cpp",
         "regex": "cpp",
         "__availability": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "charconv": "cpp",
+        "format": "cpp",
+        "span": "cpp"
     },
     "cSpell.words": [
         "Firestore",

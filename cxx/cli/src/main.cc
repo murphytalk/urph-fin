@@ -33,10 +33,20 @@ static std::condition_variable cv;
 
 static std::string format_timestamp(timestamp t)
 {
-    using namespace boost::posix_time;
-    using namespace boost::gregorian;
-    ptime pt = from_time_t(t);
-    return to_simple_string(pt);
+    // Convert Unix timestamp to std::time_t
+    std::time_t time = static_cast<std::time_t>(t);
+
+    // Convert to local time
+    std::tm* localTime = std::localtime(&time);
+
+    // Create a string stream
+    std::ostringstream oss;
+
+    // Format the time and put it in the string stream
+    oss << std::put_time(localTime, "%Y-%m-%d %H:%M:%S");
+
+    // Return the formatted string
+    return oss.str();    
 }
 
 template <typename T>

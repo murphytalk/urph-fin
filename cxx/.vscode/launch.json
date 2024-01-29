@@ -13,7 +13,7 @@
             // Resolved by CMake Tools:
 //            "program": "${command:cmake.launchTargetPath}",
             "program": "${workspaceFolder}/build/cli/urph-fin-cli",
-            "args": [],
+            "args": ["-x"],
 //            "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [
