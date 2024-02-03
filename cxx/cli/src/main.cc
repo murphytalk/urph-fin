@@ -109,7 +109,7 @@ static void print_stock_list(ostream &out, stock_portfolio *p)
     Table table;
     table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee", "Date"});
     auto *port = static_cast<StockPortfolio *>(p);
-    double market_value_sum_jpy, profit_sum_jpy = 0.0;
+    double market_value_sum_jpy = 0.0, profit_sum_jpy = 0.0;
     int row = 0;
 
     timestamp fx_date = 0L;
