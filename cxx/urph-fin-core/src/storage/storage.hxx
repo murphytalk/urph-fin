@@ -84,7 +84,8 @@ public:
     }
     void add_cash_balance(const std::string_view& currency, double balance){
         LDEBUG(storage_log_tag, "  " << currency << " " << balance << " \n");
-        new (balances_alloc->next()) CashBalance(currency, balance);
+        auto * p = new (balances_alloc->next()) CashBalance(currency, balance);
+        LDEBUG(storage_log_tag, "CashBalance ccy=" << p->ccy << " " << p->balance << "\n");
     }
     void add_active_fund(const std::string_view& active_fund_id){
         LDEBUG(storage_log_tag, "adding fund " << active_fund_id);

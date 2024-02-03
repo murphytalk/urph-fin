@@ -141,10 +141,11 @@ public:
             }
         };
 
-        auto onlyAddCash = [&cashObj, &addCash]()
+        auto onlyAddCash = [&cashObj, &addCash,&onBrokerBuilder]()
         {
             auto b = BrokerBuilder(cashObj.length(), 0);
             addCash(b);
+            onBrokerBuilder(b);
         };
 
         auto funds_update_date_element = broker_query_result["funds_update_date"];
@@ -169,7 +170,9 @@ public:
             }
             onBrokerBuilder(b);
          }
+         else onlyAddCash();
     }
+
     void get_brokers(std::function<void(AllBrokerBuilder<MongoDbDao, BrokerType>*)> onAllBrokersBuilder){
         (void)get_thread_pool()->submit([this,onAllBrokersBuilder=std::move(onAllBrokersBuilder)](){
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
