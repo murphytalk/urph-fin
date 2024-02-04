@@ -23,6 +23,9 @@
 #include <tabulate/table.hpp>
 #include <cxxopts.hpp>
 
+#include <indicators/block_progress_bar.hpp>
+#include <indicators/cursor_control.hpp>
+
 #include "cli.hh"
 
 using namespace std;
@@ -81,22 +84,35 @@ namespace{
 QuoteBySymbol *quotes_by_symbol = nullptr;
 quotes *all_quotes = nullptr;
 
-void print_progress(void *, int current, int all)
+void print_progress(void *ctx, int current, int all)
 {
+    auto *p = reinterpret_cast<indicators::BlockProgressBar*>(ctx);
     int percentage = 100 * current / all;
-    std::cout << "..." << percentage << "% " << std::flush;
+    //std::cout << "..." << percentage << std::flush;
+    p->set_progress(percentage);
 }
 
 void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if (all_quotes == nullptr)
     {
-        // cannot capture the callback function obj by reference as it will be executed in another thread after the passed in obj goes out of scope
-        quotes_by_symbol = new QuoteBySymbol([onQuotesLoaded = std::move(onQuotesLoaded)](quotes *aq)
-                                             {
+        auto* bar = new indicators::BlockProgressBar {
+            indicators::option::BarWidth{80},
+            indicators::option::Start{"["},
+            indicators::option::End{"]"},
+            indicators::option::ShowElapsedTime{true},
+            indicators::option::PostfixText{"Loading quotes"},
+            indicators::option::ForegroundColor{indicators::Color::yellow}  ,
+            indicators::option::FontStyles{std::vector<indicators::FontStyle>{indicators::FontStyle::bold}}
+        };            
+         // cannot capture the callback function obj by reference as it will be executed in another thread after the passed in obj goes out of scope
+        quotes_by_symbol = new QuoteBySymbol([onQuotesLoaded = std::move(onQuotesLoaded),bar](quotes *aq){
+            delete bar;
             all_quotes = aq;
-            onQuotesLoaded(); });
-        get_all_quotes(*quotes_by_symbol, print_progress, nullptr);
+            onQuotesLoaded(); 
+        });
+
+       get_all_quotes(*quotes_by_symbol, print_progress, bar);
     }
     else
         onQuotesLoaded();
