@@ -58,12 +58,7 @@ class StockTxTable : public IStockTx{
         StockTxTable(ostream* o):out(o){}
         virtual ~StockTxTable(){}
         virtual void add_headers(const std::vector<std::string>& cols){
-            Table::Row_t cells;
-            cells.reserve(cols.size());
-            for(const auto& str: cols){
-                cells.emplace_back(str);
-            }
-            table.add_row(cells);
+            str_vect_to_table_row(table,cols);
         }
         virtual void add_row(const char* symbol, const std::string& date, const char* broker, const char* side, const std::string& price, const std::string& shares, const std::string& fee){
             table.add_row({symbol, date,broker, side,  price,  shares, fee});

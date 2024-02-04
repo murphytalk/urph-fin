@@ -6,7 +6,9 @@
 #include <locale>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
+#include <tabulate/table.hpp>
 #include <core/urph-fin-core.hxx>
 
 template <typename T>
@@ -33,9 +35,13 @@ std::string format_timestamp(timestamp t);
 
 void notify_waiting_thread();
 void wait_for_notification();
+void str_vect_to_table_row(tabulate::Table& table,const std::vector<std::string>& cols);
 
 void list_stock_tx(const char *broker, const char *symbol, std::ostream &out);
 void list_stock_tx(const char *broker, const char *symbol);
+
+void list_funds(std::string& broker_name, std::ostream &out);
+void list_funds(std::string broker_name);
 
 #endif
 

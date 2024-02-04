@@ -65,6 +65,17 @@ std::string format_timestamp(timestamp t)
     return oss.str();    
 }
 
+void str_vect_to_table_row(Table& table,const std::vector<std::string>& cols)
+{
+    Table::Row_t cells;
+     cells.reserve(cols.size());
+     for(const auto& str: cols){
+        cells.emplace_back(str);
+     }
+     table.add_row(cells);
+}
+ 
+
 namespace{
 
 QuoteBySymbol *quotes_by_symbol = nullptr;
@@ -347,44 +358,7 @@ void main_menu()
 
         rootMenu->Insert(
             "fund",
-            [](ostream &out, string broker_name)
-            {
-                get_active_funds(
-                    broker_name == "all" ? nullptr : broker_name.c_str(), [](fund_portfolio *fp, void *param)
-                    {
-                    ostream* out = reinterpret_cast<ostream*>(param);
-                    Table table;
-                    table.add_row({"Broker", "Fund Name", "Amount", "Price", "Capital", "Market Value", "Profit", "ROI", "Date"});
-                    auto fund_portfolio = static_cast<FundPortfolio*>(fp);
-                    int row = 0;
-                    for(const Fund& fund: *fund_portfolio){
-                        ++row;
-                        table.add_row({fund.broker, fund.name,
-                            format_with_commas(fund.amount), format_with_commas(fund.price), format_with_commas(fund.capital), format_with_commas(fund.market_value),
-                            format_with_commas(fund.profit), percentage(fund.ROI), format_timestamp(fund.date)});
-                        if(fund.profit < 0){
-                            table[row][6].format().font_color(Color::red);
-                            table[row][7].format().font_color(Color::red);
-                        }
-                    }
-
-                    ++row;
-                    auto sum = calc_fund_sum(fund_portfolio);
-                    table.add_row({"SUM", "", "", "", format_with_commas(sum.capital), format_with_commas(sum.market_value), format_with_commas(sum.profit), percentage(sum.ROI),""});
-                    table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
-                    if(sum.profit < 0){
-                        table[row][6].format().font_color(Color::red);
-                        table[row][7].format().font_color(Color::red);
-                    }
-
-                    free_funds(fp);
-
-                    for(auto i = 2 ; i <= 7 ;++i) table.column(i).format().font_align(FontAlign::right);
-                    table.column(1).format().multi_byte_characters(true);
-                    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-                    *out << "\n" << table << endl; },
-                    &out);
-            },
+            [](ostream &out, string broker_name){ list_funds(broker_name,out); },
             "List mutual funds portfolio by broker, all use all for all funds");
 
         auto stockMenu = make_unique<cli::Menu>("stock");
@@ -543,7 +517,7 @@ int main(int argc, char *argv[])
         list_stock_tx(nullptr, nullptr);
     }
     else if (result["fund"].as<bool>()){
-
+        list_funds(std::string("all"));
     }
     else{
         main_menu();
