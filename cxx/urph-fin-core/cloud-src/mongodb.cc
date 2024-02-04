@@ -264,7 +264,22 @@ public:
 
         // Perform the update operation
         INSTRUMENT_COLLECTION.update_one(filter_builder.view(), update_builder.view());
+        onDone(caller_provided_param);
+    }
 
+    void update_cash(const char* broker, const char* ccy, double balance,OnDone onDone,void* caller_provided_param){
+        // The update command
+        bsoncxx::builder::stream::document update_builder{};
+        std::string upd = "cash.";
+        upd += ccy;
+        update_builder << "$set" << bsoncxx::builder::stream::open_document 
+            << upd << balance << bsoncxx::builder::stream::close_document;
+         // The filter to find the document you want to update
+        bsoncxx::builder::stream::document filter_builder{};
+        filter_builder << "name" << broker; 
+
+        BROKER_COLLECTION.update_one(filter_builder.view(), update_builder.view());
+        onDone(caller_provided_param);
     }
 
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)

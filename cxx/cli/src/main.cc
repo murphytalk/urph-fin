@@ -432,6 +432,16 @@ static void main_menu()
             "List broker summary");
 
         rootMenu->Insert(
+            "cash",
+            [](ostream& out, string broker, string ccy, double balance){
+                update_cash_balance(broker.c_str(), ccy.c_str(), balance, [](void *param){
+                    ostream* out = reinterpret_cast<ostream*>(param);
+                    *out<< "cash balance updated\n";
+                }, &out);    
+            },
+            "Update cash balance: broker currency balance");
+
+        rootMenu->Insert(
             "fund",
             [](ostream &out, string broker_name)
             {

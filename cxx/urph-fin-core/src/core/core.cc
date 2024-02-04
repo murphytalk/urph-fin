@@ -645,6 +645,15 @@ void add_stock_tx(const char* broker, const char* symbol, double shares, double 
     CATCH_NO_RET
 }
 
+
+void update_cash_balance(const char* broker, const char* ccy, double balance, OnDone onDone, void* caller_provided_param)
+{
+    assert(storage != nullptr);
+    TRY
+    storage->update_cash(broker, ccy, balance,  onDone, caller_provided_param);
+    CATCH_NO_RET
+}
+
 //// Overview calculation Start
 namespace{
     const char ASSET_TYPE_STOCK [] = "Stock&ETF";

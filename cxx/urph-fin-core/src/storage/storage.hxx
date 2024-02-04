@@ -306,6 +306,7 @@ public:
     virtual void get_quotes(int num, const char **symbols_head, OnQuotes onQuotes, void* caller_provided_param) = 0;
     virtual void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
                 OnDone onDone,void* caller_provided_param) = 0;
+    virtual void update_cash(const char* broker, const char* ccy, double balance,OnDone onDone,void* caller_provided_param) = 0;
 };
 
 template<typename DAO>
@@ -393,6 +394,9 @@ public:
     void add_tx(const char* broker, const char* symbol, double shares, double price, double fee, const char* side, timestamp date,
                 OnDone onDone,void* caller_provided_param){
         dao->add_tx(broker, symbol, shares, price, fee, side, date, onDone, caller_provided_param);
+    }
+    void update_cash(const char* broker, const char* ccy, double balance, OnDone onDone,void* caller_provided_param){
+        dao->update_cash(broker, ccy, balance,onDone, caller_provided_param);
     }
 };
 

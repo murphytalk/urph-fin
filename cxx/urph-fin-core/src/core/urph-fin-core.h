@@ -161,6 +161,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void* progress_ctx, OnQ
 void free_quotes(quotes* q);
 
 void add_stock_tx(const char* broker, const char* symbol, double shares, double price, double fee,const char* side, timestamp date, OnDone, void*);
+void update_cash_balance(const char* broker, const char* ccy, double balance,OnDone, void*);
 
 /*
   - item_name = Asset

@@ -178,6 +178,7 @@ public:
     void get_latest_quote_caller_ownership(const char*symbol, OnQuotes onQuotes, void* caller_provided_param){}
     void add_tx(const char *broker, const char *symbol, double shares, double price, double fee, const char *side, timestamp date,
                 OnDone onDone, void *caller_provided_param) {}
+    void update_cash(const char* broker, const char* ccy, double balance,OnDone onDone,void* caller_provided_param){}
     void get_stock_portfolio(StockPortfolioBuilder *builder, const char *broker, const char *symbol)
     {
         // mimic the behavior of the real storage
