@@ -8,7 +8,6 @@
 #include <sstream>
 #include <locale>
 #include <condition_variable>
-#include <cmath>
 #include <ctime>
 
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -24,14 +23,31 @@
 #include <tabulate/table.hpp>
 #include <cxxopts.hpp>
 
+#include "cli.hh"
+
 using namespace std;
 using namespace tabulate;
 
-static bool wait_flag = false;
-static std::mutex m;
-static std::condition_variable cv;
+namespace{
+    bool wait_flag = false;
+    std::mutex m;
+    std::condition_variable cv;
+}
 
-static std::string format_timestamp(timestamp t)
+void notify_waiting_thread()
+{
+    std::lock_guard<std::mutex> lk(m);
+    wait_flag = true;
+    cv.notify_one(); 
+}
+
+void wait_for_notification()
+{
+    std::unique_lock<std::mutex> lk(m);
+    cv.wait(lk, []{ return wait_flag; });
+}
+
+std::string format_timestamp(timestamp t)
 {
     // Convert Unix timestamp to std::time_t
     std::time_t time = static_cast<std::time_t>(t);
@@ -49,36 +65,18 @@ static std::string format_timestamp(timestamp t)
     return oss.str();    
 }
 
-template <typename T>
-static std::string format_with_commas(T value)
-{
-    if (std::isnan(value))
-        return "N/A";
+namespace{
 
-    std::stringstream ss;
-    ss.imbue(std::locale(""));
-    ss << std::fixed << value;
-    return ss.str();
-}
+QuoteBySymbol *quotes_by_symbol = nullptr;
+quotes *all_quotes = nullptr;
 
-template <typename T>
-static std::string percentage(T value)
-{
-    std::stringstream ss;
-    ss << value * 100 << "%";
-    return ss.str();
-}
-
-static QuoteBySymbol *quotes_by_symbol = nullptr;
-static quotes *all_quotes = nullptr;
-
-static void print_progress(void *, int current, int all)
+void print_progress(void *, int current, int all)
 {
     int percentage = 100 * current / all;
     std::cout << "..." << percentage << "% " << std::flush;
 }
 
-static void get_quotes(std::function<void()> onQuotesLoaded)
+void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if (all_quotes == nullptr)
     {
@@ -93,18 +91,18 @@ static void get_quotes(std::function<void()> onQuotesLoaded)
         onQuotesLoaded();
 }
 
-static const char jpy[] = "JPY";
-static inline double to_jpy(double fx_rate, double value)
+const char jpy[] = "JPY";
+inline double to_jpy(double fx_rate, double value)
 {
     return std::isnan(fx_rate) || std::isnan(value) ? std::nan("") : fx_rate * value;
 }
-static std::pair<double, timestamp> get_rate(const std::string &symbol)
+std::pair<double, timestamp> get_rate(const std::string &symbol)
 {
     auto it = quotes_by_symbol->mapping.find(symbol);
     return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""), (timestamp)0L) : std::make_pair(it->second->rate, it->second->date);
 }
 
-static void print_stock_list(ostream &out, stock_portfolio *p)
+void print_stock_list(ostream &out, stock_portfolio *p)
 {
     Table table;
     table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee", "Date"});
@@ -176,110 +174,16 @@ static void print_stock_list(ostream &out, stock_portfolio *p)
         << table << endl;
 }
 
-class IStockTx{
-    public:
-        virtual ~IStockTx(){}
-        virtual void add_headers(const std::vector<std::string>& cols) = 0;
-        virtual void add_row(const char* symbol, const std::string& date, const char* broker, const char* side, const std::string& price, const std::string& shares, const std::string& fee) = 0;
-        virtual void print() = 0;
-};
 
-static void list_stock_tx(const char *broker, const char *symbol, IStockTx *tx)
-{
-    get_stock_portfolio(
-        broker, symbol, [](stock_portfolio *p, void *param)
-        {
-            IStockTx *tx = reinterpret_cast<IStockTx*>(param);
-            tx->add_headers({"Symbol","Date", "Broker", "Type", "Price", "Shares", "Fee"});
-            auto *port = static_cast<StockPortfolio*>(p);
-            std::vector<std::pair<const char*,StockTx*>> all_tx;
-            for(StockWithTx& stx: *port){
-                auto *tx_list = static_cast<StockTxList*>(stx.tx_list);
-                for(StockTx& tx: *tx_list){
-                    all_tx.push_back(std::make_pair(stx.instrument->symbol,&tx));
-               }
-            }
-            std::sort(all_tx.begin(), all_tx.end(),[](const auto& c1, const auto& c2){ return c1.second->date > c2.second->date; });
-            for(const auto&c: all_tx){
-                tx->add_row(
-                    c.first,
-                    format_timestamp(c.second->date),
-                    c.second->broker,
-                    c.second->Side(),
-                    format_with_commas(c.second->price),
-                    format_with_commas(c.second->shares),
-                    format_with_commas(c.second->fee)
-                );
-            }
-            free_stock_portfolio(p);
-            tx->print();
-            delete tx;
-        },reinterpret_cast<void*>(tx));
-}
 
-class StockTxTable : public IStockTx{
-    private:
-        Table table;
-        ostream* out;
-    public:
-        StockTxTable(ostream* o):out(o){}
-        virtual ~StockTxTable(){}
-        virtual void add_headers(const std::vector<std::string>& cols){
-            Table::Row_t cells;
-            cells.reserve(cols.size());
-            for(const auto& str: cols){
-                cells.emplace_back(str);
-            }
-            table.add_row(cells);
-        }
-        virtual void add_row(const char* symbol, const std::string& date, const char* broker, const char* side, const std::string& price, const std::string& shares, const std::string& fee){
-            table.add_row({symbol, date,broker, side,  price,  shares, fee});
-        }
-        virtual void print(){
-            table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-            for(auto i = 4 ; i <= 6 ;++i) table.column(i).format().font_align(FontAlign::right);
-            *out << "\n" << table << endl; 
-        }
-};
-
-static void list_stock_tx(const char *broker, const char *symbol, ostream &out)
-{
-    StockTxTable* tx =  new StockTxTable(&out);
-    list_stock_tx(broker, symbol, tx);
-}
-
-class StockTxCsv : public IStockTx{
-    public:
-        virtual ~StockTxCsv(){}
-        virtual void add_headers(const std::vector<std::string>& cols){
-            for(const auto& c: cols){
-                std::cout<<c<<",";
-            }
-            std::cout<<std::endl;
-        }
-        virtual void add_row(const char* symbol, const std::string& date, const char* broker, const char* side, const std::string& price, const std::string& shares, const std::string& fee){
-            std::cout << symbol << "," << date << "," << broker << "," << side << ",\"" << price << "\",\"" << shares << "\",\"" << fee << "\"" <<std::endl;
-        }
-        virtual void print(){
-            std::lock_guard<std::mutex> lk(m);
-            wait_flag = true;
-            cv.notify_one(); 
-        }
-};
-
-static void list_stock_tx(const char *broker, const char *symbol)
-{
-    StockTxCsv* tx =  new StockTxCsv();
-    list_stock_tx(broker, symbol, tx);
-}
 
 const char *groupName[] = {
     "Asset", "Broker", "Currency"};
 
-static std::string main_ccy = "JPY";
-static AssetHandle ah = 0;
+std::string main_ccy = "JPY";
+AssetHandle ah = 0;
 
-static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream &out)
+void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream &out)
 {
     Table table;
 
@@ -337,7 +241,7 @@ static void list_overview(GROUP lvl1, GROUP lvl2, GROUP lvl3, ostream &out)
     delete o;
 }
 
-static GROUP to_lvl_group(std::string &lvl)
+GROUP to_lvl_group(std::string &lvl)
 {
     switch (lvl[0])
     {
@@ -352,7 +256,7 @@ static GROUP to_lvl_group(std::string &lvl)
     }
 }
 
-static void main_menu()
+void main_menu()
 {
     try
     {
@@ -606,11 +510,14 @@ static void main_menu()
     }
 }
 
+}
+
 int main(int argc, char *argv[])
 {
     cxxopts::Options options("urph-fin-cli", "The urph-fin console app");
     options.add_options()
-        ("x,tx","trade history", cxxopts::value<bool>()->default_value("false"))
+        ("x,tx","Trade history", cxxopts::value<bool>()->default_value("false"))
+        ("f,fund","Funds position", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage")
     ;
 
@@ -622,42 +529,29 @@ int main(int argc, char *argv[])
       exit(0);
     }
 
-    if (!urph_fin_core_init([](void *){
-            {
-                std::lock_guard<std::mutex> lk(m);
-                wait_flag = true;
-            }
-            cv.notify_one(); 
-        },nullptr)){
+    if (!urph_fin_core_init([](void *){ notify_waiting_thread();},nullptr)){
         cout << "Failed to init";
         return 1;
     }
 
     // wait for init is done
-    {
-        std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk, []{ return wait_flag; });
-    }
+    wait_for_notification();
 
     wait_flag = false;
 
     if(result["tx"].as<bool>()){
         list_stock_tx(nullptr, nullptr);
     }
+    else if (result["fund"].as<bool>()){
+
+    }
     else{
         main_menu();
-        {
-            std::lock_guard<std::mutex> lk(m);
-            wait_flag = true;
-            cv.notify_one(); 
-        }
+        notify_waiting_thread();
     }
 
     // wait for job is done
-    {
-        std::unique_lock<std::mutex> lk(m);
-        cv.wait(lk, []{ return wait_flag; });
-    }
+    wait_for_notification();
 
     urph_fin_core_close();
     return 0;
