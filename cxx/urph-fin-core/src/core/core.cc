@@ -520,6 +520,15 @@ namespace{
     const char usdjpy[] = "USDJPY=X";
     const char cnyjpy[] = "CNYJPY=X";
     const char hkdjpy[] = "HKDJPY=X";
+
+    void add_fx_pairs(strings* symbols)
+    {
+        auto* const sym = static_cast<Strings* const>(symbols);
+        sym->increase_capacity(3);
+        sym->add(usdjpy);
+        sym->add(cnyjpy);
+        sym->add(hkdjpy);
+    }
 }
 void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQuotes onQuotes, void* quotes_context)
 {
@@ -531,6 +540,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
         auto* p = new Payload(onProgress, progress_ctx , onQuotes, quotes_context);
         storage->get_known_stocks([](auto* stocks, void* ctx){
            auto *payload = reinterpret_cast<Payload*>(ctx);
+           add_fx_pairs(stocks);
            get_quotes(stocks, std::get<0>(*payload), std::get<1>(*payload),std::get<2>(*payload), std::get<3>(*payload));
            delete payload;
         }, p);
@@ -539,12 +549,6 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
         (void)get_thread_pool()->submit([=](){
             LDEBUG(tag, "get quotes start");
             auto* const sym = static_cast<Strings* const>(symbols);
-
-            // add the FX pairs
-            sym->increase_capacity(3);
-            sym->add(usdjpy);
-            sym->add(cnyjpy);
-            sym->add(hkdjpy);
 
             auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(sym->capacity,[onQuotes, quotes_context](LatestQuotesBuilder::Alloc* alloc){
                 onQuotes(new Quotes(alloc->allocated_num(), alloc->head()), quotes_context);
