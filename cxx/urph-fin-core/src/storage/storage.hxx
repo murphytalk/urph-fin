@@ -72,7 +72,7 @@ public:
     char* fund_update_date;
     BrokerBuilder(int n, int active_fund_num){
         balances_alloc = new CashBalanceAlloc(n);
-        funds_name_builder = new StringsBuilder(active_fund_num);
+        funds_name_builder = active_fund_num > 0 ? new StringsBuilder(active_fund_num) : nullptr;
         fund_update_date = nullptr;
     }
     ~BrokerBuilder(){
@@ -102,7 +102,15 @@ static void create_broker(
 {
     dao->get_broker_cash_balance_and_active_funds(brokerQueryResult,
         [dao,&brokerQueryResult, &create_func, &onBrokerCreated](const BrokerBuilder& builder){
-            onBrokerCreated(create_func(dao->get_broker_name(brokerQueryResult), builder.balances_alloc->allocated_num(), builder.balances_alloc->head(), builder.fund_update_date, builder.funds_name_builder->strings));
+            onBrokerCreated(
+                create_func(
+                    dao->get_broker_name(brokerQueryResult), 
+                    builder.balances_alloc->allocated_num(), 
+                    builder.balances_alloc->head(), 
+                    builder.fund_update_date, 
+                    builder.funds_name_builder == nullptr ? nullptr: builder.funds_name_builder->strings
+                )
+            );
         }
     );
 }

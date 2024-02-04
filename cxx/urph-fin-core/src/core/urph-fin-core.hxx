@@ -165,7 +165,7 @@ public:
 
     struct active_fund_tag{};
     inline char** head(active_fund_tag) { return static_cast<Strings*>(active_fund_ids)->begin(); }
-    inline int size(active_fund_tag) { return static_cast<Strings*>(active_fund_ids)->size(); }
+    inline long size(active_fund_tag) { return active_fund_ids == nullptr ? 0 : static_cast<Strings*>(active_fund_ids)->size(); }
     Iterator<char*> fund_begin() { return Iterator( head(active_fund_tag()) ); }
     Iterator<char*> fund_end() { return Iterator(static_cast<Strings*>(active_fund_ids)->end()); }
 };

@@ -70,8 +70,15 @@ CashBalance::~CashBalance()
 Strings::Strings(int n)
 {
     capacity = n;
-    strs = new char* [n];
-    last_str = strs;
+    if(n == 0){
+        strs = nullptr;
+        last_str = nullptr;
+        
+    }
+    else{
+        strs = new char* [n];
+        last_str = strs;
+    }
 }
 
 void Strings::add(const std::string_view& i, float increment_ratio )
@@ -379,6 +386,10 @@ struct get_active_funds_async_helper
         std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
         const char* latest_update_date = nullptr;
         for(const auto* broker: all_broker_pointers){
+            if(broker->active_fund_ids == nullptr || broker->funds_update_date == nullptr){
+                LDEBUG(tag, "broker " << broker->name << " does not have funds");
+                continue;
+            }
             LDEBUG(tag, "broker " << broker->name << " has funds on " << broker->funds_update_date);
             if(latest_update_date == nullptr || strcmp(latest_update_date, broker->funds_update_date) < 0){
                 latest_update_date = broker->funds_update_date;
@@ -386,6 +397,7 @@ struct get_active_funds_async_helper
         }
         LDEBUG(tag, "latest fund update date " << latest_update_date);
         for(auto* broker: all_broker_pointers){
+            if(broker->active_fund_ids == nullptr || broker->funds_update_date == nullptr) continue;
             if(strcmp(latest_update_date, broker->funds_update_date) != 0){
                 LDEBUG(tag, "broker " << broker->name << " has no active funds on " << latest_update_date << ", last update date was " << broker->funds_update_date);
                 continue;
@@ -408,6 +420,7 @@ void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_
     // prerequisite: all brokers have their funds updated on the same day
     h->fund_update_date = brokers->begin()->funds_update_date;
     for(Broker& b: *brokers){
+        LDEBUG(tag, "broker " << b.name << " funds upd date " << b.funds_update_date << "\n");
         h->fund_num += b.size(Broker::active_fund_tag());
         h->all_broker_pointers.push_back(&b);
     }
