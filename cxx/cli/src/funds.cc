@@ -104,7 +104,7 @@ class FundCsv: public IFund{
         }
         virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const std::string& date)
         {
-            std::cout << broker << "," << fund_name << "," << amt  << "," << price  << "," <<  capital << "," << mkt_value << "," <<  profit << "," << roi << "," <<  date <<std::endl;
+            std::cout << broker << "," << fund_name << ",\"" << amt << "\",\""<< price  << "\" ,\""<<  capital << "\",\""<< mkt_value << "\",\""<<  profit << "\"," << roi << "," <<  date <<std::endl;
         }
         virtual void add_sum_row(const fund_sum& sum){}
         virtual void print(){ notify_waiting_thread(); }
