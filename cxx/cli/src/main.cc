@@ -9,6 +9,7 @@
 #include <locale>
 #include <condition_variable>
 #include <ctime>
+#include<tuple> 
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string.hpp>
@@ -92,20 +93,25 @@ void print_progress(void *ctx, int current, int all)
     p->set_progress(percentage);
 }
 
+indicators::BlockProgressBar* prepare_progress_bar()
+{
+    return new indicators::BlockProgressBar {
+        indicators::option::BarWidth{80},
+        indicators::option::Start{"["},
+        indicators::option::End{"]"},
+        indicators::option::ShowElapsedTime{true},
+        indicators::option::PostfixText{"Loading quotes"},
+        indicators::option::ForegroundColor{indicators::Color::yellow}  ,
+        indicators::option::FontStyles{std::vector<indicators::FontStyle>{indicators::FontStyle::bold}}
+    };            
+}
+
 void get_quotes(std::function<void()> onQuotesLoaded)
 {
     if (all_quotes == nullptr)
     {
-        auto* bar = new indicators::BlockProgressBar {
-            indicators::option::BarWidth{80},
-            indicators::option::Start{"["},
-            indicators::option::End{"]"},
-            indicators::option::ShowElapsedTime{true},
-            indicators::option::PostfixText{"Loading quotes"},
-            indicators::option::ForegroundColor{indicators::Color::yellow}  ,
-            indicators::option::FontStyles{std::vector<indicators::FontStyle>{indicators::FontStyle::bold}}
-        };            
-         // cannot capture the callback function obj by reference as it will be executed in another thread after the passed in obj goes out of scope
+        auto* bar = prepare_progress_bar();
+        // cannot capture the callback function obj by reference as it will be executed in another thread after the passed in obj goes out of scope
         quotes_by_symbol = new QuoteBySymbol([onQuotesLoaded = std::move(onQuotesLoaded),bar](quotes *aq){
             delete bar;
             all_quotes = aq;
@@ -141,7 +147,7 @@ void print_stock_list(ostream &out, stock_portfolio *p)
     for (auto const &stockWithTx : *port)
     {
         auto *tx_list = static_cast<StockTxList *>(stockWithTx.tx_list);
-        //        LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
+        //LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
         auto balance = tx_list->calc();
         if (balance.shares == 0)
             continue;
@@ -153,7 +159,9 @@ void print_stock_list(ostream &out, stock_portfolio *p)
             fx_rate = r.first;
             fx_date = r.second;
         }
-        double market_value, profit, profit_jpy = std::nan("");
+        double market_value = std::nan("");
+        double profit = std::nan("");
+        double profit_jpy = std::nan("");
         const auto &r = get_rate(stockWithTx.instrument->symbol);
         double price = r.first;
         timestamp quote_date = r.second;
@@ -297,13 +305,15 @@ void main_menu()
             {
                 if (ah == 0)
                 {
-                    load_assets([](void *p, AssetHandle h)
-                                {
-                        ostream* o = reinterpret_cast<ostream*>(p);
+                    auto *bar = prepare_progress_bar();
+                    auto *ctx = new std::tuple<indicators::BlockProgressBar*, ostream*>(bar, &out);
+                    load_assets([](void *p, AssetHandle h){
+                        auto* ctx = reinterpret_cast<std::tuple<indicators::BlockProgressBar*, ostream*>*>(p);
+                        delete std::get<0>(*ctx);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
-                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *o); },
-                                &out, print_progress, nullptr);
+                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *std::get<1>(*ctx)); 
+                    },ctx, print_progress, bar);
                 }
                 else
                     list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, out);
