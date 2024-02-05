@@ -88,7 +88,7 @@ quotes *all_quotes = nullptr;
 void print_progress(void *ctx, int current, int all)
 {
     auto *p = reinterpret_cast<indicators::BlockProgressBar*>(ctx);
-    int percentage = 100 * current / all;
+    float percentage = 100.0 * current / all;
     //std::cout << "..." << percentage << std::flush;
     p->set_progress(percentage);
 }
@@ -308,11 +308,11 @@ void main_menu()
                     auto *bar = prepare_progress_bar();
                     auto *ctx = new std::tuple<indicators::BlockProgressBar*, ostream*>(bar, &out);
                     load_assets([](void *p, AssetHandle h){
-                        auto* ctx = reinterpret_cast<std::tuple<indicators::BlockProgressBar*, ostream*>*>(p);
-                        delete std::get<0>(*ctx);
+                        auto* ctx1 = reinterpret_cast<std::tuple<indicators::BlockProgressBar*, ostream*>*>(p);
+                        delete std::get<0>(*ctx1);
                         ah = h;
                         std::cout<<"asset handle " << h << std::endl;
-                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *std::get<1>(*ctx)); 
+                        list_overview(GROUP_BY_ASSET, GROUP_BY_BROKER, GROUP_BY_CCY, *std::get<1>(*ctx1)); 
                     },ctx, print_progress, bar);
                 }
                 else
@@ -334,10 +334,9 @@ void main_menu()
             "bk",
             [](ostream &os)
             {
-                get_brokers([](auto *bks, void *ctx)
-                            {
-                    ostream* out = reinterpret_cast<ostream*>(ctx);
-                    AllBrokers *brokers = static_cast<AllBrokers*>(bks);
+                get_brokers([](auto *bks, void *ctx){
+                    auto* out = reinterpret_cast<ostream*>(ctx);
+                    auto* brokers = static_cast<AllBrokers*>(bks);
 
                     Table table;
                     table.add_row({"Broker", "Currency", "Balance"});
