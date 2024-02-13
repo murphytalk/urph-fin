@@ -190,6 +190,7 @@ public:
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             for(const auto& param: params){
                 const char* fund_name = param.name.c_str();
+                LINFO(tag, "finding fund " << fund_name);
                 const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
                 if(fund){
                     LDEBUG(tag, "found fund " << fund_name);
@@ -289,7 +290,7 @@ public:
         *projection << "_id" << 0 ;
         get_stock_and_etf<StockPortfolioBuilder>(
             builder, symbol, broker, projection,
-            [](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
+            [this](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
                 b->add_stock(my_symbol, ccy);
@@ -298,19 +299,17 @@ public:
                 b->prepare_tx_alloc(std::string(my_symbol), tx_num);
                 for(auto& tx_obj: tx){
                     try{
-                        const auto& v = tx_obj.get_document().view();
-                        const double price = safe_get_double(v["price"]);
-                        const timestamp date = safe_get_timestamp(v["date"]);
-                        const std::string_view& type = v["type"].get_string();
-                        const std::string_view& my_broker = v["broker"].get_string();
-
-                        double shares = 0;
-                        double fee = 0;
-                        if(type != "SPLIT"){
-                            shares = safe_get_double(v["shares"]);
-                            fee = safe_get_double(v["fee"]);
+                        if(tx_obj.type() == bsoncxx::type::k_array){
+                            auto array = tx_obj.get_array().value;
+                            for(auto&& o: array){
+                                const auto& v = o.get_document().view();
+                                add_tx(b,my_symbol, v);
+                            }
                         }
-                        b->addTx(my_broker, my_symbol, type, price, shares, fee, date);
+                        else{
+                            const auto& v = tx_obj.get_document().view();
+                            add_tx(b,my_symbol, v);
+                        }
                     }
                     catch(const std::exception& ex){
                         LERROR(log, "failed to get stock tx " << ex.what());
@@ -321,6 +320,21 @@ public:
         );
      }
 private:
+    void add_tx(StockPortfolioBuilder* b,const std::string_view& my_symbol, const bsoncxx::v_noabi::document::view& v){
+        const double price = safe_get_double(v["price"]);
+        const timestamp date = safe_get_timestamp(v["date"]);
+        const std::string_view& type = v["type"].get_string();
+        const std::string_view& my_broker = v["broker"].get_string();
+
+        double shares = 0;
+        double fee = 0;
+        if(type != "SPLIT"){
+            shares = safe_get_double(v["shares"]);
+            fee = safe_get_double(v["fee"]);
+        }
+        b->addTx(my_broker, my_symbol, type, price, shares, fee, date);
+    }
+
     #define MV_STR(p) std::move(std::string(p == nullptr?"":p))
     template<typename T>
     void get_stock_and_etf(
