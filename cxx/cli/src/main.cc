@@ -149,7 +149,7 @@ void print_stock_list(ostream &out, stock_portfolio *p)
         auto *tx_list = static_cast<StockTxList *>(stockWithTx.tx_list);
         //LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
         auto balance = tx_list->calc();
-        if (balance.shares == 0)
+        if (balance.shares == 0 || std::isnan(balance.shares))
             continue;
         ++row;
         double fx_rate = 1.0;
