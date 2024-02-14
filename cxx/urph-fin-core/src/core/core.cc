@@ -856,8 +856,19 @@ void AllAssets::load_cash(AllBrokers *brokers)
 }
 
 namespace{
-std::map<AssetHandle, AllAssets*> all_assets_by_handle;
-AssetHandle next_asset_handle = 0;
+    std::map<AssetHandle, AllAssets*> all_assets_by_handle;
+    AssetHandle next_asset_handle = 0;
+    AllAssets* get_assets_by_handle(AssetHandle asset_handle)
+    {
+        auto assets = all_assets_by_handle.find(asset_handle);
+        if(assets != all_assets_by_handle.end()){
+            return assets->second;
+        }
+        else{
+            LERROR(tag, "Cannot find assets by handle " << asset_handle);
+            return nullptr;
+        }
+    }
 }
 
 void load_assets(OnAssetLoaded onLoaded, void* ctx,OnProgress onProgress, void* progressCtx)
@@ -870,18 +881,6 @@ const Quote* AllAssets::get_latest_quote(const char* symbol) const
 {
     auto it = quotes_by_symbol->mapping.find(std::string(symbol));
     return it == quotes_by_symbol->mapping.end() ? nullptr : it->second;
-}
-
-static AllAssets* get_assets_by_handle(AssetHandle asset_handle)
-{
-    auto assets = all_assets_by_handle.find(asset_handle);
-    if(assets != all_assets_by_handle.end()){
-        return assets->second;
-    }
-    else{
-        LERROR(tag, "Cannot find assets by handle " << asset_handle);
-        return nullptr;
-    }
 }
 
 
