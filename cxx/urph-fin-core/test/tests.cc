@@ -331,7 +331,7 @@ namespace{
 
 const char usd[] = "USD";
 const char jpy[] = "JPY";
-const std::string usd_jpy = {"USDJPY"};
+const std::string usd_jpy = {"USDJPY=X"};
 const double usd_jpy_rate = 100;
 const timestamp usd_jpy_date = 100;
 
@@ -823,7 +823,7 @@ TEST(TestOverview, get_latest_quotes)
 {
     PrepareAssets prepare;
 
-    const char usdjpy[] = "USDJPY";
+    const char usdjpy[] = "USDJPY=X";
     const char stock2[] = "Stock2";
 
     auto * usd_jpy_q = get_latest_quote(prepare.assets, usdjpy);
@@ -844,7 +844,7 @@ TEST(TestOverview, get_latest_quotes)
 
     {
         Quotes* quotes = const_cast<Quotes*>(
-           static_cast<const Quotes*>(get_latest_quotes_delimeter(prepare.assets, 2, ",", "USDJPY,Stock2"))
+           static_cast<const Quotes*>(get_latest_quotes_delimeter(prepare.assets, 2, ",", "USDJPY=X,Stock2"))
         );
 
         auto it = quotes->begin();
