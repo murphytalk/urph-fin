@@ -336,6 +336,64 @@ private:
     }
 
     #define MV_STR(p) std::move(std::string(p == nullptr?"":p))
+    void get_tx_by_symbol_and_broker(document&& filter_builder,const std::string& symbol, const std::string& broker, bsoncxx::builder::stream::document* projection,std::function<void(mongocxx::cursor&&)> iterate_instrument){
+        /* basically this native query
+        db.instrument.aggregate([
+          {
+            "$match": {
+              "name": "NFLX"
+            }
+          },
+          {
+            "$addFields": {
+              "tx": {
+                "$filter": {
+                  "input": { "$objectToArray": "$tx" },
+                  "as": "tx_doc",
+                  "cond": { "$eq": [ "$$tx_doc.v.broker", "IB" ] }
+                }
+              }
+            }
+          },
+          {
+            "$addFields": {
+              "tx": { "$arrayToObject": "$tx" }
+            }
+          },
+          {
+            "$project": {
+              "_id": 0,
+            }
+          }
+        ])
+        */
+        mongocxx::pipeline pipeline{};
+        pipeline.match(filter_builder << "name" << symbol << finalize);
+
+        pipeline.sort(document{} << "name" << 1 << finalize);
+
+        auto filter = document{} << "tx" << open_document <<
+            "$filter" << open_document <<
+                "input" << open_document <<
+                    "$objectToArray" << "$tx" << close_document <<
+                "as" << "tx_doc" <<
+                "cond" << open_document <<
+                    "$eq" << open_array << "$$tx_doc.v.broker" << broker << close_array <<
+                close_document << close_document << close_document << finalize;
+        pipeline.add_fields(filter.view());
+
+
+        auto back2tx = document {} << "tx" << open_document <<
+            "$arrayToObject" << "$tx" << close_document <<  finalize;
+        pipeline.add_fields(back2tx.view());
+
+        if(projection != nullptr){
+            pipeline.project(projection->view());
+        }
+
+        iterate_instrument(INSTRUMENT_COLLECTION.aggregate(pipeline));
+    }
+
     template<typename T>
     void get_stock_and_etf(
             T* context,
@@ -375,61 +433,13 @@ private:
                 iterate_stock(INSTRUMENT_COLLECTION.find(filter_builder.view(), opts));
             }
             else{
-                /* basically this native query
-                db.instrument.aggregate([
-                  {
-                    "$match": {
-                      "name": "NFLX"
-                    }
-                  },
-                  {
-                    "$addFields": {
-                      "tx": {
-                        "$filter": {
-                          "input": { "$objectToArray": "$tx" },
-                          "as": "tx_doc",
-                          "cond": { "$eq": [ "$$tx_doc.v.broker", "IB" ] }
-                        }
-                      }
-                    }
-                  },
-                  {
-                    "$addFields": {
-                      "tx": { "$arrayToObject": "$tx" }
-                    }
-                  },
-                  {
-                    "$project": {
-                      "_id": 0,
-                    }
-                  }
-                ])
-                */
-                mongocxx::pipeline pipeline{};
-                pipeline.match(filter_builder << "name" << symbol << finalize);
-
-                pipeline.sort(document{} << "name" << 1 << finalize);
-
-                auto filter = document{} << "tx" << open_document <<
-                    "$filter" << open_document <<
-                        "input" << open_document <<
-                            "$objectToArray" << "$tx" << close_document <<
-                        "as" << "tx_doc" <<
-                        "cond" << open_document <<
-                            "$eq" << open_array << "$$tx_doc.v.broker" << broker << close_array <<
-                        close_document << close_document << close_document << finalize;
-                pipeline.add_fields(filter.view());
-
-
-                auto back2tx = document {} << "tx" << open_document <<
-                    "$arrayToObject" << "$tx" << close_document <<  finalize;
-                pipeline.add_fields(back2tx.view());
-
-                if(projection != nullptr){
-                    pipeline.project(projection->view());
-                }
-
-                iterate_stock(INSTRUMENT_COLLECTION.aggregate(pipeline));
+                get_tx_by_symbol_and_broker(
+                    std::move(filter_builder), 
+                    symbol, 
+                    broker, 
+                    projection, 
+                    [&iterate_stock](auto&& cursor){ iterate_stock(std::move(cursor)); }
+                );
             }
 
 
