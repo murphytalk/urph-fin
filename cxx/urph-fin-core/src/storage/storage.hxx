@@ -290,9 +290,10 @@ private:
 };
 
 struct FundsParam{
+    std::string broker;
     std::string name;
     std::string update_date;    
-    FundsParam(char* n, char* ud):name(n), update_date(ud){}
+    FundsParam(char* b, char* n, char* ud):broker(b),name(n), update_date(ud){}
 };
 
 class IDataStorage{

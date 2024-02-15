@@ -404,7 +404,7 @@ struct get_active_funds_async_helper
             }
             for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
                 LDEBUG(tag, "Adding fund " << *it << " of " << broker->name);
-                fund_params.emplace_back(*it, broker->funds_update_date);
+                fund_params.emplace_back(broker->name, *it, broker->funds_update_date);
             }
         }
         get_funds(fund_params, onFunds, param,[clean_func, this](){
