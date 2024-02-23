@@ -395,13 +395,16 @@ private:
     }
 
     template<typename T>
-    void get_stock_and_etf(
+    void get_tx(
             T* context,
+            std::vector<std::string>&& asset_types,
             const char* symbol,
-            const char* broker,
+            const char* broker,  
+            const char* tx_date, // nullptr => all tx
             bsoncxx::builder::stream::document* projection, //will be freed by this function
-            std::function<void(T*, const bsoncxx::document::view&)> onInstrument,
-            std::function<void(T* context)> onFinish)
+            std::function<void(T* ctx, const std::string_view& sym)> onInstrument,
+            std::function<void(T* ctx, const bsoncxx::document::view& tx)> onTx,
+            std::function<void(T* ctx)> onFinish)
     {
         LDEBUG(tag, "get stock&etf: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
         (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), projection,
@@ -409,29 +412,39 @@ private:
 
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
 
-            auto iterate_stock = [context,&onInstrument](mongocxx::cursor&& cursor){
-              for (auto doc_view : cursor){
+            // Building the filter document
+            document filter_builder{};
+            filter_builder << "type" << open_document << "$in" << open_array;
+            for (const auto& type : asset_types) {
+                filter_builder << type;
+            }
+            filter_builder << close_array << close_document;
+
+            if ( symbol.size() !=0 ) {
+                filter_builder << "name" << symbol;
+                LDEBUG(tag, "sym = " << symbol);
+            }
+
+            mongocxx::options::find opts{};
+            if(projection != nullptr){
+                opts.projection(projection->view());
+            }
+ 
+            for (auto doc_view : INSTRUMENT_COLLECTION.find(filter_builder.view(), opts)){
                 //auto has = doc_view.find("type") != doc_view.end();
                 //LINFO(tag, "has type = " << has);
-                onInstrument(context, doc_view);
-              }
-            };
-            document filter_builder{};
-            filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
+                const std::string_view& my_symbol = doc_view["name"].get_string();
+                onInstrument(context, my_symbol);
+
+                const auto& tx = doc_view["tx"].get_document().view();
+ 
+
+            }
+ 
 
             if(broker.size() == 0){
                 LDEBUG(tag, "broker not specified");
-                if ( symbol.size() !=0 ) {
-                    filter_builder << "name" << symbol;
-                    LDEBUG(tag, "sym = " << symbol);
-                }
-
-                mongocxx::options::find opts{};
-                if(projection != nullptr){
-                    opts.projection(projection->view());
-                }
-                iterate_stock(INSTRUMENT_COLLECTION.find(filter_builder.view(), opts));
-            }
+           }
             else{
                 get_tx_by_symbol_and_broker(
                     std::move(filter_builder), 
