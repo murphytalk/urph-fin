@@ -191,34 +191,44 @@ public:
             for(const auto& param: params){
                 const char* fund_name = param.name.c_str();
                 LINFO(tag, "finding fund " << fund_name);
+
+                get_instrument_tx<FundsBuilder>(
+                    builder,true,fund_name,nullptr,param.update_date.c_str(), nullptr,
+                    [](FundsBuilder * b, const std::string_view& sym, const std::string_view&,uint16_t){},
+                    [this](FundsBuilder * builder,const std::string_view& sym, const bsoncxx::document::view& tx){
+                        const std::string_view& broker = tx["broker"].get_string();
+                        const int amt = tx["amount"].get_int32();
+                        const double capital = safe_get_double(tx["capital"]);
+                        const double market_value = safe_get_double(tx["market_value"]);
+                        const double price = safe_get_double(tx["price"]);
+                        const double profit = market_value - capital;
+                        const double roi = profit / capital;
+                        const timestamp date = tx["date"].get_int32();
+                        LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << sym);
+                        builder->add_fund(
+                            broker, sym,
+                            amt,
+                            capital,
+                            market_value,
+                            price,
+                            profit,
+                            roi,
+                            date
+                        );
+                    },
+                    [](FundsBuilder *builder){ 
+                        if(builder->alloc->has_enough_counter()) builder->succeed(); else{
+                            LDEBUG(tag, "not enough counter, waiting for more");
+                        }
+                    }
+                );
+
                 const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
                 if(fund){
                     LDEBUG(tag, "found fund " << fund_name);
                     const auto& fund_doc = *fund;
                     const auto& tx = fund_doc["tx"].get_document().view()[param.update_date].get_document().view();
-                    const std::string_view& broker = tx["broker"].get_string();
-                    const int amt = tx["amount"].get_int32();
-                    const double capital = safe_get_double(tx["capital"]);
-                    const double market_value = safe_get_double(tx["market_value"]);
-                    const double price = safe_get_double(tx["price"]);
-                    const double profit = market_value - capital;
-                    const double roi = profit / capital;
-                    const timestamp date = tx["date"].get_int32();
-                    LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << fund_name );
-                    builder->add_fund(
-                        broker, fund_name,
-                        amt,
-                        capital,
-                        market_value,
-                        price,
-                        profit,
-                        roi,
-                        date
-                    );
-                    if(builder->alloc->has_enough_counter()) builder->succeed(); else{
-                        LDEBUG(tag, "not enough counter, waiting for more");
-                    }
-                }
+               }
                 else{
                     LERROR(tag, "Missing fund " << fund_name);
                 }
@@ -229,13 +239,20 @@ public:
     void get_known_stocks(OnStrings onStrings, void *ctx) {
         auto projection = new bsoncxx::builder::stream::document();
         *projection << "_id" << 0 << "name" << 1 ;
-        get_stock_and_etf<StringsBuilder>(new StringsBuilder(10),
-            nullptr, nullptr,  projection,
-            [](StringsBuilder* b, const bsoncxx::document::view& doc_view){ b->add(doc_view["name"].get_string()); },
+        //std::vector<std::string> assets = {"Stock", "ETF"};
+        get_instrument_tx<StringsBuilder>(
+            new StringsBuilder(10),
+            false,
+            nullptr, nullptr, nullptr, projection,
+            [](StringsBuilder* b, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num){ 
+                b->add(sym); 
+            },
+            [](StringsBuilder* b, const std::string_view&, const bsoncxx::document::view&){},
             [=](StringsBuilder* b){
                 onStrings(b->strings, ctx);
                 delete b;
-            }
+            },
+            true
         );
     }
 
@@ -288,33 +305,15 @@ public:
         builder->prepare_stock_alloc_dont_know_total_num(10);
         auto projection = new bsoncxx::builder::stream::document();
         *projection << "_id" << 0 ;
-        get_stock_and_etf<StockPortfolioBuilder>(
-            builder, symbol, broker, projection,
-            [this](StockPortfolioBuilder* b, const bsoncxx::document::view& doc_view){
-                const std::string_view& my_symbol = doc_view["name"].get_string();
-                const std::string_view& ccy = doc_view["ccy"].get_string();
-                b->add_stock(my_symbol, ccy);
-                const auto& tx = doc_view["tx"].get_document().view();
-                auto tx_num = std::distance(tx.begin(), tx.end());
-                b->prepare_tx_alloc(std::string(my_symbol), tx_num);
-                for(auto& tx_obj: tx){
-                    try{
-                        if(tx_obj.type() == bsoncxx::type::k_array){
-                            auto array = tx_obj.get_array().value;
-                            for(auto&& o: array){
-                                const auto& v = o.get_document().view();
-                                add_tx(b,my_symbol, v);
-                            }
-                        }
-                        else{
-                            const auto& v = tx_obj.get_document().view();
-                            add_tx(b,my_symbol, v);
-                        }
-                    }
-                    catch(const std::exception& ex){
-                        LERROR(log, "failed to get stock tx " << ex.what());
-                    }
-                }
+        //std::vector<std::string> assets = {"Stock", "ETF"};
+        get_instrument_tx<StockPortfolioBuilder>(
+            builder, false, symbol, broker, nullptr, projection,
+            [](StockPortfolioBuilder* b, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num){
+                b->add_stock(sym, ccy);
+                b->prepare_tx_alloc(std::string(sym), max_tx_num);
+            },
+            [this](StockPortfolioBuilder* b,const std::string_view& sym, const bsoncxx::document::view& tx){
+                add_tx(b, sym, tx);                
             },
             [](StockPortfolioBuilder *b){ b->complete(); }
         );
@@ -336,89 +335,52 @@ private:
     }
 
     #define MV_STR(p) std::move(std::string(p == nullptr?"":p))
-    void get_tx_by_symbol_and_broker(document&& filter_builder,const std::string& symbol, const std::string& broker, bsoncxx::builder::stream::document* projection,std::function<void(mongocxx::cursor&&)> iterate_instrument){
-        /* basically this native query
-        db.instrument.aggregate([
-          {
-            "$match": {
-              "name": "NFLX"
-            }
-          },
-          {
-            "$addFields": {
-              "tx": {
-                "$filter": {
-                  "input": { "$objectToArray": "$tx" },
-                  "as": "tx_doc",
-                  "cond": { "$eq": [ "$$tx_doc.v.broker", "IB" ] }
-                }
-              }
-            }
-          },
-          {
-            "$addFields": {
-              "tx": { "$arrayToObject": "$tx" }
-            }
-          },
-          {
-            "$project": {
-              "_id": 0,
-            }
-          }
-        ])
-        */
-        mongocxx::pipeline pipeline{};
-        pipeline.match(filter_builder << "name" << symbol << finalize);
-
-        pipeline.sort(document{} << "name" << 1 << finalize);
-
-        auto filter = document{} << "tx" << open_document <<
-            "$filter" << open_document <<
-                "input" << open_document <<
-                    "$objectToArray" << "$tx" << close_document <<
-                "as" << "tx_doc" <<
-                "cond" << open_document <<
-                    "$eq" << open_array << "$$tx_doc.v.broker" << broker << close_array <<
-                close_document << close_document << close_document << finalize;
-        pipeline.add_fields(filter.view());
-
-
-        auto back2tx = document {} << "tx" << open_document <<
-            "$arrayToObject" << "$tx" << close_document <<  finalize;
-        pipeline.add_fields(back2tx.view());
-
-        if(projection != nullptr){
-            pipeline.project(projection->view());
-        }
-
-        iterate_instrument(INSTRUMENT_COLLECTION.aggregate(pipeline));
-    }
 
     template<typename T>
-    void get_tx(
+    void get_instrument_tx(
             T* context,
-            std::vector<std::string>&& asset_types,
+            //std::vector<std::string>& asset_types,
+            bool is_fund,
             const char* symbol,
             const char* broker,  
             const char* tx_date, // nullptr => all tx
             bsoncxx::builder::stream::document* projection, //will be freed by this function
-            std::function<void(T* ctx, const std::string_view& sym)> onInstrument,
-            std::function<void(T* ctx, const bsoncxx::document::view& tx)> onTx,
-            std::function<void(T* ctx)> onFinish)
+            std::function<void(T* ctx, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num)> onInstrument,
+            std::function<void(T* ctx, const std::string_view& sym, const bsoncxx::document::view& tx)> onTx,
+            std::function<void(T* ctx)> onFinish, 
+            bool ignoreTx=false)
     {
-        LDEBUG(tag, "get stock&etf: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
+        LDEBUG(tag, "get tx: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
         (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), projection,
-                                         onInstrument=std::move(onInstrument), onFinish=std::move(onFinish)](){
+                                         is_fund,ignoreTx,tx_date,
+                                         onInstrument=std::move(onInstrument), onTx=std::move(onTx),onFinish=std::move(onFinish)](){
 
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
 
+/*
             // Building the filter document
-            document filter_builder{};
-            filter_builder << "type" << open_document << "$in" << open_array;
-            for (const auto& type : asset_types) {
-                filter_builder << type;
+            document filter_builder {};
+            filter_builder << "type" 
+                << open_document << "$in" 
+                    << open_array;
+                    for (const auto& type : asset_types) {
+                        filter_builder << type;
+                    }
+            filter_builder 
+                    << close_array 
+                << close_document;
+
+            if ( symbol.size() !=0 ) {
+                filter_builder << "name" << symbol;
+                LDEBUG(tag, "sym = " << symbol);
             }
-            filter_builder << close_array << close_document;
+            //filter_builder << finalize;
+*/
+            document filter_builder {};
+            if(is_fund)
+                filter_builder << "type" << open_document << "$in" << open_array << "Funds" << close_array << close_document;
+            else
+                filter_builder << "type" << open_document << "$in" << open_array << "Stock" << "ETF" << close_array << close_document;
 
             if ( symbol.size() !=0 ) {
                 filter_builder << "name" << symbol;
@@ -429,32 +391,62 @@ private:
             if(projection != nullptr){
                 opts.projection(projection->view());
             }
- 
-            for (auto doc_view : INSTRUMENT_COLLECTION.find(filter_builder.view(), opts)){
-                //auto has = doc_view.find("type") != doc_view.end();
-                //LINFO(tag, "has type = " << has);
-                const std::string_view& my_symbol = doc_view["name"].get_string();
-                onInstrument(context, my_symbol);
 
-                const auto& tx = doc_view["tx"].get_document().view();
- 
+            if(!ignoreTx){
+                auto expected_broker = [&broker](const bsoncxx::document::view& tx){
+                    return broker.size() == 0 ? true : broker == tx["broker"].get_string().value;
+                };
 
+                auto instrument = [context, &onInstrument](const bsoncxx::document::view& doc_view){
+                    const std::string_view& my_symbol = doc_view["name"].get_string();
+                    const std::string_view& ccy = doc_view["ccy"].get_string();
+    
+                    const auto& tx = doc_view["tx"].get_document().view();
+                    auto tx_num = std::distance(tx.begin(), tx.end());
+                    onInstrument(context, my_symbol, ccy, tx_num);
+                    return my_symbol;
+                };
+
+                auto process_tx_obj = [&expected_broker, context, &onTx](const std::string_view& my_symbol,const bsoncxx::v_noabi::document::element& tx_obj){
+                    try{
+                        if(tx_obj.type() == bsoncxx::type::k_array){
+                            auto array = tx_obj.get_array().value;
+                            for(auto&& o: array){
+                                const auto& v = o.get_document().view();
+                                if(expected_broker(v)) onTx(context, my_symbol, v);
+                            }
+                        }
+                        else{
+                            const auto& v = tx_obj.get_document().view();
+                            if(expected_broker(v)) onTx(context, my_symbol, v);
+                        }
+                    }
+                    catch(const std::exception& ex){
+                        LERROR(log, "failed to get stock tx " << ex.what());
+                    }
+                };
+
+                if(tx_date != nullptr){
+                    const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
+                    if(doc){
+                        const auto& doc_view = doc->view();
+                        const auto& my_symbol = instrument(doc_view);
+                        process_tx_obj(my_symbol, doc_view["tx"].get_document().view()[tx_date]);
+                    }
+                    else{
+                        LERROR(tag, "Missing sym=" << symbol << ",broker=" << broker << ",date=" << tx_date );
+                    }
+                }
+                else{
+                    for (auto doc_view : INSTRUMENT_COLLECTION.find(filter_builder.view(), opts)){
+                        const auto& tx = doc_view["tx"].get_document().view();
+                        const auto& my_symbol = instrument(doc_view);
+                        for(auto& tx_obj: tx){
+                            process_tx_obj(my_symbol, tx_obj);
+                        }
+                    }
+                }
             }
- 
-
-            if(broker.size() == 0){
-                LDEBUG(tag, "broker not specified");
-           }
-            else{
-                get_tx_by_symbol_and_broker(
-                    std::move(filter_builder), 
-                    symbol, 
-                    broker, 
-                    projection, 
-                    [&iterate_stock](auto&& cursor){ iterate_stock(std::move(cursor)); }
-                );
-            }
-
 
             onFinish(context);
             delete projection;
