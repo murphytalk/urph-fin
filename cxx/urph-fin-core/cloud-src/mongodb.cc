@@ -239,7 +239,6 @@ public:
     void get_known_stocks(OnStrings onStrings, void *ctx) {
         auto projection = new bsoncxx::builder::stream::document();
         *projection << "_id" << 0 << "name" << 1 ;
-        //std::vector<std::string> assets = {"Stock", "ETF"};
         get_instrument_tx<StringsBuilder>(
             new StringsBuilder(10),
             false,
@@ -305,7 +304,6 @@ public:
         builder->prepare_stock_alloc_dont_know_total_num(10);
         auto projection = new bsoncxx::builder::stream::document();
         *projection << "_id" << 0 ;
-        //std::vector<std::string> assets = {"Stock", "ETF"};
         get_instrument_tx<StockPortfolioBuilder>(
             builder, false, symbol, broker, nullptr, projection,
             [](StockPortfolioBuilder* b, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num){
@@ -339,7 +337,6 @@ private:
     template<typename T>
     void get_instrument_tx(
             T* context,
-            //std::vector<std::string>& asset_types,
             bool is_fund,
             const char* symbol,
             const char* broker,  
@@ -357,25 +354,6 @@ private:
 
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
 
-/*
-            // Building the filter document
-            document filter_builder {};
-            filter_builder << "type" 
-                << open_document << "$in" 
-                    << open_array;
-                    for (const auto& type : asset_types) {
-                        filter_builder << type;
-                    }
-            filter_builder 
-                    << close_array 
-                << close_document;
-
-            if ( symbol.size() !=0 ) {
-                filter_builder << "name" << symbol;
-                LDEBUG(tag, "sym = " << symbol);
-            }
-            //filter_builder << finalize;
-*/
             document filter_builder {};
             if(is_fund)
                 filter_builder << "type" << open_document << "$in" << open_array << "Funds" << close_array << close_document;
