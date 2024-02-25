@@ -452,7 +452,7 @@ int main(int argc, char *argv[])
     if(result["tx"].as<bool>()){
         list_stock_tx(nullptr, nullptr);
     }
-    if(result["stock"].as<bool>()){
+    else if(result["stock"].as<bool>()){
         list_stock_pos();
     }
     else if (result["fund"].as<bool>()){
