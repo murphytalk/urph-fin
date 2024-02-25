@@ -135,83 +135,6 @@ std::pair<double, timestamp> get_rate(const std::string &symbol)
     return it == quotes_by_symbol->mapping.end() ? std::make_pair(std::nan(""), (timestamp)0L) : std::make_pair(it->second->rate, it->second->date);
 }
 
-void print_stock_list(ostream &out, stock_portfolio *p)
-{
-    Table table;
-    table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee", "Date"});
-    auto *port = static_cast<StockPortfolio *>(p);
-    double market_value_sum_jpy = 0.0, profit_sum_jpy = 0.0;
-    int row = 0;
-
-    timestamp fx_date = 0L;
-    for (auto const &stockWithTx : *port)
-    {
-        auto *tx_list = static_cast<StockTxList *>(stockWithTx.tx_list);
-        //LOG_DEBUG("cli", "calc position of " << stockWithTx.instrument->symbol);
-        auto balance = tx_list->calc();
-        if (balance.shares == 0 || std::isnan(balance.shares))
-            continue;
-        ++row;
-        double fx_rate = 1.0;
-        if (strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy) / sizeof(char)) != 0)
-        {
-            const auto &r = get_rate(stockWithTx.instrument->currency + std::string(jpy) + "=X");
-            fx_rate = r.first;
-            fx_date = r.second;
-        }
-        double market_value = std::nan("");
-        double profit = std::nan("");
-        double profit_jpy = std::nan("");
-        const auto &r = get_rate(stockWithTx.instrument->symbol);
-        double price = r.first;
-        timestamp quote_date = r.second;
-        if (!std::isnan(price) && !std::isnan(fx_rate))
-        {
-            market_value = price * balance.shares;
-            profit = (price - balance.vwap) * balance.shares;
-            profit_jpy = fx_rate * profit;
-            market_value_sum_jpy += fx_rate * market_value;
-            profit_sum_jpy += profit_jpy;
-        }
-        else
-        {
-            //            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
-        }
-        table.add_row({stockWithTx.instrument->symbol,
-                       stockWithTx.instrument->currency,
-                       format_with_commas(balance.vwap),
-                       format_with_commas(price),
-                       format_with_commas(balance.shares),
-                       format_with_commas(market_value),
-                       format_with_commas(to_jpy(fx_rate, market_value)),
-                       format_with_commas(profit),
-                       format_with_commas(profit_jpy),
-                       format_with_commas(balance.liquidated),
-                       format_with_commas(to_jpy(fx_rate, balance.liquidated)),
-                       format_with_commas(balance.fee),
-                       format_timestamp(quote_date)});
-        if (!std::isnan(profit) && profit < 0)
-        {
-            table[row][7].format().font_color(Color::red);
-            table[row][8].format().font_color(Color::red);
-        }
-    }
-    ++row;
-    table.add_row({"SUM", "", "", "", "", "", format_with_commas(market_value_sum_jpy), "", format_with_commas(profit_sum_jpy), "", "", "FX Date", format_timestamp(fx_date)});
-    if (profit_sum_jpy < 0)
-        table[row][8].format().font_color(Color::red);
-    table[row].format().font_style({FontStyle::bold}).font_align(FontAlign::right);
-    free_stock_portfolio(p);
-    for (auto i = 2; i <= 11; ++i)
-        table.column(i).format().font_align(FontAlign::right);
-    table[0].format().font_style({FontStyle::bold}).font_align(FontAlign::center);
-    out << "\n"
-        << table << endl;
-}
-
-
-
-
 const char *groupName[] = {
     "Asset", "Broker", "Currency"};
 
@@ -410,30 +333,14 @@ void main_menu()
             "ls",
             [](ostream &out)
             {
-                get_quotes([&out]()
-                           { get_stock_portfolio(
-                                 nullptr, nullptr, [](stock_portfolio *p, void *param)
-                                 {
-                                    auto* o = reinterpret_cast<ostream*>(param);
-                                    print_stock_list(*o, p); 
-                                 },
-                                 &out); 
-                            }
-                );
+                get_quotes([&out](){ list_stock_pos(nullptr, out, get_rate);});
             },
             "List stock balance");
         stockMenu->Insert(
             "sym",
-            [](ostream &out, string const &symbol)
+            [](ostream &out, string symbol)
             {
-                get_quotes([&out, symbol]()
-                           { get_stock_portfolio(
-                                 nullptr, symbol.c_str(),
-                                 [](stock_portfolio *p, void *param)
-                                 {
-                                    auto* o = reinterpret_cast<ostream*>(param);
-                                    print_stock_list(*o, p); },
-                                 &out); });
+                get_quotes([&out, symbol](){ list_stock_pos(symbol.c_str(), out, get_rate);});
             },
             "List specified stock's balance");
         stockMenu->Insert(
@@ -546,7 +453,7 @@ int main(int argc, char *argv[])
         list_stock_tx(nullptr, nullptr);
     }
     if(result["stock"].as<bool>()){
-        list_stock_pos(nullptr, nullptr);
+        list_stock_pos();
     }
     else if (result["fund"].as<bool>()){
         list_funds(std::string("all"));

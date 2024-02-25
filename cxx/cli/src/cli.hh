@@ -43,5 +43,7 @@ void list_stock_tx(const char *broker, const char *symbol);
 void list_funds(std::string& broker_name, std::ostream &out);
 void list_funds(std::string broker_name);
 
+void list_stock_pos(const char *symbol, std::ostream &out,std::function<std::pair<double, timestamp>(const std::string &symbol)> get_rate);
+void list_stock_pos();
 #endif
 
