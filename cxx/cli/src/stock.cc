@@ -1,4 +1,5 @@
 #include "cli.hh"
+#include <cstring>
 #include <core/urph-fin-core.hxx>
 #include <core/stock.hxx>
 #include <iostream>
@@ -17,7 +18,7 @@ class IStockTx{
         virtual void print() = 0;
 };
 
-static void list_stock_tx(const char *broker, const char *symbol, IStockTx *tx)
+void list_stock_tx(const char *broker, const char *symbol, IStockTx *tx)
 {
     get_stock_portfolio(
         broker, symbol, [](stock_portfolio *p, void *param)
@@ -84,6 +85,102 @@ class StockTxCsv : public IStockTx{
         }
         virtual void print(){ notify_waiting_thread(); }
 };
+
+class IStockPos{
+    public:
+        virtual ~IStockPos(){}
+        //virtual void add_headers(const std::vector<std::string>& cols) = 0;
+        virtual void add_row(stock_balance& balance,StockTxList*) = 0;
+        virtual void print() = 0;
+};
+
+const char jpy[] = "JPY";
+class StockPosTable : public IStockPos{
+    private:
+        Table table;
+        ostream* out;
+        int row;
+        double market_value_sum_jpy;
+        double profit_sum_jpy;
+        timestamp fx_date;
+        std::function<std::pair<double, timestamp>(const std::string &symbol)> get_rate;
+    public:
+        StockPosTable(ostream* o,std::function<std::pair<double, timestamp>(const std::string &symbol)> r):out(o),row(0),market_value_sum_jpy(0.0),profit_sum_jpy(0.0),fx_date(0L),get_rate(r){
+            table.add_row({"Symbol", "Currency", "VWAP", "Price", "Shares", "Market Value", "Market Value(JPY)", "Profit", "Profit(JPY)", "Liquidated", "Liquidated(JPY)", "Fee", "Date"});
+        }
+        virtual void add_row(stock_balance& balance,const StockWithTx& stockWithTx){
+        double fx_rate = 1.0;
+        if (strncmp(jpy, stockWithTx.instrument->currency, sizeof(jpy) / sizeof(char)) != 0)
+        {
+            const auto &r = get_rate(stockWithTx.instrument->currency + std::string(jpy) + "=X");
+            fx_rate = r.first;
+            fx_date = r.second;
+        }
+        double market_value = std::nan("");
+        double profit = std::nan("");
+        double profit_jpy = std::nan("");
+        const auto &r = get_rate(stockWithTx.instrument->symbol);
+        double price = r.first;
+        timestamp quote_date = r.second;
+        if (!std::isnan(price) && !std::isnan(fx_rate))
+        {
+            market_value = price * balance.shares;
+            profit = (price - balance.vwap) * balance.shares;
+            profit_jpy = fx_rate * profit;
+            market_value_sum_jpy += fx_rate * market_value;
+            profit_sum_jpy += profit_jpy;
+        }
+        else
+        {
+            //            LOG_ERROR("cli", "no quote found for " << stockWithTx.instrument->symbol);
+        }
+        table.add_row({stockWithTx.instrument->symbol,
+                       stockWithTx.instrument->currency,
+                       format_with_commas(balance.vwap),
+                       format_with_commas(price),
+                       format_with_commas(balance.shares),
+                       format_with_commas(market_value),
+                       format_with_commas(fx_rate * market_value),
+                       format_with_commas(profit),
+                       format_with_commas(profit_jpy),
+                       format_with_commas(balance.liquidated),
+                       format_with_commas(fx_rate * balance.liquidated),
+                       format_with_commas(balance.fee),
+                       format_timestamp(quote_date)});
+        if (!std::isnan(profit) && profit < 0)
+        {
+            table[row][7].format().font_color(Color::red);
+            table[row][8].format().font_color(Color::red);
+        }
+ 
+        }
+        virtual void print(){
+
+        }
+};
+
+void list_stock_pos(const char *symbol, IStockPos *pos)
+{
+    get_stock_portfolio(
+        nullptr, symbol, [](stock_portfolio *p, void *param)
+        {
+            auto* pos = reinterpret_cast<IStockPos*>(param);
+            auto *port = static_cast<StockPortfolio*>(p);
+            for (auto const &stockWithTx : *port)
+            {
+                auto *tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
+                auto balance = tx_list->calc();
+                if (balance.shares == 0 || std::isnan(balance.shares))
+                   continue;
+                pos->add_row(*tx_list);
+            }
+            pos->print();
+            delete pos;
+        },
+        pos
+    ); 
+}
+
 }
 
 void list_stock_tx(const char *broker, const char *symbol, ostream &out)
@@ -97,3 +194,9 @@ void list_stock_tx(const char *broker, const char *symbol)
     StockTxCsv* tx =  new StockTxCsv();
     list_stock_tx(broker, symbol, tx);
 }
+
+void list_stock_pos(const char *symbol, ostream &out)
+{
+
+}
+

@@ -9,7 +9,7 @@
 #include <locale>
 #include <condition_variable>
 #include <ctime>
-#include<tuple> 
+#include <tuple> 
 
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/algorithm/string.hpp>
@@ -414,9 +414,12 @@ void main_menu()
                            { get_stock_portfolio(
                                  nullptr, nullptr, [](stock_portfolio *p, void *param)
                                  {
-                        auto* o = reinterpret_cast<ostream*>(param);
-                        print_stock_list(*o, p); },
-                                 &out); });
+                                    auto* o = reinterpret_cast<ostream*>(param);
+                                    print_stock_list(*o, p); 
+                                 },
+                                 &out); 
+                            }
+                );
             },
             "List stock balance");
         stockMenu->Insert(
@@ -516,6 +519,7 @@ int main(int argc, char *argv[])
     cxxopts::Options options("urph-fin-cli", "The urph-fin console app");
     options.add_options()
         ("x,tx","Trade history", cxxopts::value<bool>()->default_value("false"))
+        ("r,stock","Stock/ETF position", cxxopts::value<bool>()->default_value("false"))
         ("f,fund","Funds position", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage")
     ;
@@ -540,6 +544,9 @@ int main(int argc, char *argv[])
 
     if(result["tx"].as<bool>()){
         list_stock_tx(nullptr, nullptr);
+    }
+    if(result["stock"].as<bool>()){
+        list_stock_pos(nullptr, nullptr);
     }
     else if (result["fund"].as<bool>()){
         list_funds(std::string("all"));
