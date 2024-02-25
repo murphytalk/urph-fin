@@ -58,6 +58,10 @@ namespace{
         const auto& v = e.get_value();
         return v.type() == bsoncxx::type::k_int32 ? (double)v.get_int32() : v.get_double();
     }
+    int32_t safe_get_int32(const bsoncxx::document::element& e){
+        const auto& v = e.get_value();
+        return v.type() == bsoncxx::type::k_int32 ? v.get_int32() : (int32_t) v.get_double();
+    }
     timestamp safe_get_timestamp(const bsoncxx::document::element& e){
         const auto& v = e.get_value();
         switch (v.type())
@@ -186,24 +190,24 @@ public:
         });
     }
     void get_funds(FundsBuilder *builder, std::vector<FundsParam>&& params){
-        (void)get_thread_pool()->submit([=](){
-            std::lock_guard<std::mutex> lock(mongo_conn_mutex);
             for(const auto& param: params){
                 const char* fund_name = param.name.c_str();
-                LINFO(tag, "finding fund " << fund_name);
+                const char* broker_name = param.broker.c_str();
+                const char* tx_date = param.update_date.c_str();
+                LINFO(tag, "finding fund " << fund_name <<"@"<<tx_date);
 
                 get_instrument_tx<FundsBuilder>(
-                    builder,true,fund_name,nullptr,param.update_date.c_str(), nullptr,
+                    builder,true,fund_name,broker_name,tx_date, nullptr,
                     [](FundsBuilder * b, const std::string_view& sym, const std::string_view&,uint16_t){},
                     [this](FundsBuilder * builder,const std::string_view& sym, const bsoncxx::document::view& tx){
                         const std::string_view& broker = tx["broker"].get_string();
-                        const int amt = tx["amount"].get_int32();
+                        const int amt = safe_get_int32(tx["amount"]);
                         const double capital = safe_get_double(tx["capital"]);
                         const double market_value = safe_get_double(tx["market_value"]);
                         const double price = safe_get_double(tx["price"]);
                         const double profit = market_value - capital;
                         const double roi = profit / capital;
-                        const timestamp date = tx["date"].get_int32();
+                        const timestamp date = safe_get_int32(tx["date"]);
                         LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << sym);
                         builder->add_fund(
                             broker, sym,
@@ -222,18 +226,8 @@ public:
                         }
                     }
                 );
-
-                const auto fund = INSTRUMENT_COLLECTION.find_one( document{} << "name" << fund_name << finalize );
-                if(fund){
-                    LDEBUG(tag, "found fund " << fund_name);
-                    const auto& fund_doc = *fund;
-                    const auto& tx = fund_doc["tx"].get_document().view()[param.update_date].get_document().view();
-               }
-                else{
-                    LERROR(tag, "Missing fund " << fund_name);
-                }
             }
-        });
+            LINFO(tag, "leaving get_funds");
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
@@ -348,8 +342,8 @@ private:
             bool ignoreTx=false)
     {
         LDEBUG(tag, "get tx: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
-        (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), projection,
-                                         is_fund,ignoreTx,tx_date,
+        (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), tx_date=MV_STR(tx_date),projection,
+                                         is_fund,ignoreTx,
                                          onInstrument=std::move(onInstrument), onTx=std::move(onTx),onFinish=std::move(onFinish)](){
 
             std::lock_guard<std::mutex> lock(mongo_conn_mutex);
@@ -394,21 +388,22 @@ private:
                                 if(expected_broker(v)) onTx(context, my_symbol, v);
                             }
                         }
-                        else{
+                        else{ 
                             const auto& v = tx_obj.get_document().view();
                             if(expected_broker(v)) onTx(context, my_symbol, v);
                         }
                     }
                     catch(const std::exception& ex){
-                        LERROR(log, "failed to get stock tx " << ex.what());
+                        LERROR(tag, "failed to get stock tx " << ex.what());
                     }
                 };
 
-                if(tx_date != nullptr){
+                if(tx_date.size() > 0){
                     const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
                     if(doc){
                         const auto& doc_view = doc->view();
                         const auto& my_symbol = instrument(doc_view);
+                        LERROR(tag, "get tx obj for broker="<<broker<<",sym="<<my_symbol<<",tx date="<<tx_date);
                         process_tx_obj(my_symbol, doc_view["tx"].get_document().view()[tx_date]);
                     }
                     else{
