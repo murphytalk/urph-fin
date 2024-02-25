@@ -336,9 +336,9 @@ private:
             const char* broker,  
             const char* tx_date, // nullptr => all tx
             bsoncxx::builder::stream::document* projection, //will be freed by this function
-            std::function<void(T* ctx, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num)> onInstrument,
-            std::function<void(T* ctx, const std::string_view& sym, const bsoncxx::document::view& tx)> onTx,
-            std::function<void(T* ctx)> onFinish, 
+            std::function<void(T* ctx, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num)>&& onInstrument,
+            std::function<void(T* ctx, const std::string_view& sym, const bsoncxx::document::view& tx)>&& onTx,
+            std::function<void(T* ctx)>&& onFinish, 
             bool ignoreTx=false)
     {
         LDEBUG(tag, "get tx: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
