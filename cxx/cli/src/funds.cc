@@ -57,7 +57,6 @@ class FundTable: public IFund{
         int row;
     public:
         FundTable(ostream* o):out(o),row(0){}
-        virtual ~FundTable(){}
         virtual void add_headers(const std::vector<std::string>& cols){
             str_vect_to_table_row(table,cols);
         }
@@ -95,7 +94,6 @@ class FundTable: public IFund{
 
 class FundCsv: public IFund{
     public:    
-        virtual ~FundCsv(){}
         virtual void add_headers(const std::vector<std::string>& cols){
             for(const auto& c: cols){
                 std::cout<<c<<",";

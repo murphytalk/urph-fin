@@ -72,11 +72,11 @@ std::string format_timestamp(timestamp t)
 void str_vect_to_table_row(Table& table,const std::vector<std::string>& cols)
 {
     Table::Row_t cells;
-     cells.reserve(cols.size());
-     for(const auto& str: cols){
+    cells.reserve(cols.size());
+    for(const auto& str: cols){
         cells.emplace_back(str);
-     }
-     table.add_row(cells);
+    }
+    table.add_row(cells);
 }
  
 
@@ -255,43 +255,7 @@ void main_menu()
 
         rootMenu->Insert(
             "bk",
-            [](ostream &os)
-            {
-                get_brokers([](auto *bks, void *ctx){
-                    auto* out = reinterpret_cast<ostream*>(ctx);
-                    auto* brokers = static_cast<AllBrokers*>(bks);
-
-                    Table table;
-                    table.add_row({"Broker", "Currency", "Balance"});
-
-                    for(Broker& broker: *brokers){
-                        if(broker.size(default_member_tag()) == 0){
-                            table.add_row({broker.name, "", ""});
-                            continue;
-                        }
-                        bool broker_name_printed = false;
-                        for(const CashBalance& balance: broker){
-                            if (broker_name_printed)
-                                table.add_row(
-                                    {"", balance.ccy, format_with_commas(balance.balance)}
-                                );
-                            else{
-                                table.add_row(
-                                    {broker.name, balance.ccy, format_with_commas(balance.balance)}
-                                );
-                                broker_name_printed = true;
-                            }
-                        }
-                    }
-                    delete brokers;
-                    table.column(1).format().font_align(FontAlign::center);
-                    table.column(2).format().font_align(FontAlign::right);
-                    table[0].format()
-                        .font_style({FontStyle::bold})
-                        .font_align(FontAlign::center);
-                    *out << "\n" << table << endl; },
-                            &os);
-            },
+            [](ostream &os){ list_broker(os); },
             "List broker summary");
 
         rootMenu->Insert(
@@ -428,6 +392,7 @@ int main(int argc, char *argv[])
         ("x,tx","Trade history", cxxopts::value<bool>()->default_value("false"))
         ("r,stock","Stock/ETF position", cxxopts::value<bool>()->default_value("false"))
         ("f,fund","Funds position", cxxopts::value<bool>()->default_value("false"))
+        ("c,cash","Cash position", cxxopts::value<bool>()->default_value("false"))
         ("h,help", "Print usage")
     ;
 
@@ -457,6 +422,9 @@ int main(int argc, char *argv[])
     }
     else if (result["fund"].as<bool>()){
         list_funds(std::string("all"));
+    }
+    else if (result["cash"].as<bool>()){
+        list_broker();
     }
     else{
         main_menu();
