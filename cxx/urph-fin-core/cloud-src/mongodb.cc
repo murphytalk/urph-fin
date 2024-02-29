@@ -232,7 +232,9 @@ public:
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
         auto projection = new bsoncxx::builder::stream::document();
-        *projection << "_id" << 0 << "name" << 1 ;
+        //TODO: cursor iteration would hang
+        //*projection << "_id" << 0 << "name" << 1 ;
+        *projection << "_id" << 0 ;
         get_instrument_tx<StringsBuilder>(
             new StringsBuilder(10),
             false,
@@ -364,59 +366,58 @@ private:
                 opts.projection(projection->view());
             }
 
-            if(!ignoreTx){
-                auto expected_broker = [&broker](const bsoncxx::document::view& tx){
-                    return broker.size() == 0 ? true : broker == tx["broker"].get_string().value;
-                };
+            auto expected_broker = [&broker](const bsoncxx::document::view& tx){
+                return broker.size() == 0 ? true : broker == tx["broker"].get_string().value;
+            };
 
-                auto instrument = [context, &onInstrument](const bsoncxx::document::view& doc_view){
-                    const std::string_view& my_symbol = doc_view["name"].get_string();
-                    const std::string_view& ccy = doc_view["ccy"].get_string();
-    
-                    const auto& tx = doc_view["tx"].get_document().view();
-                    auto tx_num = std::distance(tx.begin(), tx.end());
-                    onInstrument(context, my_symbol, ccy, tx_num);
-                    return my_symbol;
-                };
+            auto instrument = [context, &onInstrument](const bsoncxx::document::view& doc_view){
+                const std::string_view& my_symbol = doc_view["name"].get_string();
+                const std::string_view& ccy = doc_view["ccy"].get_string();
 
-                auto process_tx_obj = [&expected_broker, context, &onTx](const std::string_view& my_symbol,const bsoncxx::v_noabi::document::element& tx_obj){
-                    try{
-                        if(tx_obj.type() == bsoncxx::type::k_array){
-                            auto array = tx_obj.get_array().value;
-                            for(auto&& o: array){
-                                const auto& v = o.get_document().view();
-                                if(expected_broker(v)) onTx(context, my_symbol, v);
-                            }
-                        }
-                        else{ 
-                            const auto& v = tx_obj.get_document().view();
+                const auto& tx = doc_view["tx"].get_document().view();
+                auto tx_num = std::distance(tx.begin(), tx.end());
+                onInstrument(context, my_symbol, ccy, tx_num);
+                return my_symbol;
+            };
+
+            auto process_tx_obj = [&expected_broker, context, &onTx](const std::string_view& my_symbol,const bsoncxx::v_noabi::document::element& tx_obj){
+                try{
+                    if(tx_obj.type() == bsoncxx::type::k_array){
+                        auto array = tx_obj.get_array().value;
+                        for(auto&& o: array){
+                            const auto& v = o.get_document().view();
                             if(expected_broker(v)) onTx(context, my_symbol, v);
                         }
                     }
-                    catch(const std::exception& ex){
-                        LERROR(tag, "failed to get stock tx " << ex.what());
-                    }
-                };
-
-                if(tx_date.size() > 0){
-                    const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
-                    if(doc){
-                        const auto& doc_view = doc->view();
-                        const auto& my_symbol = instrument(doc_view);
-                        LERROR(tag, "get tx obj for broker="<<broker<<",sym="<<my_symbol<<",tx date="<<tx_date);
-                        process_tx_obj(my_symbol, doc_view["tx"].get_document().view()[tx_date]);
-                    }
-                    else{
-                        LERROR(tag, "Missing sym=" << symbol << ",broker=" << broker << ",date=" << tx_date );
+                    else{ 
+                        const auto& v = tx_obj.get_document().view();
+                        if(expected_broker(v)) onTx(context, my_symbol, v);
                     }
                 }
+                catch(const std::exception& ex){
+                    LERROR(tag, "failed to get stock tx " << ex.what());
+                }
+            };
+
+            if(tx_date.size() > 0){
+                const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
+                if(doc){
+                    const auto& doc_view = doc->view();
+                    const auto& my_symbol = instrument(doc_view);
+                    LERROR(tag, "get tx obj for broker="<<broker<<",sym="<<my_symbol<<",tx date="<<tx_date);
+                    process_tx_obj(my_symbol, doc_view["tx"].get_document().view()[tx_date]);
+                }
                 else{
-                    for (auto doc_view : INSTRUMENT_COLLECTION.find(filter_builder.view(), opts)){
-                        const auto& tx = doc_view["tx"].get_document().view();
-                        const auto& my_symbol = instrument(doc_view);
-                        for(auto& tx_obj: tx){
-                            process_tx_obj(my_symbol, tx_obj);
-                        }
+                    LERROR(tag, "Missing sym=" << symbol << ",broker=" << broker << ",date=" << tx_date );
+                }
+            }
+            else{
+                for (auto doc_view : INSTRUMENT_COLLECTION.find(filter_builder.view(), opts)){
+                    const auto& tx = doc_view["tx"].get_document().view();
+                    const auto& my_symbol = instrument(doc_view);
+                    if(ignoreTx) continue;
+                    for(auto& tx_obj: tx){
+                        process_tx_obj(my_symbol, tx_obj);
                     }
                 }
             }
