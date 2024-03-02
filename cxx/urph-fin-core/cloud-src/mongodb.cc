@@ -389,12 +389,9 @@ private:
                 return broker.size() == 0 ? true : broker == tx["broker"].get_string().value;
             };
 
-            auto instrument = [context, &onInstrument](const bsoncxx::document::view& doc_view){
+            auto instrument = [context, &onInstrument](const bsoncxx::document::view& doc_view, uint32_t tx_num){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
-
-                const auto& tx = doc_view["tx"].get_document().view();
-                auto tx_num = std::distance(tx.begin(), tx.end());
                 onInstrument(context, my_symbol, ccy, tx_num);
                 return my_symbol;
             };
@@ -418,11 +415,22 @@ private:
                 }
             };
 
+            auto get_tx_docs = [](const bsoncxx::document::view& doc_view,uint32_t& tx_num){
+                auto tx_iter = doc_view.find("tx");
+                if(tx_iter != doc_view.end()){
+                    const auto& tx = tx_iter->get_document().view();
+                    tx_num = std::distance(tx.begin(), tx.end());
+                }
+                return tx_iter;
+            };
+
             if(tx_date.size() > 0){
                 const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
                 if(doc){
                     const auto& doc_view = doc->view();
-                    const auto& my_symbol = instrument(doc_view);
+                    uint32_t tx_num = 0;
+                    get_tx_docs(doc_view, tx_num);
+                    const auto& my_symbol = instrument(doc_view, tx_num);
                     LERROR(tag, "get tx obj for broker="<<broker<<",sym="<<my_symbol<<",tx date="<<tx_date);
                     process_tx_obj(my_symbol, doc_view["tx"].get_document().view()[tx_date]);
                 }
@@ -434,10 +442,11 @@ private:
                 auto cursor = INSTRUMENT_COLLECTION.find(filter_builder.view(), opts);
                 LDEBUG(tag, "about to iterate through cursor");
                 for (auto&& doc_view : cursor){
-                    const auto& my_symbol = instrument(doc_view);
-                    LDEBUG(tag, "found sym="<<my_symbol);
-                    if(ignoreTx) continue;
-                    const auto& tx = doc_view["tx"].get_document().view();
+                    uint32_t tx_num = 0;
+                    auto tx_iter = get_tx_docs(doc_view, tx_num);
+                    const auto& my_symbol = instrument(doc_view, tx_num);
+                    if(ignoreTx || tx_num == 0) continue;
+                    const auto& tx = tx_iter->get_document().view();
                     for(auto& tx_obj: tx){
                         process_tx_obj(my_symbol, tx_obj);
                     }
