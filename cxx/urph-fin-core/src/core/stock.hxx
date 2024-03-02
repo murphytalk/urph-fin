@@ -17,8 +17,9 @@ public:
     Stock(){
         symbol = nullptr;
         currency = nullptr;
+        asset_class_ratios = {0,0,0,0};
     }
-    Stock(const std::string_view& n, const std::string_view& ccy);
+    Stock(const std::string_view& n, const std::string_view& ccy,asset_class_ratio&& ratios);
     Stock& operator=(Stock&&);
     ~Stock();
 private:

@@ -4,10 +4,11 @@
 
 #include "../utils.hxx"
 
-Stock::Stock(const std::string_view& n, const std::string_view& ccy)
+Stock::Stock(const std::string_view& n, const std::string_view& ccy,asset_class_ratio&& ratios)
 {
     symbol = copy_str(n);
     currency = copy_str(ccy);
+    asset_class_ratios = std::move(ratios);
 }
 
 Stock& Stock::operator=(Stock&& o)
@@ -17,6 +18,7 @@ Stock& Stock::operator=(Stock&& o)
     currency = o.currency;
     o.symbol = nullptr;
     o.currency = nullptr;
+    asset_class_ratios = std::move(o.asset_class_ratios);
     return *this;
 }
 

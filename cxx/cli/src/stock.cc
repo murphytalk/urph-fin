@@ -78,7 +78,6 @@ class StockTxCsv : public IStockTx{
             for(const auto& c: cols){
                 std::cout<<c<<",";
             }
-            std::cout<<std::endl;
         }
         virtual void add_row(const char* symbol, const std::string& date, const char* broker, const char* side, const std::string& price, const std::string& shares, const std::string& fee){
             std::cout << symbol << "," << date << "," << broker << "," << side << ",\"" << price << "\",\"" << shares << "\",\"" << fee << "\"" <<std::endl;
@@ -96,10 +95,13 @@ class IStockPos{
 class StockPosCsv : public IStockPos{
     public:
         StockPosCsv(){
-            std::cout<<"Symbol,Currency,VWAP,Shares,Liquidated,Fee" << std::endl;
+            std::cout<<"Symbol,Currency,VWAP,Shares,Liquidated,Fee,"
+                     <<"StockRatio," << "BondRatio," << "MetalRatio," << "CashRatio" <<std::endl;
         }
         virtual void add_row(stock_balance& balance,const StockWithTx& stockWithTx){
-            std::cout<< stockWithTx.instrument->symbol << "," << stockWithTx.instrument->currency << ","  << balance.vwap << ","  << balance.shares << ","  << balance.liquidated << ","  << balance.fee << std::endl;
+            std::cout<< stockWithTx.instrument->symbol << "," << stockWithTx.instrument->currency << ","  << balance.vwap << ","  << balance.shares << ","  << balance.liquidated << ","  << balance.fee << ","
+                << stockWithTx.instrument->asset_class_ratios.stock << "," << stockWithTx.instrument->asset_class_ratios.bond << "," 
+                << stockWithTx.instrument->asset_class_ratios.metal << "," << stockWithTx.instrument->asset_class_ratios.cash << std::endl;
         }
         virtual void print(){ notify_waiting_thread(); }
 };

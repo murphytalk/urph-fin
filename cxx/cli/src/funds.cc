@@ -12,7 +12,7 @@ class IFund{
     public:
         virtual ~IFund(){}
         virtual void add_headers(const std::vector<std::string>& cols) = 0;
-        virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const std::string& date) = 0;
+        virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const asset_class_ratio& asset_ratio, const std::string& date) = 0;
         virtual void add_sum_row(const fund_sum&) = 0;
         virtual void print() = 0;
 };
@@ -36,6 +36,7 @@ void list_funds(const string& broker_name, IFund* list)
                     format_with_commas(fund.market_value),
                     fund.profit, 
                     percentage(fund.ROI), 
+                    fund.asset_class_ratios,
                     format_timestamp(fund.date)
                 );
             }
@@ -60,7 +61,7 @@ class FundTable: public IFund{
         virtual void add_headers(const std::vector<std::string>& cols){
             str_vect_to_table_row(table,cols);
         }
-        virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const std::string& date)
+        virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const asset_class_ratio& asset_ratio, const std::string& date)
         {
            ++row;
            table.add_row({
@@ -98,11 +99,14 @@ class FundCsv: public IFund{
             for(const auto& c: cols){
                 std::cout<<c<<",";
             }
-            std::cout<<std::endl;
+            std:cout << "StockRatio," << "BondRatio," << "MetalRatio," << "CashRatio" <<std::endl;
         }
-        virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const std::string& date)
+        virtual void add_row(const string& broker, const char* fund_name, const std::string& amt, const std::string& price, const std::string& capital, const std::string& mkt_value, double profit, const std::string& roi, const asset_class_ratio& asset_ratio, const std::string& date)
         {
-            std::cout << broker << "," << fund_name << ",\"" << amt << "\",\""<< price  << "\" ,\""<<  capital << "\",\""<< mkt_value << "\",\""<<  profit << "\"," << roi << "," <<  date <<std::endl;
+            std::cout << broker << "," << fund_name << ",\"" << amt << "\",\""<< price  << "\" ,\""<<  capital << "\",\""<< mkt_value << "\",\""<<  
+                profit << "\"," << roi << "," <<  date << ","
+                << asset_ratio.stock << "," << asset_ratio.bond << "," << asset_ratio.metal << "," << asset_ratio.cash
+                <<std::endl;            
         }
         virtual void add_sum_row(const fund_sum& sum){}
         virtual void print(){ notify_waiting_thread(); }

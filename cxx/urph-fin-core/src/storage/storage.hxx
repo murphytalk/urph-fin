@@ -186,9 +186,9 @@ public:
     }
 
     StockAlloc* stock_alloc;
-    Stock* add_stock(const std::string_view& symbol, const std::string_view& ccy){
+    Stock* add_stock(const std::string_view& symbol, const std::string_view& ccy, asset_class_ratio& ratio){
         LDEBUG(storage_log_tag, "adding stock " << symbol << "@" << ccy);
-        return new (stock_alloc->next()) Stock(symbol, ccy);
+        return new (stock_alloc->next()) Stock(symbol, ccy, std::move(ratio));
     }
     void prepare_stock_alloc(int n) {
         LDEBUG(storage_log_tag, "Got " << n << " stocks\n");

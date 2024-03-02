@@ -55,7 +55,7 @@ TEST(TestStrings, IncreaseCapacity)
 
 TEST(TestStock, Basic)
 {
-    Stock s1(std::string("SYM"), std::string("USD"));
+    Stock s1(std::string("SYM"), std::string("USD"), std::move(asset_class_ratio{0,0,0,0}));
     stock *s2 = &s1;
     // Expect equality.
     ASSERT_STREQ(s2->symbol, "SYM");
@@ -64,8 +64,8 @@ TEST(TestStock, Basic)
 
 TEST(TestStock, MoveAssignment)
 {
-    Stock s1(std::string("SYM"), std::string("USD"));
-    Stock s2(std::string("NOS"), std::string("JPY"));
+    Stock s1(std::string("SYM"), std::string("USD"), std::move(asset_class_ratio{0,0,0,0}));
+    Stock s2(std::string("NOS"), std::string("JPY"), std::move(asset_class_ratio{0,0,0,0}));
     Stock *p = &s2;
     *p = std::move(s1);
     ASSERT_STREQ(s2.symbol, "SYM");
@@ -90,7 +90,7 @@ TEST(TestPlacementNew, Basic)
 
     stock *stocks[size];
     for(int i = 0; i < size; ++i){
-        stocks[i] = new (pn.next()) Stock(names[i], ccys[i]);
+        stocks[i] = new (pn.next()) Stock(names[i], ccys[i], std::move(asset_class_ratio{0,0,0,0}));
     }
 
     ASSERT_EQ(size, pn.allocated_num());
@@ -124,7 +124,7 @@ TEST(TestPlacementNew, Resize)
     const char *ccys[]  = {"USD" ,"JPY", "HKD"};
 
     for(int i = 0; i < actual_size; ++i){
-        new (pn.next()) Stock(names[i], ccys[i]);
+        new (pn.next()) Stock(names[i], ccys[i], std::move(asset_class_ratio{0,0,0,0}));
     }
 
     ASSERT_EQ(actual_size, pn.allocated_num());
@@ -185,9 +185,10 @@ public:
         // see firestore::get_stock_portfolio
         builder->prepare_stock_alloc(stocks.size());
         int tx_idx = 0;
+        asset_class_ratio ratio{0,0,0,0};
         for (const auto &stock : stocks)
         {
-            builder->add_stock(stock.symbol, stock.currency);
+            builder->add_stock(stock.symbol, stock.currency, ratio);
             const auto &txs = *all_tx[tx_idx++];
             builder->prepare_tx_alloc(stock.symbol, txs.size());
             for (const auto tx : txs)
@@ -455,17 +456,18 @@ StockPortfolio* prepare_stocks()
     builder->prepare_stock_alloc(4);
     const std::string side = {"BUY"};
 
-    builder->add_stock(stock1, stock1_ccy);
+    auto ratio = asset_class_ratio{0,0,0,0};
+    builder->add_stock(stock1, stock1_ccy, ratio);
     builder->prepare_tx_alloc(stock1, 1);
     builder->incr_counter(stock1);
     builder->addTx(stock1_broker, stock1, side, stock1_buy_price, stock1_shares, fee, stock1_date);
 
-    builder->add_stock(stock2, stock2_ccy);
+    builder->add_stock(stock2, stock2_ccy, ratio);
     builder->prepare_tx_alloc(stock2, 1);
     builder->incr_counter(stock2);
     builder->addTx(stock2_broker, stock2, side, stock2_buy_price, stock2_shares, fee, stock2_date);
 
-    builder->add_stock(stock_both_brokers, stock_both_brokers_ccy);
+    builder->add_stock(stock_both_brokers, stock_both_brokers_ccy, ratio);
     builder->prepare_tx_alloc(stock_both_brokers, 3);
     builder->incr_counter(stock_both_brokers);
     builder->addTx(broker1, stock_both_brokers, side, stock_both_brokers_broker1_buy_price, stock_both_brokers_broker1_shares, fee, stock_both_brokers_date);
@@ -474,7 +476,7 @@ StockPortfolio* prepare_stocks()
     builder->incr_counter(stock_both_brokers);
     builder->addTx(broker1, stock_both_brokers, side, stock_both_brokers_broker1_buy_price2, stock_both_brokers_broker1_shares2, fee, stock_both_brokers_date);
 
-    builder->add_stock(stock3, stock3_ccy);
+    builder->add_stock(stock3, stock3_ccy, ratio);
     builder->prepare_tx_alloc(stock3, 1);
     builder->incr_counter(stock3);
     builder->addTx(stock3_broker, stock3, side, stock3_buy_price, stock3_shares, fee, stock3_date);

@@ -95,7 +95,7 @@ namespace{
 
         return ss.str();
     }
-//DEBUG_BUILD
+
     class logger final : public mongocxx::logger {
         public:
             void operator()(mongocxx::log_level level,
@@ -323,7 +323,7 @@ public:
         get_instrument_tx<StockPortfolioBuilder>(
             builder, false, symbol, broker, nullptr, projection,
             [](StockPortfolioBuilder* b, const std::string_view& sym, const std::string_view& ccy,asset_class_ratio& class_ratio, uint16_t max_tx_num){
-                b->add_stock(sym, ccy);
+                b->add_stock(sym, ccy, class_ratio);
                 b->prepare_tx_alloc(std::string(sym), max_tx_num);
             },
             [this](StockPortfolioBuilder* b,const std::string_view& sym, asset_class_ratio&,const bsoncxx::document::view& tx){

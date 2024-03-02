@@ -116,6 +116,7 @@ struct stock
 {
     const char* symbol;
     const char* currency;
+    asset_class_ratio asset_class_ratios;
 };
 
 const unsigned char BUY   = 0;
