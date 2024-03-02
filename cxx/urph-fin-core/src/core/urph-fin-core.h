@@ -48,11 +48,28 @@ typedef void (*OnAllBrokers)(all_brokers*, void* param);
 void get_brokers(OnAllBrokers onAllBrokers, void* param);
 void free_brokers(all_brokers*);
 
+constexpr int ASSET_CLASS_RATIO_STOCK = 0;
+constexpr int ASSET_CLASS_RATIO_BOND  = 1;
+constexpr int ASSET_CLASS_RATIO_METAL = 2;
+constexpr int ASSET_CLASS_RATIO_CASH  = 3;
 struct asset_class_ratio{
     double stock;
     double bond;
     double metal;
     double cash;
+    void set(int i, double v){
+        switch(i){
+            case ASSET_CLASS_RATIO_STOCK:
+                stock = v; break;
+            case ASSET_CLASS_RATIO_BOND:
+                bond = v; break;
+            case ASSET_CLASS_RATIO_METAL:
+                metal = v; break;
+            case ASSET_CLASS_RATIO_CASH:
+                cash = v; break;
+            default: break;
+        }
+    }
 };
 
 // seconds since epoch

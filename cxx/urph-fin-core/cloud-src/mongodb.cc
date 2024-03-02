@@ -54,6 +54,10 @@ namespace{
     const char BROKER [] = "broker";
     const char INSTRUMENT [] = "instrument";
 
+    const char* ASSET_CLASS_RATIO_NAMES [] = {
+        "stock", "bond", "metal", "cash"
+    };
+
     const char tag[] = "mongodb";
     double safe_get_double(const bsoncxx::document::element& e){
         const auto& v = e.get_value();
@@ -427,10 +431,19 @@ private:
                 return tx_iter;
             };
 
+            auto get_ratio = [&class_ratio](const  bsoncxx::document::view&doc){
+                const auto& asset_class = doc["asset_class"].get_document().view();
+                for(int i = 0 ; i < sizeof(ASSET_CLASS_RATIO_NAMES)/sizeof(const char*); ++i){
+                    auto f  = asset_class.find(ASSET_CLASS_RATIO_NAMES[i]);
+                    class_ratio.set(i, f == asset_class.end() ? 0.0 : safe_get_double(*f));
+                }
+            };
+
             if(tx_date.size() > 0){
                 const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
                 if(doc){
                     const auto& doc_view = doc->view();
+                    get_ratio(doc_view);
                     uint32_t tx_num = 0;
                     get_tx_docs(doc_view, tx_num);
                     const auto& my_symbol = instrument(doc_view, tx_num);
@@ -445,6 +458,7 @@ private:
                 auto cursor = INSTRUMENT_COLLECTION.find(filter_builder.view(), opts);
                 LDEBUG(tag, "about to iterate through cursor");
                 for (auto&& doc_view : cursor){
+                    get_ratio(doc_view);
                     uint32_t tx_num = 0;
                     auto tx_iter = get_tx_docs(doc_view, tx_num);
                     const auto& my_symbol = instrument(doc_view, tx_num);
