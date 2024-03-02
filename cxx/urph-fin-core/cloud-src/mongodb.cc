@@ -213,8 +213,8 @@ public:
 
                 get_instrument_tx<FundsBuilder>(
                     builder,true,fund_name,broker_name,tx_date, nullptr,
-                    [](FundsBuilder * b, const std::string_view& sym, const std::string_view&,uint16_t){},
-                    [this](FundsBuilder * builder,const std::string_view& sym, const bsoncxx::document::view& tx){
+                    [](FundsBuilder * b, const std::string_view& sym, const std::string_view&,asset_class_ratio& ratio, uint16_t){},
+                    [this](FundsBuilder * builder,const std::string_view& sym, asset_class_ratio& assert_class_ratios,const bsoncxx::document::view& tx){
                         const std::string_view& broker = tx["broker"].get_string();
                         const int amt = safe_get_int32(tx["amount"]);
                         const double capital = safe_get_double(tx["capital"]);
@@ -232,6 +232,7 @@ public:
                             price,
                             profit,
                             roi,
+                            std::move(assert_class_ratios),
                             date
                         );
                     },
@@ -254,10 +255,10 @@ public:
             new StringsBuilder(10),
             false,
             nullptr, nullptr, nullptr, projection,
-            [](StringsBuilder* b, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num){ 
+            [](StringsBuilder* b, const std::string_view& sym, const std::string_view&,asset_class_ratio&,uint16_t){ 
                 b->add(sym); 
             },
-            [](StringsBuilder* b, const std::string_view&, const bsoncxx::document::view&){},
+            [](StringsBuilder* b, const std::string_view&, asset_class_ratio&,const bsoncxx::document::view&){},
             [=](StringsBuilder* b){
                 onStrings(b->strings, ctx);
                 delete b;
@@ -317,11 +318,11 @@ public:
         *projection << "_id" << 0 ;
         get_instrument_tx<StockPortfolioBuilder>(
             builder, false, symbol, broker, nullptr, projection,
-            [](StockPortfolioBuilder* b, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num){
+            [](StockPortfolioBuilder* b, const std::string_view& sym, const std::string_view& ccy,asset_class_ratio& class_ratio, uint16_t max_tx_num){
                 b->add_stock(sym, ccy);
                 b->prepare_tx_alloc(std::string(sym), max_tx_num);
             },
-            [this](StockPortfolioBuilder* b,const std::string_view& sym, const bsoncxx::document::view& tx){
+            [this](StockPortfolioBuilder* b,const std::string_view& sym, asset_class_ratio&,const bsoncxx::document::view& tx){
                 add_tx(b, sym, tx);                
             },
             [](StockPortfolioBuilder *b){ b->complete(); }
@@ -353,8 +354,8 @@ private:
             const char* broker,  
             const char* tx_date, // nullptr => all tx
             bsoncxx::builder::stream::document* projection, //will be freed by this function
-            std::function<void(T* ctx, const std::string_view& sym, const std::string_view& ccy,uint16_t max_tx_num)>&& onInstrument,
-            std::function<void(T* ctx, const std::string_view& sym, const bsoncxx::document::view& tx)>&& onTx,
+            std::function<void(T* ctx, const std::string_view& sym, const std::string_view& ccy, asset_class_ratio& class_ratio, uint32_t max_tx_num)>&& onInstrument,
+            std::function<void(T* ctx, const std::string_view& sym, asset_class_ratio& class_ratio, const bsoncxx::document::view& tx)>&& onTx,
             std::function<void(T* ctx)>&& onFinish, 
             bool ignoreTx=false)
     {
@@ -389,25 +390,27 @@ private:
                 return broker.size() == 0 ? true : broker == tx["broker"].get_string().value;
             };
 
-            auto instrument = [context, &onInstrument](const bsoncxx::document::view& doc_view, uint32_t tx_num){
+            asset_class_ratio class_ratio {0,0,0,0};
+
+            auto instrument = [context, &class_ratio, &onInstrument](const bsoncxx::document::view& doc_view, uint32_t tx_num){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
-                onInstrument(context, my_symbol, ccy, tx_num);
+                onInstrument(context, my_symbol, ccy, class_ratio, tx_num);
                 return my_symbol;
             };
 
-            auto process_tx_obj = [&expected_broker, context, &onTx](const std::string_view& my_symbol,const bsoncxx::v_noabi::document::element& tx_obj){
+            auto process_tx_obj = [&expected_broker, context, &class_ratio, &onTx](const std::string_view& my_symbol,const bsoncxx::v_noabi::document::element& tx_obj){
                 try{
                     if(tx_obj.type() == bsoncxx::type::k_array){
                         auto array = tx_obj.get_array().value;
                         for(auto&& o: array){
                             const auto& v = o.get_document().view();
-                            if(expected_broker(v)) onTx(context, my_symbol, v);
+                            if(expected_broker(v)) onTx(context, my_symbol, class_ratio, v);
                         }
                     }
                     else{ 
                         const auto& v = tx_obj.get_document().view();
-                        if(expected_broker(v)) onTx(context, my_symbol, v);
+                        if(expected_broker(v)) onTx(context, my_symbol, class_ratio,v);
                     }
                 }
                 catch(const std::exception& ex){

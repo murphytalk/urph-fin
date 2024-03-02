@@ -489,9 +489,10 @@ FundPortfolio* prepare_funds()
         funds = new FundPortfolio(fund_alloc->allocated_num(), fund_alloc->head());
     }));
 
-    builder->add_fund(funds1_broker, funds1, funds1_amt, funds1_capital, funds1_value, funds1_price, funds1_profit, funds1_roi, funds1_date);
-    builder->add_fund(funds2_broker, funds2, funds2_amt, funds2_capital, funds2_value, funds2_price, funds2_profit, funds2_roi, funds2_date);
-    builder->add_fund(funds3_broker, funds3, funds3_amt, funds3_capital, funds3_value, funds3_price, funds3_profit, funds3_roi, funds3_date);
+    asset_class_ratio ratio {0,0,0,0};
+    builder->add_fund(funds1_broker, funds1, funds1_amt, funds1_capital, funds1_value, funds1_price, funds1_profit, funds1_roi, std::move(ratio), funds1_date);
+    builder->add_fund(funds2_broker, funds2, funds2_amt, funds2_capital, funds2_value, funds2_price, funds2_profit, funds2_roi, std::move(ratio), funds2_date);
+    builder->add_fund(funds3_broker, funds3, funds3_amt, funds3_capital, funds3_value, funds3_price, funds3_profit, funds3_roi, std::move(ratio), funds3_date);
     builder->succeed();
     return funds;
 }

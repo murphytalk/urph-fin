@@ -27,6 +27,9 @@ public:
     typedef PlacementNew<T> Alloc;
     Alloc* alloc;
 
+    Builder() = delete;
+    // the only way to instantiate is to call create() to allocate in heap
+    // this will be cast to child class , so child class cannot have any additional data members
     static Builder<T>* create(int num, std::function<void(Alloc*)> called_when_succeed){
         return new Builder<T>(num, called_when_succeed);
     }
@@ -143,7 +146,7 @@ public:
 
 class FundsBuilder: public Builder<fund>{
 public:
-    Fund* add_fund(const std::string_view& broker,  const std::string_view& name,  int amount, double capital, double market_value, double price, double profit, double roi, timestamp date){
+    Fund* add_fund(const std::string_view& broker,  const std::string_view& name,  int amount, double capital, double market_value, double price, double profit, double roi, asset_class_ratio&& ratios, timestamp date){
         return new (alloc->next()) Fund(broker, name,
                                         amount,
                                         capital,
@@ -151,6 +154,7 @@ public:
                                         price,
                                         profit,
                                         roi,
+                                        std::move(ratios),
                                         date
         );
     }

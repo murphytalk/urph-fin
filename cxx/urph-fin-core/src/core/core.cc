@@ -183,7 +183,7 @@ FundPortfolio::~FundPortfolio()
     delete []first_fund;
 }
 
-Fund::Fund(const std::string_view& b,  const std::string_view&n, int a, double c, double m, double prc, double p, double r, timestamp d)
+Fund::Fund(const std::string_view& b,  const std::string_view&n, int a, double c, double m, double prc, double p, double r,asset_class_ratio&& ratios, timestamp d)
 {
     broker = copy_str(b);
     name = copy_str(n);
@@ -193,6 +193,7 @@ Fund::Fund(const std::string_view& b,  const std::string_view&n, int a, double c
     price = prc;
     profit = p;
     ROI = r;
+    asset_class_ratios = std::move(ratios);
     date = d;
 }
 

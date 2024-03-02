@@ -48,6 +48,12 @@ typedef void (*OnAllBrokers)(all_brokers*, void* param);
 void get_brokers(OnAllBrokers onAllBrokers, void* param);
 void free_brokers(all_brokers*);
 
+struct asset_class_ratio{
+    double stock;
+    double bond;
+    double metal;
+    double cash;
+};
 
 // seconds since epoch
 typedef int64_t timestamp;
@@ -61,6 +67,7 @@ struct fund{
     double price;
     double profit;
     double ROI;
+    asset_class_ratio asset_class_ratios;
     timestamp date;
 };
 
