@@ -30,6 +30,7 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/stdx.hpp>
 #include <mongocxx/uri.hpp>
+#include <mongocxx/logger.hpp>
 #include <mongocxx/exception/exception.hpp>
 #include <mongocxx/instance.hpp>
 #include <bsoncxx/builder/stream/helpers.hpp>
@@ -90,11 +91,21 @@ namespace{
 
         return ss.str();
     }
-
+//DEBUG_BUILD
+    class logger final : public mongocxx::logger {
+        public:
+            void operator()(mongocxx::log_level level,
+                            bsoncxx::stdx::string_view domain,
+                            bsoncxx::stdx::string_view message) noexcept override {
+                //if (level >= mongocxx::log_level::k_trace)
+                //    return;
+                LDEBUG(tag, '[' << mongocxx::to_string(level) << '@' << domain << "] " << message);
+            }
+    };    
 }
 
 #include "../generated-code/mongodb.cc"
-
+extern "C" void mongoc_log_trace_enable();
 class MongoDbDao
 {
     #define DB client->database(DB_NAME)
@@ -103,11 +114,15 @@ class MongoDbDao
 
 
     std::mutex mongo_conn_mutex;
+    std::unique_ptr<mongocxx::instance> instance;
     std::unique_ptr<mongocxx::client> client;
 public:
     MongoDbDao(OnDone onInitDone, void* caller_provided_param)
     {
+
+        instance = std::make_unique<mongocxx::instance>(bsoncxx::stdx::make_unique<logger>());
         LINFO(tag, "mongodb worker thread started, connecting to " << mongodb_conn_str);
+
         client = std::make_unique<mongocxx::client>(mongocxx::uri(mongodb_conn_str));
         LINFO(tag, "client status " << (bool)*client);
         onInitDone(caller_provided_param);
@@ -363,7 +378,11 @@ private:
 
             mongocxx::options::find opts{};
             if(projection != nullptr){
+                LDEBUG(tag, "has projection");
                 opts.projection(projection->view());
+            }
+            else{
+                LDEBUG(tag, "no projection");
             }
 
             auto expected_broker = [&broker](const bsoncxx::document::view& tx){
@@ -412,24 +431,30 @@ private:
                 }
             }
             else{
-                for (auto doc_view : INSTRUMENT_COLLECTION.find(filter_builder.view(), opts)){
-                    const auto& tx = doc_view["tx"].get_document().view();
+                auto cursor = INSTRUMENT_COLLECTION.find(filter_builder.view(), opts);
+                LDEBUG(tag, "about to iterate through cursor");
+                for (auto&& doc_view : cursor){
                     const auto& my_symbol = instrument(doc_view);
+                    LDEBUG(tag, "found sym="<<my_symbol);
                     if(ignoreTx) continue;
+                    const auto& tx = doc_view["tx"].get_document().view();
                     for(auto& tx_obj: tx){
                         process_tx_obj(my_symbol, tx_obj);
                     }
                 }
+                LDEBUG(tag, "iterated through cursor");
             }
 
+            LDEBUG(tag, "about to finish");
             onFinish(context);
+            LDEBUG(tag, "finished");
             delete projection;
+            LDEBUG(tag, "projection freed");
         });
     }
 };
 
 
 IDataStorage *create_cloud_instance(OnDone onInitDone, void* caller_provided_param) {
-    mongocxx::instance instance{};
     return new Storage<MongoDbDao>(onInitDone, caller_provided_param);
 }
