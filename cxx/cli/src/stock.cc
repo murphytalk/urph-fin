@@ -78,6 +78,7 @@ class StockTxCsv : public IStockTx{
             for(const auto& c: cols){
                 std::cout<<c<<",";
             }
+            std::cout<<std::endl;
         }
         virtual void add_row(const char* symbol, const std::string& date, const char* broker, const char* side, const std::string& price, const std::string& shares, const std::string& fee){
             std::cout << symbol << "," << date << "," << broker << "," << side << ",\"" << price << "\",\"" << shares << "\",\"" << fee << "\"" <<std::endl;
