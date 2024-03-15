@@ -202,7 +202,7 @@ public:
     }
      void prepare_tx_alloc(const std::string& symbol, int num){
         LDEBUG(storage_log_tag, "Got " << num << " tx for " << symbol);
-        if(num == 0){
+        if(num == 0 && unfinished_stocks >= 0){
             check_completion(nullptr);
         }
         else tx[symbol] = new TxAlloc(num);
