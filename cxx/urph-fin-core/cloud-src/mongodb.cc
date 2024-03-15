@@ -58,7 +58,6 @@ namespace{
         "stock", "bond", "metal", "cash"
     };
 
-    const char tag[] = "mongodb";
     double safe_get_double(const bsoncxx::document::element& e){
         const auto& v = e.get_value();
         return v.type() == bsoncxx::type::k_int32 ? (double)v.get_int32() : v.get_double();
@@ -103,7 +102,7 @@ namespace{
                             bsoncxx::stdx::string_view message) noexcept override {
                 //if (level >= mongocxx::log_level::k_trace)
                 //    return;
-                LDEBUG(tag, '[' << mongocxx::to_string(level) << '@' << domain << "] " << message);
+                LDEBUG( '[' << mongocxx::to_string(level) << '@' << domain << "] " << message);
             }
     };    
 }
@@ -125,12 +124,12 @@ public:
     {
 
         instance = std::make_unique<mongocxx::instance>(bsoncxx::stdx::make_unique<logger>());
-        LINFO(tag, "mongodb worker thread started, connecting to " << mongodb_conn_str);
+        LINFO( "mongodb worker thread started, connecting to " << mongodb_conn_str);
 
         client = std::make_unique<mongocxx::client>(mongocxx::uri(mongodb_conn_str));
-        LINFO(tag, "client status " << (bool)*client);
+        LINFO( "client status " << (bool)*client);
         onInitDone(caller_provided_param);
-        LDEBUG(tag, "mongodb init done");
+        LDEBUG( "mongodb init done");
     }
 
     typedef bsoncxx::document::view BrokerType;
@@ -151,7 +150,7 @@ public:
 
     void get_broker_cash_balance_and_active_funds(const BrokerType &broker_query_result, std::function<void(const BrokerBuilder&)> onBrokerBuilder){
         const auto &name = get_broker_name(broker_query_result);
-        LDEBUG(tag, "Broker " << name);
+        LDEBUG( "Broker " << name);
 
         const auto& cashObj = broker_query_result["cash"].get_document().view();
 
@@ -160,7 +159,7 @@ public:
             for (const auto &c : cashObj)
             {
                 double balance = safe_get_double(c);  // c.get_value().get_double();
-                LDEBUG(tag, "  " << c.key() << " " << balance );
+                LDEBUG( "  " << c.key() << " " << balance );
                 b.add_cash_balance(c.key(), balance);
             }
         };
@@ -175,7 +174,7 @@ public:
         auto funds_update_date_element = broker_query_result["funds_update_date"];
         if(funds_update_date_element){
             const auto& funds_update_date = funds_update_date_element.get_string();
-            LDEBUG(tag, " last funds update date: " << funds_update_date.value );
+            LDEBUG( " last funds update date: " << funds_update_date.value );
 
             const auto& funds = broker_query_result["active_funds"].get_document().view()[funds_update_date].get_array().value;
 
@@ -203,19 +202,19 @@ public:
             auto *all = new AllBrokerBuilder<MongoDbDao, BrokerType>(5 /*init value, will get increased automatically*/);
             auto cursor = BROKER_COLLECTION.find({});
             for(const auto broker: cursor){
-                LDEBUG(tag, "adding broker");
+                LDEBUG( "adding broker");
                 all->add_broker(this, broker);
             }
             onAllBrokersBuilder(all);
         });
     }
     void get_funds(FundsBuilder *builder, std::vector<FundsParam>&& params){
-            LDEBUG(tag, "getting fund");
+            LDEBUG( "getting fund");
             for(const auto& param: params){
                 const char* fund_name = param.name.c_str();
                 const char* broker_name = param.broker.c_str();
                 const char* tx_date = param.update_date.c_str();
-                LINFO(tag, "finding fund " << fund_name <<"@"<<tx_date);
+                LINFO( "finding fund " << fund_name <<"@"<<tx_date);
 
                 get_instrument_tx<FundsBuilder>(
                     builder,true,fund_name,broker_name,tx_date, nullptr,
@@ -229,7 +228,7 @@ public:
                         const double profit = market_value - capital;
                         const double roi = profit / capital;
                         const timestamp date = safe_get_int32(tx["date"]);
-                        LDEBUG(tag, "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << sym);
+                        LDEBUG( "got tx of broker " << broker.data() << " on epoch=" << date << " fund=" << sym);
                         builder->add_fund(
                             broker, sym,
                             amt,
@@ -246,11 +245,11 @@ public:
                         if(builder->alloc->has_enough_counter()) 
                             builder->succeed(); 
                         else
-                            LDEBUG(tag, "not enough counter, waiting for more");
+                            LDEBUG( "not enough counter, waiting for more");
                     }
                 );
             }
-            LINFO(tag, "leaving get_funds");
+            LINFO( "leaving get_funds");
     }
 
     void get_known_stocks(OnStrings onStrings, void *ctx) {
@@ -366,7 +365,7 @@ private:
             std::function<void(T* ctx)>&& onFinish, 
             bool ignoreTx=false)
     {
-        LDEBUG(tag, "get tx: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
+        LDEBUG( "get tx: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
         (void)get_thread_pool()->submit([this, context, symbol=MV_STR(symbol), broker=MV_STR(broker), tx_date=MV_STR(tx_date),projection,
                                          is_fund,ignoreTx,
                                          onInstrument=std::move(onInstrument), onTx=std::move(onTx),onFinish=std::move(onFinish)](){
@@ -381,16 +380,16 @@ private:
 
             if ( symbol.size() !=0 ) {
                 filter_builder << "name" << symbol;
-                LDEBUG(tag, "sym = " << symbol);
+                LDEBUG( "sym = " << symbol);
             }
 
             mongocxx::options::find opts{};
             if(projection != nullptr){
-                LDEBUG(tag, "has projection");
+                LDEBUG( "has projection");
                 opts.projection(projection->view());
             }
             else{
-                LDEBUG(tag, "no projection");
+                LDEBUG( "no projection");
             }
 
             auto expected_broker = [&broker](const bsoncxx::document::view& tx){
@@ -402,7 +401,7 @@ private:
             auto instrument = [context, &class_ratio, &onInstrument](const bsoncxx::document::view& doc_view, uint32_t tx_num){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
-                LDEBUG(tag, "instrument name="<<my_symbol<<",ccy="<<ccy<<",tx num="<<tx_num);
+                LDEBUG( "instrument name="<<my_symbol<<",ccy="<<ccy<<",tx num="<<tx_num);
                 onInstrument(context, my_symbol, ccy, class_ratio, tx_num);
                 return my_symbol;
             };
@@ -422,7 +421,7 @@ private:
                     }
                 }
                 catch(const std::exception& ex){
-                    LERROR(tag, "failed to get stock tx " << ex.what());
+                    LERROR( "failed to get stock tx " << ex.what());
                 }
             };
 
@@ -451,16 +450,16 @@ private:
                     uint32_t tx_num = 0;
                     get_tx_docs(doc_view, tx_num);
                     const auto& my_symbol = instrument(doc_view, tx_num);
-                    LERROR(tag, "get tx obj for broker="<<broker<<",sym="<<my_symbol<<",tx date="<<tx_date);
+                    LERROR( "get tx obj for broker="<<broker<<",sym="<<my_symbol<<",tx date="<<tx_date);
                     process_tx_obj(my_symbol, doc_view["tx"].get_document().view()[tx_date]);
                 }
                 else{
-                    LERROR(tag, "Missing sym=" << symbol << ",broker=" << broker << ",date=" << tx_date );
+                    LERROR( "Missing sym=" << symbol << ",broker=" << broker << ",date=" << tx_date );
                 }
             }
             else{
                 auto cursor = INSTRUMENT_COLLECTION.find(filter_builder.view(), opts);
-                LDEBUG(tag, "about to iterate through cursor");
+                LDEBUG( "about to iterate through cursor");
                 for (auto&& doc_view : cursor){
                     get_ratio(doc_view);
                     uint32_t tx_num = 0;
@@ -472,14 +471,14 @@ private:
                         process_tx_obj(my_symbol, tx_obj);
                     }
                 }
-                LDEBUG(tag, "iterated through cursor");
+                LDEBUG( "iterated through cursor");
             }
 
-            LDEBUG(tag, "about to finish");
+            LDEBUG( "about to finish");
             onFinish(context);
-            LDEBUG(tag, "finished");
+            LDEBUG( "finished");
             delete projection;
-            LDEBUG(tag, "projection freed");
+            LDEBUG( "projection freed");
         });
     }
 };

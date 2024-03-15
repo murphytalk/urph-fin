@@ -31,11 +31,6 @@
 #include "../../mkt-data-src/yahoo-finance/quote.hpp"
 #endif
 
-namespace{
-    const char tag[] = "urph-fin-core";
-}
-
-
 // dont forget to free
 char* copy_str(const char* str, size_t size)
 {
@@ -91,7 +86,7 @@ void Strings::add(const std::string_view& i, float increment_ratio )
 void Strings::increase_capacity(long additional)
 {
     if(additional <= 0 )  return;
-    LDEBUG(tag, "increase strings capacity by " << additional << " from " << capacity);
+    LDEBUG( "increase strings capacity by " << additional << " from " << capacity);
 
     capacity += additional;
     auto** new_strs = new char*[capacity];
@@ -122,10 +117,10 @@ char** Strings::to_str_array()
 Strings::~Strings()
 {
     for(char** p=strs; p!=last_str; ++p){
-        LDEBUG(tag, *p << ",");
+        LDEBUG( *p << ",");
         delete []*p;
     }
-    LDEBUG(tag," deleted. capacity=" << capacity << ",allocated=" <<size());
+    LDEBUG(" deleted. capacity=" << capacity << ",allocated=" <<size());
     delete []strs;
 }
 
@@ -136,7 +131,7 @@ void free_strings(strings* ss)
 
 Broker::Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_balance, char* yyyymmdd, strings* active_funds)
 {
-    LDEBUG(tag, "broker constructor: " << n);
+    LDEBUG( "broker constructor: " << n);
     name = copy_str(n);
     num = ccy_num;
     first_cash_balance = first_ccy_balance;
@@ -145,7 +140,7 @@ Broker::Broker(const std::string_view&n, int ccy_num, cash_balance* first_ccy_ba
 }
 
 Broker::~Broker(){
-    LDEBUG(tag, "freeing broker " << name << " : cash balances:");
+    LDEBUG( "freeing broker " << name << " : cash balances:");
     delete[] name;
 
     delete[] funds_update_date;
@@ -153,9 +148,9 @@ Broker::~Broker(){
     free_placement_allocated_structs<Broker, CashBalance>(this);
     delete[] first_cash_balance;
 
-    LDEBUG(tag, " - active funds");
+    LDEBUG( " - active funds");
     free_strings(active_fund_ids);
-    LDEBUG(tag, " - active funds freed!");
+    LDEBUG( " - active funds freed!");
 }
 
 AllBrokers::AllBrokers(int n, broker* broker)
@@ -166,7 +161,7 @@ AllBrokers::AllBrokers(int n, broker* broker)
 
 AllBrokers::~AllBrokers()
 {
-    LDEBUG(tag, "freeing " << num << " brokers");
+    LDEBUG( "freeing " << num << " brokers");
     free_placement_allocated_structs<AllBrokers, Broker>(this);
     delete []first_broker;
 }
@@ -316,7 +311,7 @@ bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
 #ifdef P_LOG
     init(verbose == nullptr ? plog::info : plog::debug, log_file);
 #endif
-    LDEBUG(tag, "urph-fin-core initializing");
+    LDEBUG( "urph-fin-core initializing");
 
     try{
         storage = create_cloud_instance(onInitDone, caller_provided_param);
@@ -324,25 +319,25 @@ bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
         return true;
     }
     catch(const std::exception& e){
-        LERROR(tag, "Failed to init storage service: " << e.what());
+        LERROR( "Failed to init storage service: " << e.what());
         return false;
     }
 }
 
 void urph_fin_core_close()
 {
-    LINFO(tag, "Freeing storage ... ");
+    LINFO( "Freeing storage ... ");
     delete storage;
-    LINFO(tag, "Storage freed!");
+    LINFO( "Storage freed!");
 
-    LINFO(tag, "Shutting down thread pool ... ");
+    LINFO( "Shutting down thread pool ... ");
     delete thread_pool;
-    LINFO(tag, "Thread pool shutdown!");
+    LINFO( "Thread pool shutdown!");
 }
 
 #define TRY try{
-#define CATCH(error_ret) }catch(const std::runtime_error& e) { LERROR(log_tag, e.what(); return error_ret); }
-#define CATCH_NO_RET }catch(const std::runtime_error& e) { LERROR(log_tag, e.what()); }
+#define CATCH(error_ret) }catch(const std::runtime_error& e) { LERROR( e.what(); return error_ret); }
+#define CATCH_NO_RET }catch(const std::runtime_error& e) { LERROR( e.what()); }
 
 // https://stackoverflow.com/questions/60879616/dart-flutter-getting-data-array-from-c-c-using-ffi
 void get_brokers(OnAllBrokers onAllBrokers, void* param)
@@ -390,31 +385,31 @@ struct get_active_funds_async_helper
 
     void run(const std::function<void()>& clean_func){
         std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
-        LDEBUG(tag, "active fund helper running");
+        LDEBUG( "active fund helper running");
         const char* latest_update_date = nullptr;
         for(const auto* broker: all_broker_pointers){
             if(broker->active_fund_ids == nullptr || broker->funds_update_date == nullptr){
-                LDEBUG(tag, "broker " << broker->name << " does not have funds");
+                LDEBUG( "broker " << broker->name << " does not have funds");
                 continue;
             }
-            LDEBUG(tag, "broker " << broker->name << " has funds on " << broker->funds_update_date);
+            LDEBUG( "broker " << broker->name << " has funds on " << broker->funds_update_date);
             if(latest_update_date == nullptr || strcmp(latest_update_date, broker->funds_update_date) < 0){
                 latest_update_date = broker->funds_update_date;
             }
         }
-        LDEBUG(tag, "latest fund update date " << latest_update_date);
+        LDEBUG( "latest fund update date " << latest_update_date);
         for(auto* broker: all_broker_pointers){
             if(broker->active_fund_ids == nullptr || broker->funds_update_date == nullptr) continue;
             if(strcmp(latest_update_date, broker->funds_update_date) != 0){
-                LDEBUG(tag, "broker " << broker->name << " has no active funds on " << latest_update_date << ", last update date was " << broker->funds_update_date);
+                LDEBUG( "broker " << broker->name << " has no active funds on " << latest_update_date << ", last update date was " << broker->funds_update_date);
                 continue;
             }
             for(auto it = broker->fund_begin(); it!= broker->fund_end(); ++it){
-                LDEBUG(tag, "Adding fund " << *it << " of " << broker->name);
+                LDEBUG( "Adding fund " << *it << " of " << broker->name);
                 fund_params.emplace_back(broker->name, *it, broker->funds_update_date);
             }
         }
-        LDEBUG(tag, "active fund helper to run get funds");
+        LDEBUG( "active fund helper to run get funds");
         get_funds(fund_params, onFunds, param,[clean_func, this](){
             clean_func();
             delete this;
@@ -428,12 +423,12 @@ void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_
     // prerequisite: all brokers have their funds updated on the same day
     h->fund_update_date = brokers->begin()->funds_update_date;
     for(Broker& b: *brokers){
-        LDEBUG(tag, "broker " << b.name << " funds upd date " << b.funds_update_date);
+        LDEBUG( "broker " << b.name << " funds upd date " << b.funds_update_date);
         h->fund_num += b.size(Broker::active_fund_tag());
         h->all_broker_pointers.push_back(&b);
-        LDEBUG(tag, "added broker " << b.name << ", total fund num = " << h->fund_num);
+        LDEBUG( "added broker " << b.name << ", total fund num = " << h->fund_num);
     }
-    LDEBUG(tag, "about to run active fund helper");
+    LDEBUG( "about to run active fund helper");
     h->run(clean_func);
 }
 
@@ -557,7 +552,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
     }
     else{
         (void)get_thread_pool()->submit([=](){
-            LDEBUG(tag, "get quotes start");
+            LDEBUG( "get quotes start");
             auto* const sym = static_cast<Strings* const>(symbols);
 
             auto* builder = static_cast<LatestQuotesBuilder*>(LatestQuotesBuilder::create(sym->capacity,[onQuotes, quotes_context](LatestQuotesBuilder::Alloc* alloc){
@@ -566,7 +561,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
 
             int i = 0;
             for(auto name: *sym){
-                LDEBUG(tag, "Getting quote for " << name);
+                LDEBUG( "Getting quote for " << name);
                 onProgress(progress_ctx, ++i, sym->size());
                 YahooFinance::Quote q(name);
                 auto to = std::chrono::system_clock::now() - std::chrono::hours(24);
@@ -578,7 +573,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
                 );
                 auto spots = q.nbSpots();
                 if(spots == 0){
-                    LERROR(tag, "No quote for " << name << " since " << BACK_DAYS << " days ago");
+                    LERROR( "No quote for " << name << " since " << BACK_DAYS << " days ago");
                 }
                 else{
                     auto s = q.getSpot(spots - 1);
@@ -588,7 +583,7 @@ void get_quotes(strings* symbols, OnProgress onProgress, void *progress_ctx, OnQ
 
             builder->succeed();
             delete sym;
-            LDEBUG(tag, "get quotes end");
+            LDEBUG( "get quotes end");
         });
     }
 }
@@ -619,7 +614,7 @@ quotes* get_quotes(int num, const char **symbols_head)
         }
         catch(std::runtime_error& e)
         {
-            LERROR(core_log_tag,e.what());
+            LERROR(e.what());
             all_quotes = nullptr;
             cv.notify_one();
         }
@@ -822,11 +817,11 @@ void AllAssets::load_stocks(StockPortfolio* sp)
     AssetItems grouped_by_sym_and_broker;
     for(auto const& stockWithTx: *sp){
         StockTxList *tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
-        LDEBUG(assets_tag, "stock=" << stockWithTx.instrument->symbol);
+        LDEBUG( "stock=" << stockWithTx.instrument->symbol);
         // group tx by broker
         for(auto& by_broker: group_by(tx_list->ptr_begin(),tx_list->ptr_end(), [](const StockTx* tx){ return std::string(tx->broker); })){
             auto& broker = by_broker.first;
-            LDEBUG(assets_tag, "broker=" << broker);
+            LDEBUG( "broker=" << broker);
             const auto& balance = StockTxList::calc(by_broker.second.begin(), by_broker.second.end());
             if(balance.shares == 0) continue;
             double value, profit =  nan;
@@ -875,7 +870,7 @@ namespace{
             return assets->second;
         }
         else{
-            LERROR(tag, "Cannot find assets by handle " << asset_handle);
+            LERROR( "Cannot find assets by handle " << asset_handle);
             return nullptr;
         }
     }
@@ -1053,7 +1048,7 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
     auto lvl2 = LvlGroup(level2_group);
     auto lvl3 = LvlGroup(level3_group);
 
-    LDEBUG(overview_tag, "lvl1=" << lvl1.group_name << ",lvl2="<<lvl2.group_name<<",lvl3="<<lvl3.group_name);
+    LDEBUG( "lvl1=" << lvl1.group_name << ",lvl2="<<lvl2.group_name<<",lvl3="<<lvl3.group_name);
 
     double lvl1_sum = 0.0, lvl1_sum_profit = 0.0;
     const auto& lvl1_grp = group_by(assets->items.begin(),assets->items.end(), lvl1);
@@ -1062,14 +1057,14 @@ overview* get_overview(AllAssets* assets, const char* main_ccy, GROUP level1_gro
         const auto& l1_name = l1.first;
         auto& lvl2_grp = l1.second;
 
-        LDEBUG(overview_tag, "Level 1 " << l1_name);
+        LDEBUG( "Level 1 " << l1_name);
 
         PlacementNew<overview_item_container> container_alloc(lvl2_grp.size());
 
         double lvl2_sum = 0.0, lvl2_sum_profit = 0.0;
         for(auto& l2: group_by(lvl2_grp.begin(),lvl2_grp.end(),lvl2)){
             const auto& l2_name = l2.first;
-            LDEBUG(overview_tag, "Level 2 " << l2_name);
+            LDEBUG( "Level 2 " << l2_name);
             PlacementNew<overview_item> item_alloc(l2.second.size());
             double sum = 0.0, sum_profit = 0.0;
             for(auto&& l3: l2.second){

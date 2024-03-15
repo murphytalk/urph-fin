@@ -17,10 +17,6 @@
 #include "../core/urph-fin-core.hxx"
 #include "../core/stock.hxx"
 
-namespace{
-    const char storage_log_tag[] = "urph-fin-storage";
-}
-
 template <typename T>
 class Builder : public NonCopyableMoveable{
 public:
@@ -38,12 +34,12 @@ public:
         delete alloc;
     }
     inline void succeed() {
-        LDEBUG(storage_log_tag, "Builder succeeded");
+        LDEBUG( "Builder succeeded");
         onSuccess(alloc);
         delete this;
     }
     inline void failed(){
-        LDEBUG(storage_log_tag, "Builder failed");
+        LDEBUG( "Builder failed");
         delete this;
     }
 protected:
@@ -86,12 +82,12 @@ public:
         fund_update_date = copy_str(yyyymmdd);
     }
     void add_cash_balance(const std::string_view& currency, double balance){
-        LDEBUG(storage_log_tag, "  " << currency << " " << balance);
+        LDEBUG( "  " << currency << " " << balance);
         auto * p = new (balances_alloc->next()) CashBalance(currency, balance);
-        LDEBUG(storage_log_tag, "CashBalance ccy=" << p->ccy << " " << p->balance);
+        LDEBUG( "CashBalance ccy=" << p->ccy << " " << p->balance);
     }
     void add_active_fund(const std::string_view& active_fund_id){
-        LDEBUG(storage_log_tag, "adding fund " << active_fund_id);
+        LDEBUG( "adding fund " << active_fund_id);
         funds_name_builder->add(active_fund_id);
     }
 };
@@ -124,7 +120,7 @@ public:
     typedef PlacementNew<broker> BrokerAlloc;
     BrokerAlloc *alloc;
     AllBrokerBuilder(int n){
-        LDEBUG(storage_log_tag, "Total brokers:" << n);
+        LDEBUG( "Total brokers:" << n);
         alloc = new BrokerAlloc(n);
     }
     ~AllBrokerBuilder(){
@@ -132,7 +128,7 @@ public:
     }
     void add_broker(DAO* dao, const BrokerType& b){
         create_broker(dao, b, [&](const std::string_view&n, int ccy_num, cash_balance* first_ccy_balance, char* fund_update_date, strings* active_funds){
-            LDEBUG(storage_log_tag, "creating broker " << n);
+            LDEBUG( "creating broker " << n);
 #ifdef _MSC_VER
             void* p = all_brokers++;
             return new (p)
@@ -140,7 +136,7 @@ public:
             return new (alloc->next())
 #endif
                 Broker(n, ccy_num, first_ccy_balance, fund_update_date, active_funds);
-        }, [](Broker* broker){ LDEBUG(storage_log_tag, "broker created"); });
+        }, [](Broker* broker){ LDEBUG( "broker created"); });
     }
 };
 
@@ -163,7 +159,7 @@ public:
 class LatestQuotesBuilder: public Builder<quote>{
 public:
     Quote* add_quote(const std::string& symbol, timestamp date, double rate){
-        LDEBUG(storage_log_tag, "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate );
+        LDEBUG( "Quote sym=" << symbol << ", date=" << date << ", rate=" << rate );
         return new (alloc->next()) Quote(symbol, date, rate);
     }
 };
@@ -187,21 +183,21 @@ public:
 
     StockAlloc* stock_alloc;
     Stock* add_stock(const std::string_view& symbol, const std::string_view& ccy, asset_class_ratio& ratio){
-        LDEBUG(storage_log_tag, "adding stock " << symbol << "@" << ccy);
+        LDEBUG( "adding stock " << symbol << "@" << ccy);
         return new (stock_alloc->next()) Stock(symbol, ccy, std::move(ratio));
     }
     void prepare_stock_alloc(int n) {
-        LDEBUG(storage_log_tag, "Got " << n << " stocks");
+        LDEBUG( "Got " << n << " stocks");
         unfinished_stocks = n;
         stock_alloc = new StockAlloc(n);
     }
     void prepare_stock_alloc_dont_know_total_num(int n) {
-        LDEBUG(storage_log_tag, "Assuming " << n << " stocks");
+        LDEBUG( "Assuming " << n << " stocks");
         unfinished_stocks = -1;
         stock_alloc = new StockAlloc(n);
     }
      void prepare_tx_alloc(const std::string& symbol, int num){
-        LDEBUG(storage_log_tag, "Got " << num << " tx for " << symbol);
+        LDEBUG( "Got " << num << " tx for " << symbol);
         if(num == 0 && unfinished_stocks >= 0){
             check_completion(nullptr);
         }
@@ -216,12 +212,12 @@ public:
         --unfinished_stocks;
     }
     void addTx(const std::string_view& broker,const std::string_view& symbol, const std::string_view& type, const double price, const double shares, const double fee, const timestamp date){
-        LDEBUG(storage_log_tag, "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares);
+        LDEBUG( "Adding tx@" << date << " for " << symbol << " broker=" << broker << ",type=" << type << ",price=" << price << ",shares=" << shares);
         const auto s = tx.find(std::string(symbol));
         if(s != tx.end()){
             const auto& tx_alloc = s->second;
             new (tx_alloc->next()) StockTx(broker, shares, price, fee, type, date);
-            LDEBUG(storage_log_tag, "Added tx@" << date << " for " << symbol << " broker=" << broker);
+            LDEBUG( "Added tx@" << date << " for " << symbol << " broker=" << broker);
             if(unfinished_stocks >= 0){
                 // only calls this when we know the extact stock num in advance
                 check_completion(tx_alloc);
@@ -230,11 +226,11 @@ public:
         else throw std::runtime_error("Cannot find tx for stock " + std::string(symbol));
     }
     void incr_counter(const std::string& symbol){
-        LDEBUG(storage_log_tag, "Increasing counter for " << symbol);
+        LDEBUG( "Increasing counter for " << symbol);
         const auto s = tx.find(symbol);
         if(s != tx.end()){
             auto counter = s->second->inc_counter();
-            LDEBUG(storage_log_tag, "Increased counter for " << symbol << " to " << counter );
+            LDEBUG( "Increased counter for " << symbol << " to " << counter );
         }
     }
     inline void failed(){
@@ -280,11 +276,11 @@ private:
     }
     void check_completion(const TxAlloc* alloc){
         if(alloc!=nullptr){
-            LDEBUG(storage_log_tag, "Checking completion: cur =" << alloc->counter() << ", max=" << alloc->max_counter());
+            LDEBUG( "Checking completion: cur =" << alloc->counter() << ", max=" << alloc->max_counter());
         }
         if(alloc == nullptr || alloc->has_enough_counter()){
             --unfinished_stocks;
-            LDEBUG(storage_log_tag, "Enough tx , remaining stocks = " << unfinished_stocks);
+            LDEBUG( "Enough tx , remaining stocks = " << unfinished_stocks);
             if(unfinished_stocks == 0){
                 // no more pending
                 complete();
@@ -320,13 +316,13 @@ class Storage: public IDataStorage{
 public:
     Storage(OnDone onInitDone, void* caller_provided_param){
         dao = std::make_unique<DAO>(onInitDone, caller_provided_param);
-        LDEBUG(storage_log_tag, "Storage instance created");
+        LDEBUG( "Storage instance created");
     };
     Storage(DAO *p): dao(std::unique_ptr<DAO>(p)){
-        LDEBUG(storage_log_tag, "Storage instance created");
+        LDEBUG( "Storage instance created");
     };
     virtual ~Storage(){
-        LDEBUG(storage_log_tag, "Storage instance freed");
+        LDEBUG( "Storage instance freed");
     }
 
     void get_broker(const char* name, OnBroker onBroker, void*param)
