@@ -385,6 +385,7 @@ struct get_active_funds_async_helper
 
     void run(const std::function<void()>& clean_func){
         std::vector<FundsParam> fund_params;//(all_broker_pointers.size());
+        LDEBUG(tag, "active fund helper running");
         const char* latest_update_date = nullptr;
         for(const auto* broker: all_broker_pointers){
             if(broker->active_fund_ids == nullptr || broker->funds_update_date == nullptr){
@@ -408,6 +409,7 @@ struct get_active_funds_async_helper
                 fund_params.emplace_back(broker->name, *it, broker->funds_update_date);
             }
         }
+        LDEBUG(tag, "active fund helper to run get funds");
         get_funds(fund_params, onFunds, param,[clean_func, this](){
             clean_func();
             delete this;
@@ -421,10 +423,12 @@ void do_get_active_funds_from_all_brokers(AllBrokers *brokers, get_active_funds_
     // prerequisite: all brokers have their funds updated on the same day
     h->fund_update_date = brokers->begin()->funds_update_date;
     for(Broker& b: *brokers){
-        LDEBUG(tag, "broker " << b.name << " funds upd date " << b.funds_update_date << "\n");
+        LDEBUG(tag, "broker " << b.name << " funds upd date " << b.funds_update_date);
         h->fund_num += b.size(Broker::active_fund_tag());
         h->all_broker_pointers.push_back(&b);
+        LDEBUG(tag, "added broker " << b.name << ", total fund num = " << h->fund_num);
     }
+    LDEBUG(tag, "about to run active fund helper");
     h->run(clean_func);
 }
 

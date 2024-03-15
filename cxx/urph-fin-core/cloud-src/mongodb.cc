@@ -130,6 +130,7 @@ public:
         client = std::make_unique<mongocxx::client>(mongocxx::uri(mongodb_conn_str));
         LINFO(tag, "client status " << (bool)*client);
         onInitDone(caller_provided_param);
+        LDEBUG(tag, "mongodb init done");
     }
 
     typedef bsoncxx::document::view BrokerType;
@@ -209,6 +210,7 @@ public:
         });
     }
     void get_funds(FundsBuilder *builder, std::vector<FundsParam>&& params){
+            LDEBUG(tag, "getting fund");
             for(const auto& param: params){
                 const char* fund_name = param.name.c_str();
                 const char* broker_name = param.broker.c_str();
@@ -241,9 +243,10 @@ public:
                         );
                     },
                     [](FundsBuilder *builder){ 
-                        if(builder->alloc->has_enough_counter()) builder->succeed(); else{
+                        if(builder->alloc->has_enough_counter()) 
+                            builder->succeed(); 
+                        else
                             LDEBUG(tag, "not enough counter, waiting for more");
-                        }
                     }
                 );
             }
