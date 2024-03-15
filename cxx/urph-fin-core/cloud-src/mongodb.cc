@@ -399,6 +399,7 @@ private:
             auto instrument = [context, &class_ratio, &onInstrument](const bsoncxx::document::view& doc_view, uint32_t tx_num){
                 const std::string_view& my_symbol = doc_view["name"].get_string();
                 const std::string_view& ccy = doc_view["ccy"].get_string();
+                LDEBUG(tag, "instrument name="<<my_symbol<<",ccy="<<ccy<<",tx num="<<tx_num);
                 onInstrument(context, my_symbol, ccy, class_ratio, tx_num);
                 return my_symbol;
             };
