@@ -63,7 +63,6 @@ CashBalance::CashBalance(const std::string_view& n, float v)
 
 CashBalance::~CashBalance()
 {
-    LOG(DEBUG) << " ccy= " << ccy;
     delete[] ccy;
 }
 
@@ -303,15 +302,21 @@ BS::thread_pool* get_thread_pool(){ return thread_pool; }
 
 bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
 {
+    auto log_file0 = getenv("LOGFILE");
+    auto verbose = getenv("VERBOSE");
+    auto log_file = log_file0 == nullptr ? "urph-fin.log" :log_file0;
+
 #ifdef AIX_LOG
     std::vector<AixLog::log_sink_ptr> sinks;
-    auto log_file = getenv("LOGFILE");
-    auto verbose = getenv("VERBOSE");
     auto log_lvl = verbose == nullptr ? AixLog::Severity::info : AixLog::Severity::debug;
-    auto sink = std::make_shared<AixLog::SinkFile>(log_lvl, log_file == nullptr ? "urph-fin.log" :log_file);
+    auto sink = std::make_shared<AixLog::SinkFile>(log_lvl, log_file);
     AixLog::Log::init({sink});
 #endif
-   LDEBUG(tag, "urph-fin-core initializing");
+
+#ifdef P_LOG
+    init(verbose == nullptr ? plog::info : plog::debug, log_file);
+#endif
+    LDEBUG(tag, "urph-fin-core initializing");
 
     try{
         storage = create_cloud_instance(onInitDone, caller_provided_param);

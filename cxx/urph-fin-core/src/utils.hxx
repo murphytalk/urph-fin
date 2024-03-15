@@ -21,6 +21,16 @@
 #define LERROR(tag, stream_expr) LOG(ERROR) << "[" << tag << "] " << "[" << std::hex << std::this_thread::get_id() << "] " << std::dec << stream_expr << "\n"
 #define LDEBUG(tag, stream_expr) LOG(DEBUG) << "[" << tag << "] " << "[" << std::hex << std::this_thread::get_id() << "] " << std::dec << stream_expr << "\n"
 
+#elif defined (P_LOG)
+
+#include <plog/Log.h> 
+#include "plog/Initializers/RollingFileInitializer.h"
+
+#define LINFO(tag, stream_expr)  PLOGI  << "[" << tag << "] " << stream_expr
+#define LWARN(tag, stream_expr)  PLOGW  << "[" << tag << "] " << stream_expr 
+#define LERROR(tag, stream_expr) PLOGE  << "[" << tag << "] " << stream_expr 
+#define LDEBUG(tag, stream_expr) PLOGD  << "[" << tag << "] " << stream_expr 
+
 #else
 
 #define LINFO(tag, stream_expr)

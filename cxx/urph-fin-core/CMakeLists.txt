@@ -84,15 +84,27 @@ if(USE_AWS)
     )
 else()
     if(NOT ANDROID)
-        message("use aixlog")
-        FetchContent_Declare(
-            aixlog
-            GIT_REPOSITORY https://github.com/badaix/aixlog.git
-            GIT_TAG v1.5.0
-        )
-        FetchContent_MakeAvailable(aixlog)
-        include_directories(${aixlog_SOURCE_DIR}/include)
-        add_compile_definitions(AIX_LOG)
+        if(USE_PLOG)
+            message("use plog")
+            FetchContent_Declare(
+                plog
+                GIT_REPOSITORY https://github.com/SergiusTheBest/plog.git
+                GIT_TAG 1.1.10
+            )
+            FetchContent_MakeAvailable(plog)
+            include_directories(${plog_SOURCE_DIR}/include)
+            add_compile_definitions(P_LOG)
+        else(USE_PLOG)
+            message("use aixlog")
+            FetchContent_Declare(
+                aixlog
+                GIT_REPOSITORY https://github.com/badaix/aixlog.git
+                GIT_TAG v1.5.0
+            )
+            FetchContent_MakeAvailable(aixlog)
+            include_directories(${aixlog_SOURCE_DIR}/include)
+            add_compile_definitions(AIX_LOG)
+        endif()
     endif()
 endif()
 

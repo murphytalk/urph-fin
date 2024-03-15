@@ -86,9 +86,9 @@ public:
         fund_update_date = copy_str(yyyymmdd);
     }
     void add_cash_balance(const std::string_view& currency, double balance){
-        LDEBUG(storage_log_tag, "  " << currency << " " << balance << " \n");
+        LDEBUG(storage_log_tag, "  " << currency << " " << balance);
         auto * p = new (balances_alloc->next()) CashBalance(currency, balance);
-        LDEBUG(storage_log_tag, "CashBalance ccy=" << p->ccy << " " << p->balance << "\n");
+        LDEBUG(storage_log_tag, "CashBalance ccy=" << p->ccy << " " << p->balance);
     }
     void add_active_fund(const std::string_view& active_fund_id){
         LDEBUG(storage_log_tag, "adding fund " << active_fund_id);
@@ -191,12 +191,12 @@ public:
         return new (stock_alloc->next()) Stock(symbol, ccy, std::move(ratio));
     }
     void prepare_stock_alloc(int n) {
-        LDEBUG(storage_log_tag, "Got " << n << " stocks\n");
+        LDEBUG(storage_log_tag, "Got " << n << " stocks");
         unfinished_stocks = n;
         stock_alloc = new StockAlloc(n);
     }
     void prepare_stock_alloc_dont_know_total_num(int n) {
-        LDEBUG(storage_log_tag, "Assuming " << n << " stocks\n");
+        LDEBUG(storage_log_tag, "Assuming " << n << " stocks");
         unfinished_stocks = -1;
         stock_alloc = new StockAlloc(n);
     }
@@ -320,13 +320,13 @@ class Storage: public IDataStorage{
 public:
     Storage(OnDone onInitDone, void* caller_provided_param){
         dao = std::make_unique<DAO>(onInitDone, caller_provided_param);
-        LDEBUG(storage_log_tag, "Storage instance created\n");
+        LDEBUG(storage_log_tag, "Storage instance created");
     };
     Storage(DAO *p): dao(std::unique_ptr<DAO>(p)){
-        LDEBUG(storage_log_tag, "Storage instance created\n");
+        LDEBUG(storage_log_tag, "Storage instance created");
     };
     virtual ~Storage(){
-        LDEBUG(storage_log_tag, "Storage instance freed\n");
+        LDEBUG(storage_log_tag, "Storage instance freed");
     }
 
     void get_broker(const char* name, OnBroker onBroker, void*param)
