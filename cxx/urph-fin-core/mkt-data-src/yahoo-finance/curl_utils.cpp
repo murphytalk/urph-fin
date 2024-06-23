@@ -35,6 +35,7 @@ std::string downloadYahooCsv(
 
     if (curl) {
         curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; .NET CLR 1.0.3705;)");
 
         // Write result into the buffer
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeCallback);
