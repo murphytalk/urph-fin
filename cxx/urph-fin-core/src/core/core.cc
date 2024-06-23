@@ -297,6 +297,9 @@ BS::thread_pool* get_thread_pool(){ return thread_pool; }
 
 bool urph_fin_core_init(OnDone onInitDone, void* caller_provided_param)
 {
+#ifdef DEBUG_BUILD
+    LOG_DEBUG << "Debug bulild";
+#endif
     auto log_file0 = getenv("LOGFILE");
     auto verbose = getenv("VERBOSE");
     auto log_file = log_file0 == nullptr ? "urph-fin.log" :log_file0;
@@ -521,7 +524,7 @@ stock_balance get_stock_balance(stock_tx_list* tx)
 
 #ifdef YAHOO_FINANCE
 namespace{
-    const int BACK_DAYS = 3;
+    int BACK_DAYS = 5;
     const char usdjpy[] = "USDJPY=X";
     const char cnyjpy[] = "CNYJPY=X";
     const char hkdjpy[] = "HKDJPY=X";

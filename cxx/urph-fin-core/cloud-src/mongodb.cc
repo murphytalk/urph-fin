@@ -26,6 +26,12 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+
+#ifdef DEBUG_BUILD
+#include <set>
+#include <numeric>
+#endif
+
 #include <bsoncxx/json.hpp>
 #include <mongocxx/client.hpp>
 #include <mongocxx/stdx.hpp>
@@ -210,6 +216,12 @@ public:
     }
     void get_funds(FundsBuilder *builder, std::vector<FundsParam>&& params){
             LDEBUG( "getting fund");
+#ifdef DEBUG_BUILD
+            pending_funds.clear();
+            for(const auto& param: params){
+                pending_funds.insert(param.name);
+            }
+#endif
             for(const auto& param: params){
                 const char* fund_name = param.name.c_str();
                 const char* broker_name = param.broker.c_str();
@@ -241,11 +253,28 @@ public:
                             date
                         );
                     },
-                    [](FundsBuilder *builder){ 
+                    [
+#ifdef DEBUG_BUILD
+                        this
+#endif
+                    ](FundsBuilder *builder, auto& sym){ 
                         if(builder->alloc->has_enough_counter()) 
                             builder->succeed(); 
-                        else
+                        else{
+#ifdef DEBUG_BUILD
+                            LDEBUG("Removing "<< sym);
+                            pending_funds.erase(sym);
+                            LDEBUG("Pending funds num = " << pending_funds.size() << ":" << 
+                                std::accumulate(
+                                    pending_funds.begin(),pending_funds.end(),*pending_funds.begin(),
+                                     [](const std::string &a, const std::string &b) {
+                                            return a + ", " + b;
+                                        }
+                                )
+                            );
+#endif
                             LDEBUG( "not enough counter, waiting for more");
+                        }
                     }
                 );
             }
@@ -265,7 +294,7 @@ public:
                 b->add(sym); 
             },
             [](StringsBuilder* b, const std::string_view&, asset_class_ratio&,const bsoncxx::document::view&){},
-            [=](StringsBuilder* b){
+            [=](StringsBuilder* b,auto&){
                 onStrings(b->strings, ctx);
                 delete b;
             },
@@ -331,10 +360,13 @@ public:
             [this](StockPortfolioBuilder* b,const std::string_view& sym, asset_class_ratio&,const bsoncxx::document::view& tx){
                 add_tx(b, sym, tx);                
             },
-            [](StockPortfolioBuilder *b){ b->complete(); }
+            [](StockPortfolioBuilder *b,auto&){ b->complete(); }
         );
      }
 private:
+#ifdef DEBUG_BUILD
+        std::set<std::string> pending_funds;
+#endif
     void add_tx(StockPortfolioBuilder* b,const std::string_view& my_symbol, const bsoncxx::v_noabi::document::view& v){
         const double price = safe_get_double(v["price"]);
         const timestamp date = safe_get_timestamp(v["date"]);
@@ -362,7 +394,7 @@ private:
             bsoncxx::builder::stream::document* projection, //will be freed by this function
             std::function<void(T* ctx, const std::string_view& sym, const std::string_view& ccy, asset_class_ratio& class_ratio, uint32_t max_tx_num)>&& onInstrument,
             std::function<void(T* ctx, const std::string_view& sym, asset_class_ratio& class_ratio, const bsoncxx::document::view& tx)>&& onTx,
-            std::function<void(T* ctx)>&& onFinish, 
+            std::function<void(T* ctx, const std::string& sym)>&& onFinish, 
             bool ignoreTx=false)
     {
         LDEBUG( "get tx: broker=" << (broker == nullptr ? "null" : broker) << ",sym=" << (symbol == nullptr ? "null" : symbol));
@@ -443,6 +475,7 @@ private:
             };
 
             if(tx_date.size() > 0){
+                LERROR( "looking for broker="<<broker<<",sym="<<symbol<<",tx date="<<tx_date);
                 const auto doc = INSTRUMENT_COLLECTION.find_one(filter_builder.view(), opts);
                 if(doc){
                     const auto& doc_view = doc->view();
@@ -475,7 +508,7 @@ private:
             }
 
             LDEBUG( "about to finish");
-            onFinish(context);
+            onFinish(context, symbol);
             LDEBUG( "finished");
             delete projection;
             LDEBUG( "projection freed");
