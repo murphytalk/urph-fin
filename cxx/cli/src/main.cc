@@ -124,7 +124,6 @@ void get_quotes(std::function<void()> onQuotesLoaded)
         onQuotesLoaded();
 }
 
-const char jpy[] = "JPY";
 inline double to_jpy(double fx_rate, double value)
 {
     return std::isnan(fx_rate) || std::isnan(value) ? std::nan("") : fx_rate * value;
