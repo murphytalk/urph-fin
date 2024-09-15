@@ -7,6 +7,7 @@
 #include <cmath>
 #include <execution>
 #include <numeric>
+#include <iterator>
 
 namespace{
     const char log_tag[] = "urph-fin-storage";
@@ -60,7 +61,12 @@ public:
         auto unclosed_positions = std::deque<UnclosedPosition>();
         stock_balance balance = {0.0, 0.0, 0.0, 0.0};
 
-        for(_RandomAccessIterator i = _first; i != _last; ++i){
+        std::vector<StockTx*> trades;///(std::distance(_first, _last));
+        //std::copy(_first, _last, std::back_inserter(trades));
+        for(auto it=_first;it!=_last;++it) trades.push_back(*it);
+        std::sort(trades.begin(), trades.end(), [](StockTx* tx1, StockTx*tx2){ return tx1->date < tx2->date; });
+
+        for(auto i = trades.begin(); i != trades.end(); ++i){
             StockTx* tx = *i;
             balance.fee += tx->fee;
             if(tx->side == SPLIT){

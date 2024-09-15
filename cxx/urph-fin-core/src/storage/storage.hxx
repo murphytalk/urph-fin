@@ -292,7 +292,7 @@ private:
 struct FundsParam{
     std::string broker;
     std::string name;
-    std::string update_date;    
+    std::string update_date;
     FundsParam(char* b, char* n, char* ud):broker(b),name(n), update_date(ud){}
 };
 
