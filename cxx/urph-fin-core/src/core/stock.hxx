@@ -58,7 +58,6 @@ public:
     template<typename _RandomAccessIterator>
     static stock_balance calc(_RandomAccessIterator _first, _RandomAccessIterator _last){
         auto unclosed_positions = std::deque<UnclosedPosition>();
-        auto pending_sell = std::deque<StockTx*>();
         stock_balance balance = {0.0, 0.0, 0.0, 0.0};
 
         for(_RandomAccessIterator i = _first; i != _last; ++i){
@@ -81,29 +80,14 @@ public:
                 if(s>0){
                     // buy
                     unclosed_positions.push_back({tx->price, tx->shares, tx->fee});
-                    if(pending_sell.empty()){
-                        continue;
-                    }
-
-                    // todo: handle multiple pending sell tx
-                    tx = pending_sell.front();
-                    pending_sell.pop_front();
                 }
-                //else{
+                else{
                     // sell
-
-                    if(unclosed_positions.empty()){
-                        // tx is out of order ...
-                        pending_sell.push_back(tx);
-                        continue;
-                    }
-
                     auto first_unclosed_pos = unclosed_positions.front().shares;
                     for(auto shares = tx->shares; shares > 0;){
                         if(unclosed_positions.empty()){
                             const double& n = std::nan("");
-                            return {n, n, n, n};                        
-                        }
+                            return {n, n, n, n};                        }
                         else if (first_unclosed_pos > shares){
                             unclosed_positions.begin()->shares = first_unclosed_pos - shares;
                             shares = 0;
@@ -118,7 +102,7 @@ public:
                             first_unclosed_pos = unclosed_positions.front().shares;
                         }
                     }
-                //}
+                }
             }
         }
         auto r = std::accumulate(unclosed_positions.begin(), unclosed_positions.end(), UnclosedPosition{0.0, 0.0, 0.0},
