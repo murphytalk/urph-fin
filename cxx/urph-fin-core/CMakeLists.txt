@@ -149,6 +149,12 @@ if(USE_MONGODB)
         GIT_REPOSITORY https://github.com/mongodb/mongo-c-driver
         GIT_TAG 1.23.2
     )
+    # Prevent the building of tests and examples
+    set(ENABLE_TESTS OFF)
+    set(ENABLE_EXAMPLES OFF)
+    set(ENABLE_MAN_PAGES OFF)
+    set(ENABLE_HTML_DOCS OFF)
+    set(ENABLE_TESTS OFF CACHE BOOL "Disable mongo-c-driver tests" FORCE)
     FetchContent_MakeAvailable(mongodb-c-driver)
 
     # mongocxx version below does not inlucde <cstdint> and will have compile error
