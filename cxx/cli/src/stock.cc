@@ -195,7 +195,7 @@ void list_stock_pos(const char *symbol, IStockPos *pos)
             {
                 auto *tx_list = static_cast<StockTxList*>(stockWithTx.tx_list);
                 auto balance = tx_list->calc();
-                if (balance.shares == 0 || std::isnan(balance.shares))
+                if (/*balance.shares == 0 || */std::isnan(balance.shares))
                    continue;
                 pos->add_row(balance, stockWithTx);
             }
